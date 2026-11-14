@@ -1,0 +1,128 @@
+"""Operacje na bazie używane przez endpointy. Bez logiki obliczeniowej (ta jest w core/)."""
+
+from collections.abc import Iterable
+from datetime import UTC, datetime
+
+from sqlalchemy import func, insert, select
+from sqlalchemy.orm import Session
+
+from app.core.health_ingest import Sample
+from app.db.models import Food, FoodNutrient, HealthSample, Nutrient
+from app.off.client import FoodDraft
+
+
+def _utc_naive(dt: datetime) -> datetime:
+    """Klucz porównania niezależny od bazy (SQLite zwraca daty bez strefy)."""
+    return dt.astimezone(UTC).replace(tzinfo=None) if dt.tzinfo else dt
+
+
+def upsert_health_samples(db: Session, samples: Iterable[Sample]) -> tuple[int, int]:
+    """Wstawia nowe próbki i aktualizuje istniejące. Zwraca (wstawione, zaktualizowane)."""
+    samples = list(samples)
+    if not samples:
+        return 0, 0
+    kind, source = samples[0].type, samples[0].source
+    starts = [s.starts_at for s in samples]
+    existing = {
+        _utc_naive(row.starts_at): row
+        for row in db.scalars(
+            select(HealthSample).where(
+                HealthSample.type == kind,
+                HealthSample.source == source,
+                HealthSample.starts_at >= min(starts),
+                HealthSample.starts_at <= max(starts),
+            )
+        )
+    }
+    new_rows: list[dict] = []
+    updated = 0
+    for s in samples:
+        row = existing.get(_utc_naive(s.starts_at))
+        if row is None:
+            new_rows.append(
+                {
+                    "type": s.type,
+                    "starts_at": s.starts_at,
+                    "source": s.source,
+                    "ends_at": s.ends_at,
+                    "value": s.value,
+                    "label": s.label,
+                    "unit": s.unit,
+                }
+            )
+            continue
+        if (row.value, row.label, row.unit) != (s.value, s.label, s.unit):
+            updated += 1
+        row.ends_at, row.value, row.label, row.unit = s.ends_at, s.value, s.label, s.unit
+    if new_rows:
+        db.execute(insert(HealthSample), new_rows)
+    db.commit()
+    return len(new_rows), updated
+
+
+def health_summary(db: Session) -> list[dict]:
+    rows = db.execute(
+        select(
+            HealthSample.type,
+            func.count(),
+            func.max(HealthSample.starts_at),
+            func.max(HealthSample.received_at),
+        ).group_by(HealthSample.type)
+    ).all()
+    out = []
+    for kind, count, last_start, last_received in rows:
+        last = db.scalars(
+            select(HealthSample)
+            .where(HealthSample.type == kind, HealthSample.starts_at == last_start)
+            .limit(1)
+        ).first()
+        out.append(
+            {
+                "type": kind,
+                "count": count,
+                "last_starts_at": last_start,
+                "last_value": last.value if last else None,
+                "last_label": last.label if last else None,
+                "unit": last.unit if last else None,
+                "source": last.source if last else None,
+                "last_received_at": last_received,
+            }
+        )
+    return sorted(out, key=lambda r: r["type"])
+
+
+def find_food_by_barcode(db: Session, barcode: str) -> Food | None:
+    return db.scalars(select(Food).where(Food.barcode == barcode)).first()
+
+
+def food_micros(db: Session, food_id: int) -> list[FoodNutrient]:
+    return list(db.scalars(select(FoodNutrient).where(FoodNutrient.food_id == food_id)))
+
+
+def save_food_draft(db: Session, draft: FoodDraft) -> Food:
+    food = Food(
+        kind="packaged",
+        barcode=draft.barcode,
+        name=draft.name,
+        brand=draft.brand,
+        category=draft.category,
+        serving_g=draft.serving_g,
+        origin="off",
+        macro_source="label",
+        fetched_at=datetime.now(UTC),
+        raw=draft.raw,
+        **draft.macros,
+    )
+    db.add(food)
+    db.flush()
+    known = set(db.scalars(select(Nutrient.id)))
+    for nutrient_id, amount in draft.micros.items():
+        # Mikroskładnik spoza słownika pomijamy: słownik wgrywa się z seed/nutrients.json.
+        if nutrient_id in known:
+            db.add(
+                FoodNutrient(
+                    food_id=food.id, nutrient_id=nutrient_id, amount_per_100g=amount, source="label"
+                )
+            )
+    db.commit()
+    return food

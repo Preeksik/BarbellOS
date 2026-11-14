@@ -1,0 +1,36 @@
+# Praca lokalna.
+#   docker compose up -d db              sama baza (backend i frontend uruchamiasz z VS Code)
+#   docker compose --profile full up     baza + cała aplikacja z obrazu, jak w produkcji
+
+services:
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: barbellos
+      POSTGRES_PASSWORD: barbellos
+      POSTGRES_DB: barbellos
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U barbellos"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  app:
+    profiles: ["full"]
+    build: .
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://barbellos:barbellos@db:5432/barbellos
+      ENVIRONMENT: dev
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:

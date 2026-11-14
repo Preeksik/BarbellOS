@@ -1,0 +1,29 @@
+# Blueprint dla Render (darmowy plan). Plik nie był jeszcze uruchamiany: przy pierwszym
+# wdrożeniu porównaj go z aktualną dokumentacją https://render.com/docs/blueprint-spec
+#
+# Baza: osobno w Neon (darmowy Postgres na Renderze wygasa po 30 dniach).
+# Wartości oznaczone `sync: false` wpisujesz ręcznie w panelu Render.
+
+services:
+  - type: web
+    name: barbellos
+    runtime: docker
+    plan: free
+    region: frankfurt
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/healthz
+    envVars:
+      - key: ENVIRONMENT
+        value: prod
+      - key: DATABASE_URL
+        sync: false
+      - key: SECRET_KEY
+        generateValue: true
+      - key: INGEST_TOKEN
+        generateValue: true
+      - key: APP_PASSWORD_HASH
+        sync: false
+      - key: OFF_USER_AGENT
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false

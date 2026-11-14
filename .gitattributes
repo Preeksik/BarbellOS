@@ -1,0 +1,4 @@
+# Końce linii LF także na Windowsie (skrypty w obrazie Dockera wymagają LF).
+* text=auto eol=lf
+*.png binary
+*.wasm binary

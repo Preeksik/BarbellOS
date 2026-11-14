@@ -1,0 +1,272 @@
+"""Model danych (dokumentacja, rozdział 8).
+
+Zasady:
+- osiem wartości z etykiety UE to kolumny w `food`; mikroskładniki są w `food_nutrient`,
+- `meal_entry` przechowuje wartości zamrożone w chwili zapisu (historia nie zmienia się wstecz),
+- `health_sample` ma klucz naturalny (type, starts_at, source), więc import jest idempotentny.
+"""
+
+from __future__ import annotations
+
+import uuid
+from datetime import UTC, date, datetime
+
+from sqlalchemy import JSON, Date, DateTime, ForeignKey, String, Text, Uuid, func
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from sqlalchemy.types import TypeDecorator
+
+JsonType = JSON().with_variant(JSONB(), "postgresql")
+
+
+class UtcDateTime(TypeDecorator):
+    """Znacznik czasu zawsze w UTC i zawsze ze strefą.
+
+    Postgres przechowuje `timestamptz`. SQLite (testy, szybki start bez Dockera) gubi
+    strefę, więc przy odczycie jest ona dopisywana. Daty bez strefy są odrzucane, żeby
+    czas lokalny nie trafił do bazy przez pomyłkę.
+    """
+
+    impl = DateTime(timezone=True)
+    cache_ok = True
+
+    def process_bind_param(self, value: datetime | None, dialect):
+        if value is None:
+            return None
+        if value.tzinfo is None:
+            raise ValueError("Data bez strefy czasowej: najpierw ustal strefę.")
+        return value.astimezone(UTC)
+
+    def process_result_value(self, value: datetime | None, dialect):
+        if value is None:
+            return None
+        return value.replace(tzinfo=UTC) if value.tzinfo is None else value.astimezone(UTC)
+
+
+TZDateTime = UtcDateTime()
+
+
+class Base(DeclarativeBase):
+    pass
+
+
+class MacroColumns:
+    """Wartości z etykiety UE. W `food` na 100 g, w `meal_entry` dla zapisanej porcji."""
+
+    kcal: Mapped[float | None]
+    protein_g: Mapped[float | None]
+    fat_g: Mapped[float | None]
+    sat_fat_g: Mapped[float | None]
+    carbs_g: Mapped[float | None]
+    sugars_g: Mapped[float | None]
+    fiber_g: Mapped[float | None]
+    salt_g: Mapped[float | None]
+
+
+# ---------- Dieta ----------
+
+
+class Nutrient(Base):
+    """Słownik mikroskładników (seed/nutrients.json)."""
+
+    __tablename__ = "nutrient"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True)
+    name_pl: Mapped[str] = mapped_column(String(64))
+    unit: Mapped[str] = mapped_column(String(8))
+    grp: Mapped[str] = mapped_column(String(16))  # vitamin | mineral
+    rda: Mapped[float | None]
+
+
+class Food(MacroColumns, Base):
+    __tablename__ = "food"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    kind: Mapped[str] = mapped_column(String(16))  # packaged | generic | recipe
+    barcode: Mapped[str | None] = mapped_column(String(14), unique=True)
+    name: Mapped[str] = mapped_column(String(255))
+    name_en: Mapped[str | None] = mapped_column(String(255))
+    brand: Mapped[str | None] = mapped_column(String(255))
+    category: Mapped[str | None] = mapped_column(String(64))
+    serving_g: Mapped[float | None]
+    origin: Mapped[str] = mapped_column(String(16))  # off | fdc | user | ai_label
+    macro_source: Mapped[str] = mapped_column(String(16))  # label | reference | estimated | user
+    generic_parent_id: Mapped[int | None] = mapped_column(ForeignKey("food.id"))
+    fetched_at: Mapped[datetime | None] = mapped_column(TZDateTime)
+    raw: Mapped[dict | None] = mapped_column(JsonType)
+
+
+class FoodAlias(Base):
+    __tablename__ = "food_alias"
+
+    food_id: Mapped[int] = mapped_column(
+        ForeignKey("food.id", ondelete="CASCADE"), primary_key=True
+    )
+    alias: Mapped[str] = mapped_column(String(255), primary_key=True)
+
+
+class FoodNutrient(Base):
+    __tablename__ = "food_nutrient"
+
+    food_id: Mapped[int] = mapped_column(
+        ForeignKey("food.id", ondelete="CASCADE"), primary_key=True
+    )
+    nutrient_id: Mapped[str] = mapped_column(ForeignKey("nutrient.id"), primary_key=True)
+    amount_per_100g: Mapped[float]
+    source: Mapped[str] = mapped_column(String(16))  # label | reference | estimated
+
+
+class MealEntry(MacroColumns, Base):
+    __tablename__ = "meal_entry"
+
+    # UUID nadaje telefon: powtórzona wysyłka z kolejki offline nie tworzy duplikatu.
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True)
+    date: Mapped[date] = mapped_column(Date, index=True)
+    meal_slot: Mapped[str] = mapped_column(String(16))
+    food_id: Mapped[int | None] = mapped_column(ForeignKey("food.id"))
+    food_name: Mapped[str] = mapped_column(String(255))
+    grams: Mapped[float]
+    micros: Mapped[dict | None] = mapped_column(JsonType)
+    source: Mapped[str] = mapped_column(String(16))  # scan | search | photo | text | manual
+    ai_run_id: Mapped[int | None] = mapped_column(ForeignKey("ai_run.id"))
+    created_at: Mapped[datetime] = mapped_column(TZDateTime, server_default=func.now())
+
+
+class DailyTarget(Base):
+    __tablename__ = "daily_target"
+
+    date_from: Mapped[date] = mapped_column(Date, primary_key=True)
+    # Identyfikator mikroskładnika albo nazwa kolumny makro (np. "kcal", "protein_g").
+    nutrient_id: Mapped[str] = mapped_column(String(32), primary_key=True)
+    min: Mapped[float | None]
+    max: Mapped[float | None]
+
+
+# ---------- Trening ----------
+
+
+class Plan(Base):
+    __tablename__ = "plan"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(128))
+    data: Mapped[dict] = mapped_column(JsonType)  # zawartość seed/plan_amp_2027.json
+
+
+class PlanSettings(Base):
+    __tablename__ = "plan_settings"
+
+    plan_id: Mapped[int] = mapped_column(
+        ForeignKey("plan.id", ondelete="CASCADE"), primary_key=True
+    )
+    tm: Mapped[dict] = mapped_column(JsonType, default=dict)  # {"<faza>": {"S":..,"B":..,"D":..}}
+    meet_date: Mapped[date | None] = mapped_column(Date)
+    adj: Mapped[dict] = mapped_column(JsonType, default=dict)  # {"ins": [...], "rem": [...]}
+    collars: Mapped[bool] = mapped_column(default=False)
+
+
+class SessionLog(Base):
+    __tablename__ = "session_log"
+
+    plan_id: Mapped[int] = mapped_column(
+        ForeignKey("plan.id", ondelete="CASCADE"), primary_key=True
+    )
+    session_key: Mapped[str] = mapped_column(String(16), primary_key=True)  # np. "t03-D2"
+    gym: Mapped[str | None] = mapped_column(String(64))
+    bodyweight: Mapped[float | None]
+    note: Mapped[str | None] = mapped_column(Text)
+    updated_at: Mapped[datetime] = mapped_column(
+        TZDateTime, server_default=func.now(), onupdate=func.now()
+    )
+
+
+class SetLog(Base):
+    __tablename__ = "set_log"
+
+    plan_id: Mapped[int] = mapped_column(
+        ForeignKey("plan.id", ondelete="CASCADE"), primary_key=True
+    )
+    session_key: Mapped[str] = mapped_column(String(16), primary_key=True)
+    ex_index: Mapped[int] = mapped_column(primary_key=True)
+    kg: Mapped[float | None]
+    reps: Mapped[float | None]
+    rpe: Mapped[float | None]
+    done: Mapped[bool] = mapped_column(default=False)
+    ok: Mapped[str | None] = mapped_column(String(1))  # podejścia: "y" | "n"
+
+
+# ---------- Zdrowie ----------
+
+
+class HealthSample(Base):
+    """Surowe próbki z Apple Health (wysyła je automatyzacja Skrótów)."""
+
+    __tablename__ = "health_sample"
+
+    type: Mapped[str] = mapped_column(String(24), primary_key=True)
+    starts_at: Mapped[datetime] = mapped_column(TZDateTime, primary_key=True)
+    source: Mapped[str] = mapped_column(String(64), primary_key=True)
+    ends_at: Mapped[datetime | None] = mapped_column(TZDateTime)
+    value: Mapped[float | None]
+    label: Mapped[str | None] = mapped_column(String(32))  # np. faza snu
+    unit: Mapped[str | None] = mapped_column(String(16))
+    received_at: Mapped[datetime] = mapped_column(TZDateTime, server_default=func.now())
+
+
+class HealthDaily(Base):
+    __tablename__ = "health_daily"
+
+    date: Mapped[date] = mapped_column(Date, primary_key=True)
+    sleep_min: Mapped[float | None]
+    sleep_deep_min: Mapped[float | None]
+    sleep_rem_min: Mapped[float | None]
+    hrv_ms: Mapped[float | None]
+    resting_hr: Mapped[float | None]
+    weight_kg: Mapped[float | None]
+    steps: Mapped[float | None]
+    active_kcal: Mapped[float | None]
+    readiness: Mapped[str | None] = mapped_column(String(16))
+    factors: Mapped[list | None] = mapped_column(JsonType)
+
+
+# ---------- AI ----------
+
+
+class AiRun(Base):
+    """Każde wywołanie modelu: podstawa licznika kosztów."""
+
+    __tablename__ = "ai_run"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    task: Mapped[str] = mapped_column(String(32))
+    provider: Mapped[str] = mapped_column(String(16))
+    model: Mapped[str] = mapped_column(String(64))
+    input_tokens: Mapped[int | None]
+    output_tokens: Mapped[int | None]
+    cost_usd: Mapped[float | None]
+    status: Mapped[str] = mapped_column(String(16))
+    created_at: Mapped[datetime] = mapped_column(TZDateTime, server_default=func.now())
+
+
+class CoachNote(Base):
+    __tablename__ = "coach_note"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    date: Mapped[date] = mapped_column(Date, index=True)
+    scope: Mapped[str] = mapped_column(String(8))  # day | week
+    text: Mapped[str] = mapped_column(Text)
+    ai_run_id: Mapped[int | None] = mapped_column(ForeignKey("ai_run.id"))
+
+
+# ---------- Etap 0 ----------
+
+
+class OfflineProbe(Base):
+    """Próba D: zapis wykonany offline, który ma przetrwać zamknięcie aplikacji."""
+
+    __tablename__ = "offline_probe"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True)
+    client_created_at: Mapped[datetime] = mapped_column(TZDateTime)
+    note: Mapped[str | None] = mapped_column(String(128))
+    received_at: Mapped[datetime] = mapped_column(TZDateTime, server_default=func.now())

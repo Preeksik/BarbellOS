@@ -1,0 +1,35 @@
+# Sekrety: nigdy do repo (repo jest publiczne)
+.env
+.env.*
+!.env.example
+
+# Dane osobiste
+# Plan zawiera maksy treningowe i cele. Usuń tę linię, jeśli ma być publiczny.
+seed/plan_amp_2027.json
+scripts/kody.txt
+backups/
+exports/
+*.dump
+*.sql.gz
+*.db
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+build/
+
+# Node
+node_modules/
+dist/
+dev-dist/
+
+# System i edytor
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json

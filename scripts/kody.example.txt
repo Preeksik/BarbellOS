@@ -1,0 +1,4 @@
+# Skopiuj ten plik jako kody.txt (nie trafia do repo) i wpisz 30 kodów z własnej kuchni.
+# Format: kod EAN, spacja, opcjonalnie własna nazwa.
+# Poniższy kod jest przykładem formatu, nie prawdziwym produktem.
+5900000000015 serek wiejski

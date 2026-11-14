@@ -1,0 +1,28 @@
+{
+  "_meta": {
+    "rda_source": "Referencyjne wartości spożycia (RWS) dla dorosłych z rozporządzenia UE 1169/2011, załącznik XIII. To wartości z etykiet, a nie indywidualne zapotrzebowanie.",
+    "sodium_note": "Sód nie ma RWS. Wartość 2400 mg odpowiada referencyjnemu spożyciu soli 6 g i jest górną granicą, nie celem."
+  },
+  "nutrients": [
+    { "id": "vit_a", "name_pl": "Witamina A", "unit": "µg", "grp": "vitamin", "rda": 800 },
+    { "id": "vit_d", "name_pl": "Witamina D", "unit": "µg", "grp": "vitamin", "rda": 5 },
+    { "id": "vit_e", "name_pl": "Witamina E", "unit": "mg", "grp": "vitamin", "rda": 12 },
+    { "id": "vit_k", "name_pl": "Witamina K", "unit": "µg", "grp": "vitamin", "rda": 75 },
+    { "id": "vit_c", "name_pl": "Witamina C", "unit": "mg", "grp": "vitamin", "rda": 80 },
+    { "id": "vit_b1", "name_pl": "Tiamina (B1)", "unit": "mg", "grp": "vitamin", "rda": 1.1 },
+    { "id": "vit_b2", "name_pl": "Ryboflawina (B2)", "unit": "mg", "grp": "vitamin", "rda": 1.4 },
+    { "id": "vit_b3", "name_pl": "Niacyna (B3)", "unit": "mg", "grp": "vitamin", "rda": 16 },
+    { "id": "vit_b6", "name_pl": "Witamina B6", "unit": "mg", "grp": "vitamin", "rda": 1.4 },
+    { "id": "folate", "name_pl": "Foliany", "unit": "µg", "grp": "vitamin", "rda": 200 },
+    { "id": "vit_b12", "name_pl": "Witamina B12", "unit": "µg", "grp": "vitamin", "rda": 2.5 },
+    { "id": "calcium", "name_pl": "Wapń", "unit": "mg", "grp": "mineral", "rda": 800 },
+    { "id": "iron", "name_pl": "Żelazo", "unit": "mg", "grp": "mineral", "rda": 14 },
+    { "id": "magnesium", "name_pl": "Magnez", "unit": "mg", "grp": "mineral", "rda": 375 },
+    { "id": "zinc", "name_pl": "Cynk", "unit": "mg", "grp": "mineral", "rda": 10 },
+    { "id": "potassium", "name_pl": "Potas", "unit": "mg", "grp": "mineral", "rda": 2000 },
+    { "id": "sodium", "name_pl": "Sód", "unit": "mg", "grp": "mineral", "rda": 2400 },
+    { "id": "phosphorus", "name_pl": "Fosfor", "unit": "mg", "grp": "mineral", "rda": 700 },
+    { "id": "selenium", "name_pl": "Selen", "unit": "µg", "grp": "mineral", "rda": 55 },
+    { "id": "iodine", "name_pl": "Jod", "unit": "µg", "grp": "mineral", "rda": 150 }
+  ]
+}
