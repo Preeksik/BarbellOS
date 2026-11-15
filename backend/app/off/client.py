@@ -7,12 +7,15 @@ identyfikujący aplikację, a wynik zapisujemy we własnej bazie.
 `*_100g` w gramach. Próba C porównuje kilka produktów z etykietą.
 """
 
+import re
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 
 import httpx
 
 FIELDS = (
-    "code,product_name,product_name_pl,brands,quantity,serving_quantity,nutriments,categories_tags"
+    "code,product_name,product_name_pl,brands,quantity,product_quantity_unit,serving_quantity,"
+    "nutriments,categories_tags,last_modified_t"
 )
 
 # nasza kolumna -> pole OFF (na 100 g)
@@ -66,6 +69,8 @@ class FoodDraft:
     macros: dict[str, float | None]
     micros: dict[str, float] = field(default_factory=dict)
     raw: dict | None = None
+    unit: str = "g"  # g | ml
+    source_updated_at: datetime | None = None
 
 
 def _num(value) -> float | None:
@@ -73,6 +78,27 @@ def _num(value) -> float | None:
         return float(value)
     except (TypeError, ValueError):
         return None
+
+
+_VOLUME = re.compile(r"\d\s*(ml|cl|dl|l)\b", re.IGNORECASE)
+
+
+def _detect_unit(product: dict) -> str:
+    """Napoje mają wartości na 100 ml. OFF nie mówi tego wprost, więc patrzymy na opakowanie.
+
+    Użytkownik może jednostkę poprawić przy edycji produktu.
+    """
+    declared = str(product.get("product_quantity_unit") or "").lower()
+    if declared in ("ml", "l", "cl", "dl"):
+        return "ml"
+    if declared in ("g", "kg", "mg"):
+        return "g"
+    return "ml" if _VOLUME.search(str(product.get("quantity") or "")) else "g"
+
+
+def _timestamp(value) -> datetime | None:
+    seconds = _num(value)
+    return datetime.fromtimestamp(seconds, UTC) if seconds else None
 
 
 def parse_product(payload: dict) -> FoodDraft | None:
@@ -106,6 +132,8 @@ def parse_product(payload: dict) -> FoodDraft | None:
         macros=macros,
         micros=micros,
         raw=product,
+        unit=_detect_unit(product),
+        source_updated_at=_timestamp(product.get("last_modified_t")),
     )
 
 

@@ -1,6 +1,8 @@
-# BarbellOS — dokumentacja techniczna v0.4
+# BarbellOS — dokumentacja techniczna v0.5
 
-Stan: 14.11.2026.
+Stan: 15.11.2026.
+
+Zmiany w v0.5 (wyniki etapu 0, początek etapu 1): dane z Open Food Facts są szkicem, a prawdą jest etykieta (4.4); produkt ma status weryfikacji, jednostkę g/ml i datę danych w źródle (8); etap 1 podzielony na kroki (`docs/etap-1.md`); FatSecret odrzucony jako źródło (4.1).
 
 Zmiany w v0.4 (szkielet etapu 0): nazwa projektu, jedna usługa serwująca API i frontend (3.4), wykrywanie braku połączenia po wyniku żądania i 30-dniowy czas życia kolejki (3.6), próba D (10), rzeczywista struktura repozytorium (9).
 
@@ -191,7 +193,7 @@ Lista **[ZAŁOŻENIE]**: witaminy A, D, E, K, C, B1, B2, B3, B6, B12, foliany; w
 
 ### 4.3 Przepływy
 
-1. **Skan kodu** → baza własna → OFF → „dodaj produkt".
+1. **Skan kodu** → baza własna → OFF → karta produktu ze statusem weryfikacji (4.4) → „dodaj produkt", gdy nigdzie go nie ma.
 2. **Zdjęcie etykiety → produkt.** Model przepisuje tabelę wartości odżywczych do JSON-a, Ty zatwierdzasz. Zatyka dziury w OFF dla polskich produktów.
 3. **Wyszukiwarka** — najpierw ostatnie, ulubione i podstawowe; potem OFF.
 4. **Zdjęcie posiłku → szkic.** Zdjęcie + opcjonalny opis → lista składników z gramaturą i przedziałem niepewności → backend dopasowuje każdy składnik do własnej bazy (rozdział 7) → edytujesz, także dopasowanie → zapis ze źródłem `estimated`.
@@ -199,6 +201,20 @@ Lista **[ZAŁOŻENIE]**: witaminy A, D, E, K, C, B1, B2, B3, B6, B12, foliany; w
 6. **Posiłki i przepisy** — zestawy do dodania jednym dotknięciem.
 
 Model dobrze rozpoznaje, co jest na talerzu, gorzej — ile. Dla posiłków domowych źródłem prawdy zostaje waga kuchenna i kod kreskowy.
+
+### 4.4 Baza daje szkic, etykieta jest prawdą
+
+Wynik etapu 0: zeskanowane produkty są w Open Food Facts, ale wartości bywają nieaktualne albo niepełne (np. śmietanka: 18 g węglowodanów w bazie, 10 g na etykiecie). OFF wypełniają użytkownicy, a producenci zmieniają receptury. Dlatego:
+
+- Każdy produkt z zewnętrznego źródła jest **niezweryfikowany**, dopóki nie porównasz go z etykietą. Karta produktu pokazuje status i miesiąc ostatniej zmiany danych w źródle.
+- **„Zgadza się z etykietą"** oznacza produkt jako zweryfikowany bez zmiany wartości.
+- **„Popraw"** otwiera formularz ośmiu wartości. Zapis ustawia `macro_source = 'user'` i weryfikuje produkt. Oryginał ze źródła zostaje w `raw`.
+- Zweryfikowany produkt nie jest nadpisywany danymi ze źródła.
+- Reguły pewne, liczone w kodzie: tłuszcz 0 g oznacza kwasy nasycone 0 g, węglowodany 0 g oznaczają cukry 0 g. Nasycone nie mogą przekraczać tłuszczu, cukry węglowodanów. Wartości niemożliwe są odrzucane.
+- Ostrzeżenie (nie blokuje zapisu): energia odbiega o ponad 20% od wyliczonej z makroskładników. Najczęściej to literówka.
+- Krok 3 etapu 1: zdjęcie etykiety wypełnia ten sam formularz, a użytkownik zatwierdza.
+
+Źródła są wymienne (osobny adapter na źródło), więc przy skanie można docelowo pokazać kilku kandydatów obok siebie. **FatSecret Platform API odrzucony:** darmowe warianty obejmują tylko dane z USA, a warunki pozwalają przechowywać wyłącznie identyfikatory produktów, co wyklucza własną bazę i zamrożoną historię.
 
 ## 5. Moduł 2 — Trening
 
@@ -358,10 +374,13 @@ nutrient(id TEXT PK, name_pl, unit, grp, rda)          -- tylko mikroskładniki
 food(id PK, kind,                 -- 'packaged' | 'generic' | 'recipe'
      barcode UNIQUE NULL, name, name_en NULL, brand, category, serving_g,
      origin,                      -- 'off' | 'fdc' | 'user' | 'ai_label'
-     -- osiem wartości z etykiety UE jako kolumny, na 100 g; NULL = brak danych
+     unit,                        -- 'g' | 'ml': wartości na 100 g albo na 100 ml (napoje)
+     -- osiem wartości z etykiety UE jako kolumny; NULL = brak danych
      kcal, protein_g, fat_g, sat_fat_g, carbs_g, sugars_g, fiber_g, salt_g,
-     macro_source,                -- 'label' | 'reference' | 'estimated' | 'user'
-     generic_parent_id NULL, fetched_at, raw JSONB)
+     macro_source,                -- skąd są aktualne wartości: 'label' | 'reference' | 'estimated' | 'user'
+     source_updated_at NULL,      -- kiedy dane zmieniono w źródle (np. w OFF)
+     verified_at NULL,            -- kiedy użytkownik potwierdził zgodność z etykietą
+     generic_parent_id NULL, fetched_at, raw JSONB)   -- raw: oryginalna odpowiedź źródła
 food_alias(food_id, alias)        -- synonimy do wyszukiwania; indeks GIN pg_trgm na name i alias
 food_nutrient(food_id, nutrient_id, amount_per_100g,   -- mikroskładniki
               source,             -- 'label' | 'reference' | 'estimated'

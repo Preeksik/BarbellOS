@@ -53,17 +53,42 @@ export interface Session {
   auth_required: boolean;
 }
 
+export type MacroKey =
+  | "kcal"
+  | "protein_g"
+  | "fat_g"
+  | "sat_fat_g"
+  | "carbs_g"
+  | "sugars_g"
+  | "fiber_g"
+  | "salt_g";
+
+/** Wartości na 100 g lub 100 ml. `null` to brak danych, nie zero. */
+export type Per100 = Record<MacroKey, number | null>;
+
 export interface Food {
   id: number;
   barcode: string | null;
   name: string;
   brand: string | null;
   serving_g: number | null;
+  unit: "g" | "ml";
   origin: string;
   macro_source: string;
-  per_100g: Record<string, number | null>;
+  source_updated_at: string | null;
+  verified_at: string | null;
+  per_100: Per100;
   micros: { nutrient_id: string; amount_per_100g: number; source: string }[];
+  warnings: string[];
   cached: boolean;
+}
+
+export interface FoodUpdateBody {
+  name: string;
+  brand: string | null;
+  serving_g: number | null;
+  unit: "g" | "ml";
+  per_100: Per100;
 }
 
 export interface HealthTypeSummary {

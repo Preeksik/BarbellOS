@@ -73,7 +73,9 @@ Zaliczone, gdy: żadna próbka nie ginie w żadnym wariancie.
 
 | Próba | Data | Wynik | Uwagi |
 |---|---|---|---|
-| A: skan | | | |
-| B: Skróty | | | |
-| C: OFF | | | |
-| D: offline | | | |
+| A: skan | 15.11.2026 | zaliczona | iPhone 16, Safari i aplikacja z ikony. Odczyt szybki (Fitatu nieco szybsze). Brak ponownego pytania o kamerę przy zmianie zakładki; pytanie wraca po ponownym otwarciu karty Safari. |
+| B: Skróty | | czeka | Wymaga stałego adresu (wdrożenie na serwer). |
+| C: OFF | 15.11.2026 | częściowo | Kilkanaście zeskanowanych produktów znalezionych, ale wartości często nieaktualne lub niepełne. Decyzja: baza jest szkicem, etykieta prawdą (dokumentacja 4.4); edycja produktu i zdjęcie etykiety weszły do etapu 1. Próba na 30 kodach nie była robiona. |
+| D: offline | 15.11.2026 | zaliczona | Próbka zapisana w trybie samolotowym dotarła po zamknięciu i ponownym otwarciu aplikacji. |
+
+Wniosek: zostajemy przy PWA + FastAPI. Testy szły przez tymczasowy tunel Cloudflare.

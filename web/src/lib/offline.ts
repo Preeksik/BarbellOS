@@ -13,9 +13,19 @@
 import { type Mutation, QueryClient } from "@tanstack/react-query";
 import type { PersistedClient, Persister } from "@tanstack/react-query-persist-client";
 import { del, get, set } from "idb-keyval";
-import { ApiError, NetworkError, type Probe, api } from "./api";
+import {
+  ApiError,
+  type Food,
+  type FoodUpdateBody,
+  NetworkError,
+  type Probe,
+  api,
+} from "./api";
 
 const IDB_KEY = "barbellos-query-client";
+// Zwiększ po zmianie kształtu odpowiedzi API: stara kopia w telefonie zostanie odrzucona
+// (razem z kolejką niewysłanych zapisów, więc nie zmieniaj bez potrzeby).
+const CACHE_VERSION = "2";
 const THIRTY_DAYS_MS = 1000 * 60 * 60 * 24 * 30;
 
 export const persister: Persister = {
@@ -41,6 +51,7 @@ export const persistOptions = {
   persister,
   // Domyślne 24 h skasowałoby kolejkę po dniu bez otwierania aplikacji.
   maxAge: THIRTY_DAYS_MS,
+  buster: CACHE_VERSION,
   dehydrateOptions: {
     // Domyślnie utrwalane są tylko zapisy już wstrzymane. Utrwalamy każdy niedokończony,
     // żeby nie zgubić zapisu, który był w trakcie wysyłki w chwili zamknięcia aplikacji.
@@ -62,6 +73,8 @@ export async function resumeAfterRestore(): Promise<void> {
 
 export const mutationKeys = {
   probe: ["probe"] as const,
+  foodUpdate: ["food", "update"] as const,
+  foodVerify: ["food", "verify"] as const,
 };
 
 export interface ProbeInput {
@@ -73,4 +86,50 @@ export interface ProbeInput {
 queryClient.setMutationDefaults(mutationKeys.probe, {
   mutationFn: ({ id, ...body }: ProbeInput) => api.put<Probe>(`/api/probe/${id}`, body),
   onSuccess: () => queryClient.invalidateQueries({ queryKey: ["probes"] }),
+});
+
+// ---------- produkty ----------
+
+export const foodQueryKey = (barcode: string) => ["food", barcode] as const;
+
+export interface FoodUpdateInput {
+  id: number;
+  barcode: string;
+  body: FoodUpdateBody;
+}
+
+export interface FoodVerifyInput {
+  id: number;
+  barcode: string;
+}
+
+queryClient.setMutationDefaults(mutationKeys.foodUpdate, {
+  mutationFn: ({ id, body }: FoodUpdateInput) => api.put<Food>(`/api/foods/${id}`, body),
+  // Poprawione wartości widać od razu, także bez sieci. Serwer potwierdza je po wysłaniu.
+  onMutate: ({ barcode, body }: FoodUpdateInput) => {
+    queryClient.setQueryData<Food>(
+      foodQueryKey(barcode),
+      (old) =>
+        old && {
+          ...old,
+          ...body,
+          macro_source: "user",
+          verified_at: new Date().toISOString(),
+          warnings: [],
+        },
+    );
+  },
+  onSuccess: (food: Food, { barcode }: FoodUpdateInput) => {
+    queryClient.setQueryData(foodQueryKey(barcode), food);
+  },
+  // Serwer odrzucił zapis: wracamy do tego, co naprawdę jest w bazie.
+  onError: (_error: Error, { barcode }: FoodUpdateInput) =>
+    queryClient.invalidateQueries({ queryKey: foodQueryKey(barcode) }),
+});
+
+queryClient.setMutationDefaults(mutationKeys.foodVerify, {
+  mutationFn: ({ id }: FoodVerifyInput) => api.post<Food>(`/api/foods/${id}/verify`),
+  onSuccess: (food: Food, { barcode }: FoodVerifyInput) => {
+    queryClient.setQueryData(foodQueryKey(barcode), food);
+  },
 });

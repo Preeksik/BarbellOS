@@ -1,27 +1,15 @@
-import { useQuery } from "@tanstack/react-query";
 import { type ChangeEvent, type FormEvent, useEffect, useRef, useState } from "react";
-import { type Food, api } from "../../lib/api";
 import { isValidEan } from "../../lib/ean";
 import { decodeImageFile, decodeVideoFrame } from "../../lib/scanner";
+import { FoodCard } from "./FoodCard";
 
 const SCAN_INTERVAL_MS = 200;
 
-const MACRO_ROWS: [string, string, string][] = [
-  ["kcal", "Energia", "kcal"],
-  ["protein_g", "Białko", "g"],
-  ["fat_g", "Tłuszcz", "g"],
-  ["sat_fat_g", "w tym nasycone", "g"],
-  ["carbs_g", "Węglowodany", "g"],
-  ["sugars_g", "w tym cukry", "g"],
-  ["fiber_g", "Błonnik", "g"],
-  ["salt_g", "Sól", "g"],
-];
-
-/** Próba A: skan kodu kreskowego w zainstalowanej PWA, potem produkt z bazy lub z OFF. */
+/** Skan kodu kreskowego, potem karta produktu (własna baza albo Open Food Facts). */
 export function ScanPage() {
   const [barcode, setBarcode] = useState<string | null>(null);
   return barcode ? (
-    <FoodResult barcode={barcode} onAgain={() => setBarcode(null)} />
+    <FoodCard barcode={barcode} onAgain={() => setBarcode(null)} />
   ) : (
     <Scanner onDetected={setBarcode} />
   );
@@ -125,53 +113,4 @@ function Scanner({ onDetected }: { onDetected: (barcode: string) => void }) {
       {message && <p className="error">{message}</p>}
     </section>
   );
-}
-
-function FoodResult({ barcode, onAgain }: { barcode: string; onAgain: () => void }) {
-  const food = useQuery({
-    queryKey: ["food", barcode],
-    queryFn: () => api.get<Food>(`/api/foods/barcode/${barcode}`),
-    retry: false,
-    staleTime: Number.POSITIVE_INFINITY,
-  });
-
-  return (
-    <section className="card">
-      <h2>{food.data?.name ?? barcode}</h2>
-      <p className="muted">
-        {food.data?.brand ? `${food.data.brand} · ` : ""}EAN {barcode}
-      </p>
-      {food.isPending && <p className="muted">Szukam produktu…</p>}
-      {food.error && <p className="error">{food.error.message}</p>}
-      {food.data && (
-        <>
-          <table>
-            <caption>Wartości na 100 g</caption>
-            <tbody>
-              {MACRO_ROWS.map(([key, label, unit]) => {
-                const value = food.data.per_100g[key];
-                return (
-                  <tr key={key}>
-                    <th scope="row">{label}</th>
-                    <td>{value == null ? "brak danych" : `${formatNumber(value)} ${unit}`}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-          <p className="muted">
-            Źródło: {food.data.cached ? "własna baza" : "Open Food Facts (zapisano w bazie)"}.
-            Mikroskładniki z etykiety: {food.data.micros.length}.
-          </p>
-        </>
-      )}
-      <button type="button" className="primary" onClick={onAgain}>
-        Skanuj kolejny
-      </button>
-    </section>
-  );
-}
-
-function formatNumber(value: number): string {
-  return value.toLocaleString("pl-PL", { maximumFractionDigits: 1 });
 }

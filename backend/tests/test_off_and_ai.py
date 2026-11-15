@@ -62,6 +62,25 @@ def test_parse_product_fallbacks():
     assert draft.name == "(bez nazwy)"
 
 
+def test_parse_product_detects_drinks_and_source_date():
+    from datetime import UTC, datetime
+
+    def product(**fields):
+        return parse_product({"code": "1", "status": 1, "product": {"nutriments": {}, **fields}})
+
+    assert parse_product(OFF_PAYLOAD).unit == "g"
+    assert parse_product(OFF_PAYLOAD).source_updated_at is None
+    assert product(quantity="330 ml").unit == "ml"
+    assert product(quantity="1,5 L").unit == "ml"
+    assert product(quantity="6 x 0.33l").unit == "ml"
+    assert product(quantity="250 g").unit == "g"
+    assert product(quantity="500 ml", product_quantity_unit="g").unit == "g"
+    assert product(product_quantity_unit="ml").unit == "ml"
+    assert product(quantity="mleko 2 szt.").unit == "g"
+    dated = product(last_modified_t=1616000000)
+    assert dated.source_updated_at == datetime(2021, 3, 17, 16, 53, 20, tzinfo=UTC)
+
+
 def test_parse_product_not_found():
     assert parse_product({"code": "1", "status": 0, "status_verbose": "product not found"}) is None
 

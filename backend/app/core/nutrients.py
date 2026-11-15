@@ -45,3 +45,74 @@ def micro_coverage(entries: Iterable[Mapping], rda: Mapping[str, float | None]) 
             "kcal_share": (kcal_with_data / total_kcal) if total_kcal else 0.0,
         }
     return out
+
+
+# ---------- spójność wartości z etykiety ----------
+
+# (składnik podrzędny, składnik nadrzędny): podrzędny nigdy nie przekracza nadrzędnego.
+SUBSETS = (("sat_fat_g", "fat_g"), ("sugars_g", "carbs_g"))
+LABELS_PL = {
+    "kcal": "energia",
+    "protein_g": "białko",
+    "fat_g": "tłuszcz",
+    "sat_fat_g": "kwasy nasycone",
+    "carbs_g": "węglowodany",
+    "sugars_g": "cukry",
+    "fiber_g": "błonnik",
+    "salt_g": "sól",
+}
+MAX_KCAL_PER_100 = 900.0  # czysty tłuszcz
+KCAL_TOLERANCE = 0.20  # odchylenie kalorii od wyliczonych z makro, od którego ostrzegamy
+KCAL_TOLERANCE_MIN = 15.0
+
+
+def fill_implied_zeros(macros: Mapping[str, float | None]) -> dict[str, float | None]:
+    """Uzupełnia zera, które wynikają z etykiety: tłuszcz 0 g oznacza nasycone 0 g itd.
+
+    To nie jest szacunek. Składnik podrzędny nie może być większy od nadrzędnego,
+    więc przy zerze wartość jest pewna.
+    """
+    out = dict(macros)
+    for child, parent in SUBSETS:
+        if out.get(child) is None and out.get(parent) == 0:
+            out[child] = 0.0
+    return out
+
+
+def macro_errors(macros: Mapping[str, float | None], unit: str = "g") -> list[str]:
+    """Błędy, z którymi produktu nie zapisujemy (wartości niemożliwe).
+
+    Górna granica 100 g na 100 g dotyczy tylko produktów w gramach: 100 ml gęstego
+    płynu (miód, syrop) waży więcej niż 100 g.
+    """
+    errors = []
+    for key in MACRO_KEYS:
+        value = macros.get(key)
+        if value is None:
+            continue
+        limit = MAX_KCAL_PER_100 if key == "kcal" else (100.0 if unit == "g" else 200.0)
+        if value < 0 or value > limit:
+            errors.append(f"{LABELS_PL[key].capitalize()}: wartość {value:g} jest poza zakresem.")
+    for child, parent in SUBSETS:
+        c, p = macros.get(child), macros.get(parent)
+        if c is not None and p is not None and c > p:
+            errors.append(
+                f"{LABELS_PL[child].capitalize()} ({c:g} g) nie mogą przekraczać "
+                f"wartości „{LABELS_PL[parent]}” ({p:g} g)."
+            )
+    return errors
+
+
+def macro_warnings(macros: Mapping[str, float | None]) -> list[str]:
+    """Ostrzeżenia, które nie blokują zapisu: najczęściej literówka przy przepisywaniu."""
+    kcal = macros.get("kcal")
+    protein, carbs, fat = macros.get("protein_g"), macros.get("carbs_g"), macros.get("fat_g")
+    if None in (kcal, protein, carbs, fat):
+        return []
+    expected = 4 * protein + 4 * carbs + 9 * fat + 2 * (macros.get("fiber_g") or 0)
+    if abs(kcal - expected) > max(KCAL_TOLERANCE_MIN, KCAL_TOLERANCE * expected):
+        return [
+            f"Energia {kcal:g} kcal nie pasuje do makroskładników "
+            f"(wychodzi ok. {expected:.0f} kcal). Sprawdź, czy w którejś wartości nie ma pomyłki."
+        ]
+    return []

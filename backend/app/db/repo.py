@@ -7,6 +7,7 @@ from sqlalchemy import func, insert, select
 from sqlalchemy.orm import Session
 
 from app.core.health_ingest import Sample
+from app.core.nutrients import MACRO_KEYS, fill_implied_zeros
 from app.db.models import Food, FoodNutrient, HealthSample, Nutrient
 from app.off.client import FoodDraft
 
@@ -107,11 +108,13 @@ def save_food_draft(db: Session, draft: FoodDraft) -> Food:
         brand=draft.brand,
         category=draft.category,
         serving_g=draft.serving_g,
+        unit=draft.unit,
         origin="off",
         macro_source="label",
+        source_updated_at=draft.source_updated_at,
         fetched_at=datetime.now(UTC),
         raw=draft.raw,
-        **draft.macros,
+        **fill_implied_zeros(draft.macros),
     )
     db.add(food)
     db.flush()
@@ -124,5 +127,35 @@ def save_food_draft(db: Session, draft: FoodDraft) -> Food:
                     food_id=food.id, nutrient_id=nutrient_id, amount_per_100g=amount, source="label"
                 )
             )
+    db.commit()
+    return food
+
+
+def update_food(
+    db: Session,
+    food: Food,
+    name: str,
+    brand: str | None,
+    serving_g: float | None,
+    unit: str,
+    macros: dict[str, float | None],
+) -> Food:
+    """Zapisuje wartości wpisane przez użytkownika. Produkt staje się zweryfikowany.
+
+    Oryginalna odpowiedź źródła zostaje w `food.raw`, więc poprawkę da się porównać.
+    Wpisy w dzienniku nie zmieniają się wstecz: przechowują własne, zamrożone wartości.
+    """
+    food.name, food.brand, food.serving_g, food.unit = name, brand, serving_g, unit
+    for key in MACRO_KEYS:
+        setattr(food, key, macros.get(key))
+    food.macro_source = "user"
+    food.verified_at = datetime.now(UTC)
+    db.commit()
+    return food
+
+
+def mark_food_verified(db: Session, food: Food) -> Food:
+    """Użytkownik potwierdził, że wartości zgadzają się z etykietą."""
+    food.verified_at = datetime.now(UTC)
     db.commit()
     return food

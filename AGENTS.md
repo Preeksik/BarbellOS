@@ -27,6 +27,7 @@ Aplikacja jednego użytkownika łącząca dietę, trening siłowy i regenerację
 
 - Jedno zadanie = jedna gałąź = jeden PR z testami. Specyfikacją jest wskazany rozdział dokumentacji.
 - Najpierw kontrakt (model Pydantic, tabela, migracja), potem implementacja.
+- Zmiana kształtu odpowiedzi API, którą frontend trzyma w pamięci podręcznej = podbicie `CACHE_VERSION` w `web/src/lib/offline.ts`. Inaczej telefon wczyta starą kopię w starym kształcie.
 - Zmiana schematu bazy = migracja Alembic: `alembic revision --autogenerate -m "opis"`, potem przegląd wygenerowanego pliku. Typ `UtcDateTime` w migracji zapisuj jako `sa.DateTime(timezone=True)`.
 - Zmiana zachowania opisanego w dokumentacji = aktualizacja `docs/DOKUMENTACJA.md` w tym samym PR.
 - Nazwy modeli AI i ceny zmieniają się często. Przed pisaniem wywołań API sprawdź aktualną dokumentację dostawcy zamiast polegać na pamięci.

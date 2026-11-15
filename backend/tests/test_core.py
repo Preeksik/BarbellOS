@@ -4,7 +4,14 @@ import pytest
 
 from app.core.barcode import is_valid_ean
 from app.core.energy import adaptive_tdee, weight_trend
-from app.core.nutrients import micro_coverage, portion_values, sum_values
+from app.core.nutrients import (
+    fill_implied_zeros,
+    macro_errors,
+    macro_warnings,
+    micro_coverage,
+    portion_values,
+    sum_values,
+)
 from app.core.readiness import readiness
 
 D0 = date(2026, 11, 1)
@@ -105,3 +112,40 @@ def test_readiness_red_when_several_signals_agree():
     result = readiness(300, 50, 58, SLEEP, HRV, RHR)
     assert result.state == "red"
     assert result.factors == ["sleep_short", "hrv_low", "resting_hr_high"]
+
+
+# ---------- spójność wartości z etykiety ----------
+
+MIRINDA_OFF = {
+    "kcal": 20.9, "protein_g": 0, "fat_g": 0, "sat_fat_g": None,
+    "carbs_g": 5.2, "sugars_g": None, "fiber_g": None, "salt_g": 0,
+}  # fmt: skip
+
+
+def test_zero_fat_implies_zero_saturated_fat():
+    filled = fill_implied_zeros(MIRINDA_OFF)
+    assert filled["sat_fat_g"] == 0
+    assert filled["sugars_g"] is None  # węglowodany 5,2 g: cukrów nie da się wywnioskować
+    assert filled["fiber_g"] is None
+    assert MIRINDA_OFF["sat_fat_g"] is None  # wejście nie jest modyfikowane
+
+
+def test_zero_carbs_implies_zero_sugars_but_known_values_stay():
+    filled = fill_implied_zeros({"carbs_g": 0, "sugars_g": None, "fat_g": 0, "sat_fat_g": 0.0})
+    assert (filled["sugars_g"], filled["sat_fat_g"]) == (0, 0)
+    assert fill_implied_zeros({"fat_g": None, "sat_fat_g": None})["sat_fat_g"] is None
+
+
+def test_macro_errors_and_unit_dependent_limit():
+    assert macro_errors({"fat_g": 5, "sat_fat_g": 5}) == []
+    assert len(macro_errors({"fat_g": 5, "sat_fat_g": 6, "kcal": 950})) == 2
+    assert macro_errors({"carbs_g": 115}, unit="g") != []
+    assert macro_errors({"carbs_g": 115}, unit="ml") == []  # 100 ml miodu waży ok. 140 g
+
+
+def test_macro_warnings_tolerate_rounding_and_missing_values():
+    cream = {"kcal": 244, "protein_g": 2.7, "fat_g": 21, "carbs_g": 10, "fiber_g": 0}
+    assert macro_warnings(cream) == []
+    assert macro_warnings({**cream, "kcal": 81}) != []
+    assert macro_warnings({"kcal": 81, "protein_g": None, "fat_g": 1, "carbs_g": 2}) == []
+    assert macro_warnings({"kcal": 21, "protein_g": 0, "fat_g": 0, "carbs_g": 5.0}) == []

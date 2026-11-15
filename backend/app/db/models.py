@@ -89,8 +89,15 @@ class Food(MacroColumns, Base):
     brand: Mapped[str | None] = mapped_column(String(255))
     category: Mapped[str | None] = mapped_column(String(64))
     serving_g: Mapped[float | None]
+    # Jednostka odniesienia: wartości są na 100 g albo (napoje) na 100 ml.
+    unit: Mapped[str] = mapped_column(String(2), default="g", server_default="g")
     origin: Mapped[str] = mapped_column(String(16))  # off | fdc | user | ai_label
-    macro_source: Mapped[str] = mapped_column(String(16))  # label | reference | estimated | user
+    # Skąd pochodzą aktualne wartości: label | reference | estimated | user
+    macro_source: Mapped[str] = mapped_column(String(16))
+    # Kiedy dane ostatnio zmieniono w źródle (np. w Open Food Facts).
+    source_updated_at: Mapped[datetime | None] = mapped_column(TZDateTime)
+    # Kiedy użytkownik potwierdził zgodność z etykietą. NULL = niezweryfikowany.
+    verified_at: Mapped[datetime | None] = mapped_column(TZDateTime)
     generic_parent_id: Mapped[int | None] = mapped_column(ForeignKey("food.id"))
     fetched_at: Mapped[datetime | None] = mapped_column(TZDateTime)
     raw: Mapped[dict | None] = mapped_column(JsonType)

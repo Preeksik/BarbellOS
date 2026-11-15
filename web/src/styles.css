@@ -8,6 +8,8 @@
   --accent: #e5484d; /* czerwony krążek 25 kg */
   --accent-text: #ffffff;
   --error: #ff8f8f;
+  --ok: #7ad3a3;
+  --warn: #f0c36a;
   --radius: 12px;
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   font-size: 16px;
@@ -240,4 +242,96 @@ td:last-child {
 .tabs button.active {
   color: var(--text);
   box-shadow: inset 0 2px 0 var(--accent);
+}
+
+/* ---------- produkt: status, ostrzeżenia, formularz ---------- */
+
+.status {
+  padding-left: 10px;
+  border-left: 3px solid var(--border);
+  font-size: 0.9rem;
+}
+
+.status.ok {
+  border-color: var(--ok);
+  color: var(--ok);
+}
+
+.status.todo {
+  border-color: var(--warn);
+  color: var(--warn);
+}
+
+.notice {
+  padding: 10px 12px;
+  border: 1px solid var(--warn);
+  border-radius: 10px;
+  font-size: 0.9rem;
+}
+
+th.sub,
+.field.sub > span:first-child {
+  padding-left: 16px;
+  color: var(--muted);
+}
+
+.fields {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.field {
+  display: grid;
+  grid-template-columns: 1fr 96px 36px;
+  align-items: center;
+  gap: 8px;
+}
+
+.field input {
+  width: 100%;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.segmented {
+  display: flex;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.segmented legend {
+  padding: 0 0 6px;
+}
+
+.segmented label {
+  flex: 1;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--muted);
+}
+
+.segmented label.active {
+  border-color: var(--text);
+  color: var(--text);
+}
+
+.segmented input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+  min-height: 0;
+  padding: 0;
+}
+
+.segmented label:focus-within {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
 }

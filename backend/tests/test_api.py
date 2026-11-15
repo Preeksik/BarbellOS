@@ -70,8 +70,10 @@ def test_barcode_is_fetched_once_then_served_from_own_database(logged_in, off_ca
     first = logged_in.get("/api/foods/barcode/5900000000015").json()
     assert first["cached"] is False
     assert first["name"] == "Serek wiejski"
-    assert first["per_100g"]["sat_fat_g"] == 3.5
-    assert first["per_100g"]["fiber_g"] is None
+    assert first["per_100"]["sat_fat_g"] == 3.5
+    assert first["per_100"]["fiber_g"] is None
+    assert first["verified_at"] is None
+    assert first["unit"] == "g"
     # mikroskładnik spoza słownika jest pomijany
     assert first["micros"] == [
         {"nutrient_id": "calcium", "amount_per_100g": 80.0, "source": "label"}
@@ -100,3 +102,101 @@ def test_offline_probe_is_idempotent(logged_in):
     assert first.status_code == second.status_code == 200
     assert first.json()["received_at"] == second.json()["received_at"]
     assert len(logged_in.get("/api/probe").json()) == 1
+
+
+# ---------- poprawianie i weryfikacja produktu ----------
+
+EAN = "5900000000015"
+LABEL = {
+    "kcal": 97, "protein_g": 11, "fat_g": 5, "sat_fat_g": 3.5,
+    "carbs_g": 2, "sugars_g": 2, "fiber_g": 0, "salt_g": 0.7,
+}  # fmt: skip
+
+
+def _update(client, food_id, **changes):
+    body = {"name": "Serek wiejski", "brand": "Testowa", "unit": "g", "per_100": {**LABEL}}
+    body["per_100"].update(changes.pop("per_100", {}))
+    body.update(changes)
+    return client.put(f"/api/foods/{food_id}", json=body)
+
+
+def test_edit_requires_login(client):
+    assert client.put("/api/foods/1", json={"name": "x", "per_100": {}}).status_code == 401
+    assert client.post("/api/foods/1/verify").status_code == 401
+
+
+def test_small_correction_is_saved_and_marks_product_verified(logged_in, off_calls):
+    food = logged_in.get(f"/api/foods/barcode/{EAN}").json()
+    response = _update(logged_in, food["id"], per_100={"kcal": 94})
+    assert response.status_code == 200
+    saved = response.json()
+    assert saved["per_100"]["kcal"] == 94
+    assert saved["per_100"]["fiber_g"] == 0
+    assert saved["macro_source"] == "user"
+    assert saved["origin"] == "off"  # pochodzenie rekordu się nie zmienia
+    assert saved["verified_at"] is not None
+
+    again = logged_in.get(f"/api/foods/barcode/{EAN}").json()
+    assert again["per_100"]["kcal"] == 94
+    assert again["cached"] is True
+    assert off_calls == [EAN]  # poprawiony produkt nie jest nadpisywany danymi z OFF
+
+
+def test_edit_is_idempotent(logged_in):
+    food = logged_in.get(f"/api/foods/barcode/{EAN}").json()
+    first = _update(logged_in, food["id"], per_100={"kcal": 94}).json()
+    second = _update(logged_in, food["id"], per_100={"kcal": 94}).json()
+    assert first["per_100"] == second["per_100"]
+
+
+def test_empty_field_means_no_data_not_zero(logged_in):
+    food = logged_in.get(f"/api/foods/barcode/{EAN}").json()
+    saved = _update(logged_in, food["id"], per_100={"fiber_g": None}).json()
+    assert saved["per_100"]["fiber_g"] is None
+
+
+def test_unit_and_name_can_be_changed(logged_in):
+    food = logged_in.get(f"/api/foods/barcode/{EAN}").json()
+    saved = _update(logged_in, food["id"], name="  Napój  ", unit="ml", brand="").json()
+    assert (saved["name"], saved["unit"], saved["brand"]) == ("Napój", "ml", None)
+
+
+@pytest.mark.parametrize(
+    ("changes", "fragment"),
+    [
+        ({"per_100": {"sat_fat_g": 9}}, "Kwasy nasycone (9 g) nie mogą przekraczać"),
+        ({"per_100": {"sugars_g": 30}}, "Cukry (30 g) nie mogą przekraczać"),
+        ({"per_100": {"protein_g": 140}}, "Białko: wartość 140 jest poza zakresem"),
+        ({"per_100": {"kcal": -5}}, None),
+        ({"name": "   "}, "Nazwa nie może być pusta"),
+        ({"unit": "szt"}, None),
+    ],
+)
+def test_impossible_values_are_rejected(logged_in, changes, fragment):
+    food = logged_in.get(f"/api/foods/barcode/{EAN}").json()
+    response = _update(logged_in, food["id"], **changes)
+    assert response.status_code == 422
+    if fragment:
+        assert fragment in response.json()["detail"]
+    assert logged_in.get(f"/api/foods/barcode/{EAN}").json()["verified_at"] is None
+
+
+def test_typo_in_calories_gives_warning_but_saves(logged_in):
+    food = logged_in.get(f"/api/foods/barcode/{EAN}").json()
+    assert food["warnings"] == []
+    saved = _update(logged_in, food["id"], per_100={"kcal": 79.0 * 10}).json()
+    assert saved["per_100"]["kcal"] == 790
+    assert "nie pasuje do makroskładników (wychodzi ok. 97 kcal)" in saved["warnings"][0]
+
+
+def test_verify_keeps_values_and_source(logged_in):
+    food = logged_in.get(f"/api/foods/barcode/{EAN}").json()
+    verified = logged_in.post(f"/api/foods/{food['id']}/verify").json()
+    assert verified["verified_at"] is not None
+    assert verified["macro_source"] == "label"
+    assert verified["per_100"] == food["per_100"]
+
+
+def test_unknown_food_id(logged_in):
+    assert _update(logged_in, 999).status_code == 404
+    assert logged_in.post("/api/foods/999/verify").status_code == 404
