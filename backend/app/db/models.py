@@ -46,6 +46,15 @@ class UtcDateTime(TypeDecorator):
 TZDateTime = UtcDateTime()
 
 
+def utcnow() -> datetime:
+    """Bieżący czas dla znaczników nadawanych przez aplikację.
+
+    Znaczniki czasu wpisuje aplikacja, a nie baza: wartość domyślna `now()` z migracji
+    działa tylko na Postgresie, SQLite nie zna tej funkcji i zapis kończył się błędem.
+    """
+    return datetime.now(UTC)
+
+
 class Base(DeclarativeBase):
     pass
 
@@ -132,11 +141,15 @@ class MealEntry(MacroColumns, Base):
     meal_slot: Mapped[str] = mapped_column(String(16))
     food_id: Mapped[int | None] = mapped_column(ForeignKey("food.id"))
     food_name: Mapped[str] = mapped_column(String(255))
-    grams: Mapped[float]
+    # Ilość w gramach albo mililitrach (`unit`), skopiowana z produktu w chwili dodania.
+    amount: Mapped[float]
+    unit: Mapped[str] = mapped_column(String(2), default="g", server_default="g")
     micros: Mapped[dict | None] = mapped_column(JsonType)
     source: Mapped[str] = mapped_column(String(16))  # scan | search | photo | text | manual
     ai_run_id: Mapped[int | None] = mapped_column(ForeignKey("ai_run.id"))
-    created_at: Mapped[datetime] = mapped_column(TZDateTime, server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(
+        TZDateTime, default=utcnow, server_default=func.now()
+    )
 
 
 class DailyTarget(Base):
@@ -183,7 +196,7 @@ class SessionLog(Base):
     bodyweight: Mapped[float | None]
     note: Mapped[str | None] = mapped_column(Text)
     updated_at: Mapped[datetime] = mapped_column(
-        TZDateTime, server_default=func.now(), onupdate=func.now()
+        TZDateTime, default=utcnow, server_default=func.now(), onupdate=utcnow
     )
 
 
@@ -217,7 +230,9 @@ class HealthSample(Base):
     value: Mapped[float | None]
     label: Mapped[str | None] = mapped_column(String(32))  # np. faza snu
     unit: Mapped[str | None] = mapped_column(String(16))
-    received_at: Mapped[datetime] = mapped_column(TZDateTime, server_default=func.now())
+    received_at: Mapped[datetime] = mapped_column(
+        TZDateTime, default=utcnow, server_default=func.now()
+    )
 
 
 class HealthDaily(Base):
@@ -252,7 +267,9 @@ class AiRun(Base):
     output_tokens: Mapped[int | None]
     cost_usd: Mapped[float | None]
     status: Mapped[str] = mapped_column(String(16))
-    created_at: Mapped[datetime] = mapped_column(TZDateTime, server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(
+        TZDateTime, default=utcnow, server_default=func.now()
+    )
 
 
 class CoachNote(Base):
@@ -276,4 +293,6 @@ class OfflineProbe(Base):
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True)
     client_created_at: Mapped[datetime] = mapped_column(TZDateTime)
     note: Mapped[str | None] = mapped_column(String(128))
-    received_at: Mapped[datetime] = mapped_column(TZDateTime, server_default=func.now())
+    received_at: Mapped[datetime] = mapped_column(
+        TZDateTime, default=utcnow, server_default=func.now()
+    )

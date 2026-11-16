@@ -9,11 +9,12 @@ from app.config import get_settings
 from app.db.models import Base
 
 config = context.config
-if config.config_file_name is not None:
+if config.config_file_name is not None and config.attributes.get("configure_logging", True):
     fileConfig(config.config_file_name)
 
 target_metadata = Base.metadata
-url = get_settings().sqlalchemy_url
+# Adres można podać wprost (test migracji); domyślnie pochodzi z konfiguracji aplikacji.
+url = config.get_main_option("sqlalchemy.url") or get_settings().sqlalchemy_url
 
 
 def include_object(obj, name, type_, reflected, compare_to) -> bool:

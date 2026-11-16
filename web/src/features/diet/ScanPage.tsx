@@ -6,10 +6,17 @@ import { FoodCard } from "./FoodCard";
 const SCAN_INTERVAL_MS = 200;
 
 /** Skan kodu kreskowego, potem karta produktu (własna baza albo Open Food Facts). */
-export function ScanPage() {
+export function ScanPage({ day, onShowDiary }: { day: string; onShowDiary: () => void }) {
   const [barcode, setBarcode] = useState<string | null>(null);
   return barcode ? (
-    <FoodCard barcode={barcode} onAgain={() => setBarcode(null)} />
+    // `key`: kolejny skan zaczyna od czystej karty (bez „Dodano" z poprzedniego produktu).
+    <FoodCard
+      key={barcode}
+      barcode={barcode}
+      day={day}
+      onAgain={() => setBarcode(null)}
+      onShowDiary={onShowDiary}
+    />
   ) : (
     <Scanner onDetected={setBarcode} />
   );

@@ -44,6 +44,7 @@ export const api = {
   get: <T>(path: string) => request<T>("GET", path),
   post: <T>(path: string, body?: unknown) => request<T>("POST", path, body),
   put: <T>(path: string, body?: unknown) => request<T>("PUT", path, body),
+  delete: (path: string) => request<void>("DELETE", path),
 };
 
 // ---------- typy odpowiedzi (docelowo generowane z /api/openapi.json) ----------
@@ -89,6 +90,31 @@ export interface FoodUpdateBody {
   serving_g: number | null;
   unit: "g" | "ml";
   per_100: Per100;
+}
+
+export type MealSlot = "breakfast" | "second_breakfast" | "lunch" | "snack" | "dinner";
+
+/** Wpis dziennika. `values` to wartości dla tej porcji, zamrożone w chwili dodania. */
+export interface DiaryEntry {
+  id: string;
+  date: string;
+  meal_slot: MealSlot;
+  food_id: number | null;
+  food_name: string;
+  amount: number;
+  unit: "g" | "ml";
+  values: Per100;
+  source: string;
+  created_at: string;
+}
+
+export type MacroTotals = Record<MacroKey, number>;
+
+export interface DiaryDay {
+  date: string;
+  entries: DiaryEntry[];
+  totals: MacroTotals;
+  by_slot: Partial<Record<MealSlot, MacroTotals>>;
 }
 
 export interface HealthTypeSummary {

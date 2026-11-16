@@ -1,6 +1,8 @@
-# BarbellOS — dokumentacja techniczna v0.5
+# BarbellOS — dokumentacja techniczna v0.6
 
 Stan: 15.11.2026.
+
+Zmiany w v0.6 (etap 1, krok 2): dziennik dnia (4.5); wpis ma ilość i jednostkę g/ml zamiast samych gramów (8); kolejność zapisów dziennika, podgląd bez sieci i wygasła sesja w kolejce (3.6); znaczniki czasu nadaje aplikacja, a nie baza (8).
 
 Zmiany w v0.5 (wyniki etapu 0, początek etapu 1): dane z Open Food Facts są szkicem, a prawdą jest etykieta (4.4); produkt ma status weryfikacji, jednostkę g/ml i datę danych w źródle (8); etap 1 podzielony na kroki (`docs/etap-1.md`); FatSecret odrzucony jako źródło (4.1).
 
@@ -151,8 +153,11 @@ TanStack Query domyślnie trzyma wstrzymane zapisy tylko w pamięci. Jeśli iOS 
 5. Interfejs pokazuje licznik niewysłanych zapisów.
 
 6. O braku połączenia decyduje wynik prawdziwego żądania, a nie przeglądarka. Telefon w sieci Wi-Fi bez internetu (częste na siłowni) zgłasza się jako „online", więc nieudane żądanie samo przełącza aplikację w tryb offline, a lekki `GET /api/healthz` jest odpytywany, aż serwer znów odpowie (`web/src/lib/connectivity.ts`).
-7. Utrwalany stan ma czas życia 30 dni. Domyślne 24 godziny skasowałyby kolejkę po dniu bez otwierania aplikacji.
+7. Utrwalany stan ma czas życia 30 dni. Domyślne 24 godziny skasowałyby kolejkę po dniu bez otwierania aplikacji. Czas trzymania nieużywanych danych w pamięci (`gcTime`) to 20 dni i nie może przekroczyć ok. 24,8 dnia: przeglądarka liczy opóźnienia na 32 bitach, większa wartość przepełnia licznik i dane znikają natychmiast.
 8. Wznowienie kolejki po starcie nie może blokować interfejsu: offline trwa ono do powrotu sieci.
+9. Zapisy dziennika mają wspólny `scope`, więc idą do serwera pojedynczo, w kolejności wykonania (dodanie przed zmianą, zmiana przed usunięciem).
+10. Zmiana jest widoczna od razu jako podgląd policzony na telefonie (`web/src/lib/diary.ts`). To jedyny wyjątek od zasady, że liczy serwer: po wysłaniu ostatniego zapisu z kolejki dzień jest pobierany z serwera i podgląd znika.
+11. Odpowiedź 401 nie usuwa zapisu z kolejki. Aplikacja pokazuje logowanie, a zapis ponawia się po zalogowaniu.
 
 Zakres kolejki: logowanie serii oraz wpisy posiłków z produktów, które telefon już zna. Skan nowego kodu i funkcje AI wymagają sieci.
 
@@ -215,6 +220,17 @@ Wynik etapu 0: zeskanowane produkty są w Open Food Facts, ale wartości bywają
 - Krok 3 etapu 1: zdjęcie etykiety wypełnia ten sam formularz, a użytkownik zatwierdza.
 
 Źródła są wymienne (osobny adapter na źródło), więc przy skanie można docelowo pokazać kilku kandydatów obok siebie. **FatSecret Platform API odrzucony:** darmowe warianty obejmują tylko dane z USA, a warunki pozwalają przechowywać wyłącznie identyfikatory produktów, co wyklucza własną bazę i zamrożoną historię.
+
+### 4.5 Dziennik dnia
+
+Dzień składa się z pięciu posiłków: śniadanie, II śniadanie, obiad, podwieczorek, kolacja. Wpis to produkt, ilość (g albo ml) i posiłek.
+
+- `PUT /api/diary/entries/{id}` dodaje wpis albo go zmienia. Identyfikator UUID nadaje telefon, więc powtórzona wysyłka nie tworzy duplikatu.
+- Przy dodaniu wartości porcji są liczone z produktu i zamrażane. Przy zmianie ilości zamrożone wartości są **skalowane**, a nie liczone od nowa: wpis nadal odpowiada produktowi z chwili dodania.
+- `DELETE /api/diary/entries/{id}` usuwa wpis; usunięcie nieistniejącego wpisu też kończy się powodzeniem.
+- `GET /api/diary/{data}` zwraca wpisy, sumę dnia i sumy posiłków. Brak danych we wpisie liczy się w sumie jak zero.
+- Dzień to data według zegara telefonu, nie UTC: wpis dodany po północy trafia do nowego dnia.
+- Logika: `backend/app/core/diary.py`.
 
 ## 5. Moduł 2 — Trening
 
@@ -387,7 +403,9 @@ food_nutrient(food_id, nutrient_id, amount_per_100g,   -- mikroskładniki
               PRIMARY KEY(food_id, nutrient_id))
 
 meal_entry(id UUID PK,            -- nadawany na telefonie (idempotentny zapis offline)
-           date, meal_slot, food_id NULL, food_name, grams,
+           date, meal_slot,       -- 'breakfast' | 'second_breakfast' | 'lunch' | 'snack' | 'dinner'
+           food_id NULL, food_name,
+           amount, unit,          -- ilość w gramach albo mililitrach, jak w produkcie
            -- wartości dla tej porcji, zamrożone w chwili zapisu
            kcal, protein_g, fat_g, sat_fat_g, carbs_g, sugars_g, fiber_g, salt_g,
            micros JSONB,          -- { "magnesium": { "amount": 48, "source": "estimated" } }

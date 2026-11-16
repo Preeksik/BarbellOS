@@ -10,23 +10,37 @@
  * 4. Endpointy zapisu są idempotentne (PUT z identyfikatorem nadanym na telefonie).
  */
 
-import { type Mutation, QueryClient } from "@tanstack/react-query";
+import {
+  type Mutation,
+  type Query,
+  QueryClient,
+  defaultShouldDehydrateQuery,
+} from "@tanstack/react-query";
 import type { PersistedClient, Persister } from "@tanstack/react-query-persist-client";
 import { del, get, set } from "idb-keyval";
 import {
   ApiError,
+  type DiaryDay,
+  type DiaryEntry,
   type Food,
   type FoodUpdateBody,
   NetworkError,
   type Probe,
   api,
 } from "./api";
+import { emptyDay, withEntry, withoutEntry } from "./diary";
 
 const IDB_KEY = "barbellos-query-client";
 // Zwiększ po zmianie kształtu odpowiedzi API: stara kopia w telefonie zostanie odrzucona
 // (razem z kolejką niewysłanych zapisów, więc nie zmieniaj bez potrzeby).
 const CACHE_VERSION = "2";
-const THIRTY_DAYS_MS = 1000 * 60 * 60 * 24 * 30;
+const DAY_MS = 1000 * 60 * 60 * 24;
+const THIRTY_DAYS_MS = 30 * DAY_MS;
+// Czas trzymania nieużywanych danych w pamięci. Przeglądarka liczy opóźnienia na 32 bitach:
+// powyżej ok. 24,8 dnia licznik się przepełnia i uruchamia natychmiast. Przy 30 dniach
+// zeskanowany produkt znikał z pamięci zaraz po zamknięciu karty i bez sieci nie dało się
+// go otworzyć ponownie.
+export const GC_TIME_MS = 20 * DAY_MS;
 
 export const persister: Persister = {
   persistClient: (client: PersistedClient) => set(IDB_KEY, client),
@@ -37,13 +51,19 @@ export const persister: Persister = {
 function retryPolicy(failureCount: number, error: unknown): boolean {
   if (error instanceof NetworkError) return true; // czeka w kolejce do powrotu połączenia
   if (error instanceof ApiError && error.status >= 500) return failureCount < 5; // np. zimny start
+  if (error instanceof ApiError && error.status === 401) {
+    // Sesja wygasła, gdy zapis czekał w kolejce. Nie wolno go zgubić: ekran logowania
+    // pojawia się po odświeżeniu „me", a zapis ponawia się do skutku po zalogowaniu.
+    void queryClient.invalidateQueries({ queryKey: ["me"] });
+    return true;
+  }
   return false; // błąd 4xx nie naprawi się sam
 }
 
 export const queryClient = new QueryClient({
   defaultOptions: {
-    queries: { gcTime: THIRTY_DAYS_MS, staleTime: 30_000, retry: 1 },
-    mutations: { retry: retryPolicy, gcTime: THIRTY_DAYS_MS },
+    queries: { gcTime: GC_TIME_MS, staleTime: 30_000, retry: 1 },
+    mutations: { retry: retryPolicy, gcTime: GC_TIME_MS },
   },
 });
 
@@ -56,6 +76,10 @@ export const persistOptions = {
     // Domyślnie utrwalane są tylko zapisy już wstrzymane. Utrwalamy każdy niedokończony,
     // żeby nie zgubić zapisu, który był w trakcie wysyłki w chwili zamknięcia aplikacji.
     shouldDehydrateMutation: (mutation: Mutation) => mutation.state.status === "pending",
+    // Dane nieodświeżane od 30 dni nie wracają do pamięci telefonu, żeby kopia nie rosła
+    // bez końca (każdy zeskanowany produkt i każdy oglądany dzień to osobny wpis).
+    shouldDehydrateQuery: (query: Query) =>
+      defaultShouldDehydrateQuery(query) && Date.now() - query.state.dataUpdatedAt < THIRTY_DAYS_MS,
   },
 };
 
@@ -75,6 +99,8 @@ export const mutationKeys = {
   probe: ["probe"] as const,
   foodUpdate: ["food", "update"] as const,
   foodVerify: ["food", "verify"] as const,
+  diaryPut: ["diary", "put"] as const,
+  diaryDelete: ["diary", "delete"] as const,
 };
 
 export interface ProbeInput {
@@ -133,3 +159,71 @@ queryClient.setMutationDefaults(mutationKeys.foodVerify, {
     queryClient.setQueryData(foodQueryKey(barcode), food);
   },
 });
+
+// ---------- dziennik dnia ----------
+
+export const diaryQueryKey = (date: string) => ["diary", date] as const;
+
+/** Wspólny początek kluczy zapisów dziennika: do liczenia kolejki i zgłaszania błędów. */
+export const DIARY_MUTATIONS = ["diary"] as const;
+
+// Zapisy dziennika idą jeden po drugim, w kolejności wykonania. Bez tego usunięcie
+// wpisu mogłoby dotrzeć do serwera przed jego dodaniem.
+const DIARY_SCOPE = { id: "diary" };
+
+/** Pełny wpis w stanie po zmianie. Serwer dostaje z niego tylko to, co potrzebne. */
+export interface DiaryPutInput {
+  entry: DiaryEntry;
+}
+
+export interface DiaryDeleteInput {
+  id: string;
+  date: string;
+}
+
+/** Zmiana widoczna od razu, także bez sieci. Sumy z serwera zastąpią podgląd po wysłaniu. */
+async function previewDay(date: string, change: (day: DiaryDay) => DiaryDay): Promise<void> {
+  // Trwające pobieranie dnia mogłoby nadpisać podgląd starszą odpowiedzią serwera.
+  await queryClient.cancelQueries({ queryKey: diaryQueryKey(date) });
+  queryClient.setQueryData<DiaryDay>(diaryQueryKey(date), (old) => change(old ?? emptyDay(date)));
+}
+
+/**
+ * Pobiera dziennik z serwera dopiero po ostatnim zapisie z kolejki. Odświeżenie po każdym
+ * zapisie pokazałoby na chwilę dzień bez wpisów, które jeszcze czekają na wysłanie.
+ * W trakcie `onSettled` kończący się zapis nadal liczy się jako trwający, stąd 1.
+ */
+function refreshDiaryAfterLastWrite(): void {
+  if (queryClient.isMutating({ mutationKey: DIARY_MUTATIONS }) <= 1) {
+    void queryClient.invalidateQueries({ queryKey: ["diary"] });
+  }
+}
+
+queryClient.setMutationDefaults(mutationKeys.diaryPut, {
+  scope: DIARY_SCOPE,
+  mutationFn: ({ entry }: DiaryPutInput) =>
+    api.put<DiaryEntry>(`/api/diary/entries/${entry.id}`, {
+      date: entry.date,
+      meal_slot: entry.meal_slot,
+      food_id: entry.food_id,
+      amount: entry.amount,
+      source: entry.source,
+    }),
+  onMutate: ({ entry }: DiaryPutInput) => previewDay(entry.date, (day) => withEntry(day, entry)),
+  onSettled: refreshDiaryAfterLastWrite,
+});
+
+queryClient.setMutationDefaults(mutationKeys.diaryDelete, {
+  scope: DIARY_SCOPE,
+  mutationFn: ({ id }: DiaryDeleteInput) => api.delete(`/api/diary/entries/${id}`),
+  onMutate: ({ id, date }: DiaryDeleteInput) => previewDay(date, (day) => withoutEntry(day, id)),
+  onSettled: refreshDiaryAfterLastWrite,
+});
+
+/** Usuwa z pamięci zapisy dziennika odrzucone przez serwer (po pokazaniu błędu). */
+export function dismissDiaryErrors(): void {
+  const cache = queryClient.getMutationCache();
+  for (const mutation of cache.findAll({ mutationKey: DIARY_MUTATIONS, status: "error" })) {
+    cache.remove(mutation);
+  }
+}

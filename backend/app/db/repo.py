@@ -1,14 +1,15 @@
 """Operacje na bazie używane przez endpointy. Bez logiki obliczeniowej (ta jest w core/)."""
 
+import uuid
 from collections.abc import Iterable
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 
 from sqlalchemy import func, insert, select
 from sqlalchemy.orm import Session
 
 from app.core.health_ingest import Sample
 from app.core.nutrients import MACRO_KEYS, fill_implied_zeros
-from app.db.models import Food, FoodNutrient, HealthSample, Nutrient
+from app.db.models import Food, FoodNutrient, HealthSample, MealEntry, Nutrient
 from app.off.client import FoodDraft
 
 
@@ -159,3 +160,34 @@ def mark_food_verified(db: Session, food: Food) -> Food:
     food.verified_at = datetime.now(UTC)
     db.commit()
     return food
+
+
+# ---------- dziennik ----------
+
+
+def save_meal_entry(
+    db: Session, entry: MealEntry | None, entry_id: uuid.UUID, **fields
+) -> MealEntry:
+    """Tworzy wpis albo nadpisuje pola istniejącego."""
+    if entry is None:
+        entry = MealEntry(id=entry_id, **fields)
+        db.add(entry)
+    else:
+        for name, value in fields.items():
+            setattr(entry, name, value)
+    db.commit()
+    db.refresh(entry)
+    return entry
+
+
+def delete_meal_entry(db: Session, entry_id: uuid.UUID) -> None:
+    entry = db.get(MealEntry, entry_id)
+    if entry is not None:
+        db.delete(entry)
+        db.commit()
+
+
+def meal_entries_for_day(db: Session, day: date) -> list[MealEntry]:
+    return list(
+        db.scalars(select(MealEntry).where(MealEntry.date == day).order_by(MealEntry.created_at))
+    )

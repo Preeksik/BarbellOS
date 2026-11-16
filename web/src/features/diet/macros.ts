@@ -15,3 +15,14 @@ export const MACRO_ROWS: { key: MacroKey; label: string; unit: string; sub?: boo
 export function formatNumber(value: number): string {
   return value.toLocaleString("pl-PL", { maximumFractionDigits: 2 });
 }
+
+/** Kalorie w dzienniku: pełne liczby. */
+export function formatKcal(value: number): string {
+  return Math.round(value).toLocaleString("pl-PL");
+}
+
+/** Gramy w dzienniku: jedno miejsce po przecinku; brak danych jako kreska. */
+export function formatGrams(value: number | null | undefined): string {
+  if (value == null) return "–";
+  return `${value.toLocaleString("pl-PL", { maximumFractionDigits: 1 })} g`;
+}

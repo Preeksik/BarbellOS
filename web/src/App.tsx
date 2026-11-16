@@ -1,22 +1,27 @@
 import { useIsRestoring, useMutationState, useQuery } from "@tanstack/react-query";
 import { useState } from "react";
+import { DiaryPage } from "./features/diary/DiaryPage";
 import { ScanPage } from "./features/diet/ScanPage";
 import { HealthPage } from "./features/health/HealthPage";
 import { HomePage } from "./features/home/HomePage";
 import { LoginForm } from "./features/home/LoginForm";
 import { type Session, api } from "./lib/api";
+import { toIsoDay } from "./lib/diary";
 
 // Zakładki są stanem, a nie adresami URL: iOS potrafi ponownie pytać o zgodę na kamerę
 // po zmianie adresu wewnątrz zainstalowanej aplikacji (dokumentacja 3.3).
 const TABS = [
-  { id: "home", label: "Start" },
+  { id: "diary", label: "Dziennik" },
   { id: "scan", label: "Skan" },
   { id: "health", label: "Zdrowie" },
+  { id: "home", label: "Start" },
 ] as const;
 type TabId = (typeof TABS)[number]["id"];
 
 export function App() {
-  const [tab, setTab] = useState<TabId>("home");
+  const [tab, setTab] = useState<TabId>("diary");
+  // Dzień oglądany w dzienniku. Skan dodaje produkty do tego samego dnia.
+  const [day, setDay] = useState(() => toIsoDay(new Date()));
   const restoring = useIsRestoring();
   const session = useQuery({ queryKey: ["me"], queryFn: () => api.get<Session>("/api/auth/me") });
   const unsent = useMutationState({ filters: { status: "pending" } }).length;
@@ -37,9 +42,12 @@ export function App() {
           <LoginForm />
         ) : (
           <>
-            {tab === "home" && <HomePage />}
-            {tab === "scan" && <ScanPage />}
+            {tab === "diary" && (
+              <DiaryPage day={day} onDayChange={setDay} onScan={() => setTab("scan")} />
+            )}
+            {tab === "scan" && <ScanPage day={day} onShowDiary={() => setTab("diary")} />}
             {tab === "health" && <HealthPage />}
+            {tab === "home" && <HomePage />}
           </>
         )}
       </main>

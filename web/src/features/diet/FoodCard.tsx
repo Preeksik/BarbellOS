@@ -1,13 +1,27 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { type Food, api } from "../../lib/api";
+import { MEAL_SLOTS } from "../../lib/diary";
+import { formatDecimal } from "../../lib/number";
 import { type FoodVerifyInput, foodQueryKey, mutationKeys } from "../../lib/offline";
+import { AddToDay, type Added } from "./AddToDay";
 import { FoodEditForm } from "./FoodEditForm";
 import { MACRO_ROWS, formatNumber } from "./macros";
 
-/** Produkt po skanie: wartości, status weryfikacji, poprawianie według etykiety. */
-export function FoodCard({ barcode, onAgain }: { barcode: string; onAgain: () => void }) {
+/** Produkt po skanie: wartości, weryfikacja, poprawianie według etykiety, dodanie do dnia. */
+export function FoodCard({
+  barcode,
+  day,
+  onAgain,
+  onShowDiary,
+}: {
+  barcode: string;
+  day: string;
+  onAgain: () => void;
+  onShowDiary: () => void;
+}) {
   const [editing, setEditing] = useState(false);
+  const [added, setAdded] = useState<Added | null>(null);
   const food = useQuery({
     queryKey: foodQueryKey(barcode),
     queryFn: () => api.get<Food>(`/api/foods/barcode/${barcode}`),
@@ -32,6 +46,25 @@ export function FoodCard({ barcode, onAgain }: { barcode: string; onAgain: () =>
       {food.data && (
         <>
           <FoodStatus food={food.data} />
+          {/* Nad tabelą: większość skanów to znane produkty, które od razu trafiają do dnia. */}
+          {added ? (
+            <div className="add">
+              <p className="status ok">
+                Dodano: {formatDecimal(added.amount)} {food.data.unit} ·{" "}
+                {MEAL_SLOTS.find((s) => s.id === added.slot)?.label}
+              </p>
+              <div className="row">
+                <button type="button" className="primary" onClick={onAgain}>
+                  Skanuj kolejny
+                </button>
+                <button type="button" onClick={onShowDiary}>
+                  Pokaż dziennik
+                </button>
+              </div>
+            </div>
+          ) : (
+            <AddToDay food={food.data} day={day} onAdded={setAdded} />
+          )}
           <table>
             <caption>Wartości na 100 {food.data.unit}</caption>
             <tbody>
@@ -73,9 +106,11 @@ export function FoodCard({ barcode, onAgain }: { barcode: string; onAgain: () =>
         </>
       )}
 
-      <button type="button" className="primary" onClick={onAgain}>
-        Skanuj kolejny
-      </button>
+      {!added && (
+        <button type="button" onClick={onAgain}>
+          Skanuj kolejny
+        </button>
+      )}
     </section>
   );
 }

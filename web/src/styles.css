@@ -106,7 +106,8 @@ main {
 button,
 .button,
 .file,
-input {
+input,
+select {
   min-height: 44px; /* minimalny wygodny cel dotyku na iOS */
   padding: 10px 14px;
   border: 1px solid var(--border);
@@ -141,6 +142,7 @@ button:disabled {
 button:focus-visible,
 .button:focus-visible,
 input:focus-visible,
+select:focus-visible,
 .file:focus-within {
   outline: 2px solid var(--text);
   outline-offset: 2px;
@@ -334,4 +336,183 @@ th.sub,
 .segmented label:focus-within {
   outline: 2px solid var(--text);
   outline-offset: 2px;
+}
+
+/* ---------- dziennik dnia ---------- */
+
+select {
+  width: 100%;
+  background: var(--surface);
+}
+
+input[aria-invalid="true"] {
+  border-color: var(--error);
+}
+
+button.wide {
+  width: 100%;
+  margin-bottom: 16px;
+}
+
+button.danger {
+  border-color: var(--error);
+  color: var(--error);
+}
+
+.daynav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.daynav button {
+  flex: 0 0 52px;
+  font-size: 1.4rem;
+}
+
+.daynav div {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+}
+
+.totals .kcal {
+  font-size: 1rem;
+  color: var(--muted);
+}
+
+.totals .kcal strong {
+  color: var(--text);
+  font-size: 2rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.macros {
+  display: flex;
+  gap: 12px;
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.macros div {
+  flex: 1;
+  min-width: 0;
+}
+
+.macros dt {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.macros dd {
+  margin: 0;
+  font-weight: 600;
+}
+
+.macros.minor dd {
+  font-weight: 400;
+  font-size: 0.9rem;
+}
+
+.slothead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.slothead span {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.entries {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.entries li + li {
+  border-top: 1px solid var(--border);
+}
+
+button.entry {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2px 12px;
+  width: 100%;
+  padding: 10px 0;
+  border: 0;
+  border-radius: 0;
+  text-align: left;
+  font-variant-numeric: tabular-nums;
+}
+
+.entry .name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.entry .name em {
+  color: var(--warn);
+  font-size: 0.8rem;
+  font-style: normal;
+}
+
+.entry .kcal {
+  grid-row: span 2;
+  align-self: center;
+  white-space: nowrap;
+}
+
+.entry .amount {
+  grid-column: 1;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.editor,
+.add {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.editor {
+  padding: 12px 0;
+}
+
+.add {
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.add h3 {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--muted);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.chips button {
+  min-height: 36px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.chips button.active {
+  border-color: var(--text);
+  color: var(--text);
 }
