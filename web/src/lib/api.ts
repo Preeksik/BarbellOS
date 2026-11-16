@@ -15,13 +15,16 @@ export class ApiError extends Error {
 export class NetworkError extends Error {}
 
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
+  // Plik (np. zdjęcie etykiety) idzie w treści żądania bez opakowania; reszta jako JSON.
+  const isFile = body instanceof Blob;
+  const contentType = isFile ? body.type || "application/octet-stream" : "application/json";
   let response: Response;
   try {
     response = await fetch(path, {
       method,
       credentials: "same-origin",
-      headers: body === undefined ? undefined : { "Content-Type": "application/json" },
-      body: body === undefined ? undefined : JSON.stringify(body),
+      headers: body === undefined ? undefined : { "Content-Type": contentType },
+      body: body === undefined ? undefined : isFile ? body : JSON.stringify(body),
     });
   } catch {
     reportNetworkFailure();
@@ -92,7 +95,22 @@ export interface FoodUpdateBody {
   per_100: Per100;
 }
 
-export type MealSlot = "breakfast" | "second_breakfast" | "lunch" | "snack" | "dinner";
+/** Własny produkt dla kodu spoza źródeł. `origin`: wpisany ręcznie albo odczytany z etykiety. */
+export interface FoodCreateBody extends FoodUpdateBody {
+  origin: "user" | "ai_label";
+}
+
+/** Szkic ze zdjęcia etykiety. `null` w wartości oznacza „nie odczytano". */
+export interface LabelDraft {
+  name: string | null;
+  brand: string | null;
+  serving_g: number | null;
+  unit: "g" | "ml" | null;
+  per_100: Per100;
+  warnings: string[];
+}
+
+export type MealSlot ="breakfast" | "second_breakfast" | "lunch" | "snack" | "dinner";
 
 /** Wpis dziennika. `values` to wartości dla tej porcji, zamrożone w chwili dodania. */
 export interface DiaryEntry {

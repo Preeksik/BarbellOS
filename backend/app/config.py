@@ -30,8 +30,10 @@ class Settings(BaseSettings):
     # AI: na start działa tylko Gemini. Claude włącza się po dodaniu klucza.
     gemini_api_key: str = ""
     anthropic_api_key: str = ""
-    gemini_model_cheap: str = "gemini-flash-lite-latest"
-    gemini_model_mid: str = "gemini-flash-latest"
+    # Modele z darmowego poziomu AI Studio (sprawdzone w dokumentacji 16.11.2026).
+    gemini_model_cheap: str = "gemini-3.5-flash-lite"
+    gemini_model_mid: str = "gemini-3.8-flash"
+    gemini_base_url: str = "https://generativelanguage.googleapis.com"
     claude_model_cheap: str = "claude-haiku-5-5"
     claude_model_mid: str = "claude-sonnet-5-5"
     claude_model_strong: str = "claude-opus-5-5"

@@ -92,8 +92,8 @@ Obliczenia treningowe są porównywane z wartościami policzonymi oryginalnym pl
 | Etap | Zakres |
 |---|---|
 | **0** | Próby ryzyka: skan w PWA, Apple Health przez Skróty, pokrycie Open Food Facts, zapis offline |
-| 1 | Dziennik diety bez AI |
-| 2 | AI w diecie: zdjęcie etykiety, zdjęcie posiłku, opis tekstowy |
+| 1 | Dziennik diety; jedyna funkcja AI to zdjęcie etykiety (kroki: `docs/etap-1.md`) |
+| 2 | AI w diecie: zdjęcie posiłku, opis tekstowy, licznik kosztów |
 | 3 | Regeneracja: import z Apple Health, trend wagi, wskaźnik regeneracji |
 | 4 | Trening: przeniesienie planu i dziennika |
 | 5 | Coach: podsumowanie dnia i tygodnia |

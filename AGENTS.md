@@ -22,6 +22,7 @@ Aplikacja jednego użytkownika łącząca dietę, trening siłowy i regenerację
 9. **Robienie wagi:** Coach nie generuje protokołów ani dawek wody i sodu. Wartości pochodzą z szablonu `meet_week` wypełnionego przez użytkownika, granice są w kodzie (dokumentacja 7).
 10. **Daty w bazie są w UTC i zawsze ze strefą** (typ `UtcDateTime`). Data bez strefy jest błędem. Znaczniki czasu nadaje aplikacja (`default=utcnow` w modelu), nie baza: `now()` nie istnieje w SQLite.
 11. **Zakładki frontendu są stanem, nie adresami URL.** Zmiana adresu w zainstalowanej PWA potrafi na iOS ponownie wywołać pytanie o kamerę.
+12. **Nie dodawaj do commitów ani PR linijek Co-Authored-By ani "Generated with Claude Code".**
 
 ## Praca nad zmianą
 

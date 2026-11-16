@@ -4,6 +4,10 @@ from collections.abc import Callable
 
 from fastapi import Depends, HTTPException, Request
 
+from app.ai.claude import ClaudeProvider
+from app.ai.gemini import GeminiProvider
+from app.ai.provider import Tier
+from app.ai.router import AiRouter
 from app.config import Settings, get_settings
 from app.off.client import FoodDraft, fetch_product
 from app.security import token_matches
@@ -29,3 +33,24 @@ OffFetcher = Callable[[str], FoodDraft | None]
 
 def get_off_fetcher(settings: Settings = Depends(get_settings)) -> OffFetcher:
     return lambda barcode: fetch_product(barcode, settings.off_base_url, settings.off_user_agent)
+
+
+def get_ai_router(settings: Settings = Depends(get_settings)) -> AiRouter:
+    """Dostawcy modeli z konfiguracji. Dostawca bez klucza jest przez router pomijany."""
+    return AiRouter(
+        {
+            "gemini": GeminiProvider(
+                settings.gemini_api_key,
+                {Tier.CHEAP: settings.gemini_model_cheap, Tier.MID: settings.gemini_model_mid},
+                settings.gemini_base_url,
+            ),
+            "claude": ClaudeProvider(
+                settings.anthropic_api_key,
+                {
+                    Tier.CHEAP: settings.claude_model_cheap,
+                    Tier.MID: settings.claude_model_mid,
+                    Tier.STRONG: settings.claude_model_strong,
+                },
+            ),
+        }
+    )

@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.core.health_ingest import Sample
 from app.core.nutrients import MACRO_KEYS, fill_implied_zeros
-from app.db.models import Food, FoodNutrient, HealthSample, MealEntry, Nutrient
+from app.db.models import AiRun, Food, FoodNutrient, HealthSample, MealEntry, Nutrient
 from app.off.client import FoodDraft
 
 
@@ -155,11 +155,70 @@ def update_food(
     return food
 
 
+def create_user_food(
+    db: Session,
+    barcode: str,
+    name: str,
+    brand: str | None,
+    serving_g: float | None,
+    unit: str,
+    macros: dict[str, float | None],
+    origin: str,
+) -> Food:
+    """Produkt, którego nie było w żadnym źródle: wartości wpisał albo zatwierdził użytkownik.
+
+    `origin` mówi, skąd wziął się szkic: `user` (wpisany ręcznie) albo `ai_label`
+    (odczytany ze zdjęcia etykiety). W obu przypadkach wartości zatwierdził człowiek,
+    więc `macro_source` to `user`, a produkt jest od razu zweryfikowany.
+    """
+    food = Food(
+        kind="packaged",
+        barcode=barcode,
+        name=name,
+        brand=brand,
+        serving_g=serving_g,
+        unit=unit,
+        origin=origin,
+        macro_source="user",
+        verified_at=datetime.now(UTC),
+        **{key: macros.get(key) for key in MACRO_KEYS},
+    )
+    db.add(food)
+    db.commit()
+    return food
+
+
 def mark_food_verified(db: Session, food: Food) -> Food:
     """Użytkownik potwierdził, że wartości zgadzają się z etykietą."""
     food.verified_at = datetime.now(UTC)
     db.commit()
     return food
+
+
+# ---------- AI ----------
+
+
+def log_ai_run(
+    db: Session,
+    task: str,
+    provider: str,
+    model: str,
+    status: str,
+    input_tokens: int | None = None,
+    output_tokens: int | None = None,
+) -> AiRun:
+    """Zapisuje wywołanie modelu. Koszt zostaje pusty do czasu licznika kosztów (etap 2)."""
+    run = AiRun(
+        task=task,
+        provider=provider,
+        model=model,
+        status=status,
+        input_tokens=input_tokens,
+        output_tokens=output_tokens,
+    )
+    db.add(run)
+    db.commit()
+    return run
 
 
 # ---------- dziennik ----------

@@ -3,10 +3,15 @@ import { defineConfig } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
 
 export default defineConfig({
+  // Wersję widać na zakładce „Start": po niej poznasz, czy telefon ma już nowy kod.
+  define: { __BUILD_TIME__: JSON.stringify(new Date().toISOString()) },
   plugins: [
     react(),
     VitePWA({
-      registerType: "autoUpdate",
+      // Nowa wersja czeka, aż użytkownik stuknie „Nowa wersja" (src/lib/appUpdate.ts).
+      // Rejestrację robi ten moduł, a nie wstrzyknięty skrypt: sam skrypt nie umie
+      // powiadomić aplikacji, że nowa wersja jest gotowa.
+      registerType: "prompt",
       includeAssets: ["favicon.svg", "apple-touch-icon.png"],
       manifest: {
         name: "BarbellOS",

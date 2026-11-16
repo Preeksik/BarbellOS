@@ -58,17 +58,36 @@ class MealEstimate(BaseModel):
     notes: str | None = None
 
 
-class LabelExtract(BaseModel):
-    """Zdjęcie etykiety -> wartości na 100 g. Pole puste, gdy etykieta go nie podaje."""
+class LabelBasis(StrEnum):
+    PER_100G = "100g"
+    PER_100ML = "100ml"
+    OTHER = "other"
 
-    name: str | None = None
-    brand: str | None = None
-    serving_g: float | None = None
-    kcal: float | None = None
-    protein_g: float | None = None
-    fat_g: float | None = None
-    sat_fat_g: float | None = None
-    carbs_g: float | None = None
-    sugars_g: float | None = None
-    fiber_g: float | None = None
-    salt_g: float | None = None
+
+class LabelExtract(BaseModel):
+    """Zdjęcie etykiety -> przepisana tabela wartości odżywczych.
+
+    Pola są wymagane, ale mogą być puste: model ma jawnie napisać `null`, gdy etykieta
+    czegoś nie podaje. Model niczego nie przelicza. Zakresy i spójność sprawdza
+    `core/label.py`.
+    """
+
+    name: str | None = Field(description="Nazwa produktu z opakowania; null, gdy jej nie widać.")
+    brand: str | None = Field(description="Marka albo producent; null, gdy jej nie widać.")
+    basis: LabelBasis = Field(
+        description=(
+            "Której kolumny tabeli dotyczą przepisane wartości: '100g' (na 100 g), "
+            "'100ml' (na 100 ml), 'other' gdy tabela nie ma żadnej z nich."
+        )
+    )
+    serving_g: float | None = Field(
+        description="Wielkość porcji w g albo ml, jeśli etykieta ją podaje; inaczej null."
+    )
+    kcal: float | None = Field(description="Wartość energetyczna w kcal (nie w kJ).")
+    fat_g: float | None = Field(description="Tłuszcz, g.")
+    sat_fat_g: float | None = Field(description="W tym kwasy tłuszczowe nasycone, g.")
+    carbs_g: float | None = Field(description="Węglowodany, g.")
+    sugars_g: float | None = Field(description="W tym cukry, g.")
+    fiber_g: float | None = Field(description="Błonnik, g.")
+    protein_g: float | None = Field(description="Białko, g.")
+    salt_g: float | None = Field(description="Sól, g.")

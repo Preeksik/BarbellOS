@@ -1,6 +1,8 @@
-# BarbellOS — dokumentacja techniczna v0.6
+# BarbellOS — dokumentacja techniczna v0.7
 
-Stan: 15.11.2026.
+Stan: 16.11.2026.
+
+Zmiany w v0.7 (etap 1, krok 3): zdjęcie etykiety wypełnia formularz produktu, a kod spoza Open Food Facts można dodać jako własny produkt (4.6); Gemini przez Interactions API i sprawdzone nazwy modeli (7); zakres kolejki offline (3.6); przycisk „Nowa wersja" po wdrożeniu (3.3).
 
 Zmiany w v0.6 (etap 1, krok 2): dziennik dnia (4.5); wpis ma ilość i jednostkę g/ml zamiast samych gramów (8); kolejność zapisów dziennika, podgląd bez sieci i wygasła sesja w kolejce (3.6); znaczniki czasu nadaje aplikacja, a nie baza (8).
 
@@ -105,6 +107,7 @@ Decyduje pętla zwrotna: skoro kod piszą agenci, to wersja, którą agent sam u
 - **HTTPS jest wymagany** do kamery i instalacji. Test na telefonie wymaga więc wdrożenia albo tunelu (np. Cloudflare Tunnel) — sam adres w sieci domowej nie wystarczy.
 - **Pamięć:** zainstalowana PWA nie podlega 7-dniowemu czyszczeniu danych, które dotyczy stron w Safari, ale iOS nie daje gwarancji trwałości. Dlatego telefon nie jest jedynym miejscem przechowywania.
 - **Brak pracy w tle.** Aplikacja nie zsynchronizuje niczego, gdy jest zamknięta. Dane zdrowotne dosyła automatyzacja Skrótów, nie PWA.
+- **Aktualizacja po wdrożeniu.** Service worker podaje aplikację z pamięci telefonu, więc po wdrożeniu telefon nadal pokazuje starą wersję, a nowa pobiera się w tle. Gdy jest gotowa, pod nagłówkiem pojawia się przycisk „Nowa wersja aplikacji": stuknięcie przełącza kod i wczytuje aplikację ponownie. Przełączenie nie dzieje się samo, żeby nie skasować formularza w trakcie wpisywania. Aplikacja sprawdza nową wersję przy starcie i przy każdym powrocie z tła (iOS wznawia ją bez ponownego wczytania). Datę zbudowania widać na zakładce „Start". Kod: `web/src/lib/appUpdate.ts`.
 
 ### 3.4 Hosting
 
@@ -159,7 +162,7 @@ TanStack Query domyślnie trzyma wstrzymane zapisy tylko w pamięci. Jeśli iOS 
 10. Zmiana jest widoczna od razu jako podgląd policzony na telefonie (`web/src/lib/diary.ts`). To jedyny wyjątek od zasady, że liczy serwer: po wysłaniu ostatniego zapisu z kolejki dzień jest pobierany z serwera i podgląd znika.
 11. Odpowiedź 401 nie usuwa zapisu z kolejki. Aplikacja pokazuje logowanie, a zapis ponawia się po zalogowaniu.
 
-Zakres kolejki: logowanie serii oraz wpisy posiłków z produktów, które telefon już zna. Skan nowego kodu i funkcje AI wymagają sieci.
+Zakres kolejki: logowanie serii, wpisy posiłków z produktów, które telefon już zna, oraz poprawka i zapis własnego produktu. Skan nowego kodu i funkcje AI (odczyt etykiety) wymagają sieci: odczyt jest zwykłym żądaniem, nie zapisem w kolejce, więc bez połączenia od razu pokazuje błąd, a formularz da się wypełnić ręcznie.
 
 Test akceptacyjny na prawdziwym iPhonie: tryb samolotowy → zapis serii → zamknięcie aplikacji z przełącznika aplikacji → otwarcie z siecią → seria jest w bazie.
 
@@ -217,7 +220,7 @@ Wynik etapu 0: zeskanowane produkty są w Open Food Facts, ale wartości bywają
 - Zweryfikowany produkt nie jest nadpisywany danymi ze źródła.
 - Reguły pewne, liczone w kodzie: tłuszcz 0 g oznacza kwasy nasycone 0 g, węglowodany 0 g oznaczają cukry 0 g. Nasycone nie mogą przekraczać tłuszczu, cukry węglowodanów. Wartości niemożliwe są odrzucane.
 - Ostrzeżenie (nie blokuje zapisu): energia odbiega o ponad 20% od wyliczonej z makroskładników. Najczęściej to literówka.
-- Krok 3 etapu 1: zdjęcie etykiety wypełnia ten sam formularz, a użytkownik zatwierdza.
+- Zdjęcie etykiety wypełnia ten sam formularz, a użytkownik zatwierdza (4.6).
 
 Źródła są wymienne (osobny adapter na źródło), więc przy skanie można docelowo pokazać kilku kandydatów obok siebie. **FatSecret Platform API odrzucony:** darmowe warianty obejmują tylko dane z USA, a warunki pozwalają przechowywać wyłącznie identyfikatory produktów, co wyklucza własną bazę i zamrożoną historię.
 
@@ -231,6 +234,26 @@ Dzień składa się z pięciu posiłków: śniadanie, II śniadanie, obiad, podw
 - `GET /api/diary/{data}` zwraca wpisy, sumę dnia i sumy posiłków. Brak danych we wpisie liczy się w sumie jak zero.
 - Dzień to data według zegara telefonu, nie UTC: wpis dodany po północy trafia do nowego dnia.
 - Logika: `backend/app/core/diary.py`.
+
+### 4.6 Zdjęcie etykiety i własny produkt
+
+Formularz produktu (ten sam co „Popraw") ma przycisk „Zdjęcie etykiety". Zdjęcie niczego nie zapisuje: wypełnia pola, a zapis następuje dopiero po „Zapisz".
+
+- Telefon zmniejsza zdjęcie do JPEG-a o dłuższym boku 2000 px i wysyła je w treści żądania `POST /api/foods/label`. Serwer rozpoznaje format po zawartości pliku (JPEG, PNG, WebP, HEIC) i odrzuca pliki powyżej 8 MB.
+- Model **przepisuje** tabelę: wartości z kolumny „na 100 g" albo „na 100 ml", energia w kcal, brak wartości jako `null`. Polecenie zabrania przeliczania i szacowania (`backend/app/ai/prompts.py`). Gdy etykieta ma tylko kolumnę na porcję, wartości zostają puste.
+- Resztę robi kod (`backend/app/core/label.py`): wartość niemożliwa (np. kJ przepisane jako kcal) nie trafia do formularza i jest wymieniona w uwagach; tłuszcz 0 g daje nasycone 0 g; sprzeczność (cukry większe od węglowodanów) i energia niepasująca do makroskładników są pokazane jako uwagi, bo kod nie wie, która liczba jest błędna.
+- Odpowiedź to szkic: nazwa, marka, porcja, jednostka, osiem wartości i uwagi. Gdy nie odczytano żadnej wartości, serwer odpowiada błędem 422 z prośbą o lepsze zdjęcie.
+- W formularzu pola wpisane ze zdjęcia są podświetlone. Pole, którego model nie odczytał, zostaje bez zmian. Nazwa i marka są wpisywane tylko w puste pola.
+- Błędy są widoczne i rozróżnione: brak klucza (503), wyczerpany limit (429), odpowiedź niezgodna ze schematem po jednym ponowieniu albo błąd dostawcy (502). W każdym przypadku formularz można wypełnić ręcznie.
+- Każde wywołanie modelu trafia do `ai_run` (zadanie, dostawca, model, tokeny, status). Koszt policzy licznik z etapu 2.
+
+**Własny produkt.** Gdy zeskanowanego kodu nie ma ani w naszej bazie, ani w Open Food Facts, karta proponuje „Dodaj produkt": ten sam formularz, pusty.
+
+- `PUT /api/foods/barcode/{kod}` tworzy produkt. Kluczem jest kod kreskowy, więc powtórzona wysyłka nie tworzy duplikatu; dla kodu, który już istnieje, działa jak poprawka.
+- `origin` to `ai_label`, gdy formularz wypełniło zdjęcie, albo `user`, gdy wartości wpisano ręcznie. W obu przypadkach `macro_source = 'user'` i produkt jest od razu zweryfikowany, bo wartości zatwierdził człowiek.
+- Kolejny skan tego kodu odpowiada z własnej bazy i nie pyta Open Food Facts.
+- Zapis jest zarejestrowany w kolejce offline, ale bez podglądu: produkt dostaje identyfikator dopiero na serwerze, więc do dnia można go dodać po wysłaniu.
+- Produkt bez kodu kreskowego to osobny krok (etap 1, krok 5).
 
 ## 5. Moduł 2 — Trening
 
@@ -346,7 +369,9 @@ Klucze i wywołania są na serwerze. Jeden interfejs `AiProvider`, dwie implemen
 
 **Na start działa tylko kolumna Gemini:** wszystkie zadania, także podsumowania, idą na darmowy klucz z AI Studio. Router ma obsługę Claude'a od początku, ale jest ona wyłączona, dopóki w konfiguracji nie pojawi się klucz. Skutek uboczny: przy wyczerpaniu darmowego limitu funkcje AI czekają do następnego dnia, a reszta aplikacji działa normalnie.
 
-Stan na listopad 2026 **[DO WERYFIKACJI w panelach]**: darmowy poziom Gemini obejmuje modele Flash i Flash-Lite, flagowy Gemini 4 Argon jest płatny, a rzeczywiste limity widać tylko w AI Studio. Claude (USD za milion tokenów, wejście / wyjście): Haiku 5.5 — 0,10 / 0,50; Sonnet 5.5 — 2 / 10; Opus 5.5 — 4 / 20.
+**Gemini: stan na 16.11.2026** (dokumentacja na aistudio.google.com/docs). Wywołania idą przez Interactions API: `POST /v1beta/interactions`, klucz w nagłówku `x-goog-api-key`, schemat JSON w `response_format`, zdjęcie jako część `input` zakodowana w base64. Starsze `generateContent` nadal działa, ale nowe projekty mają używać Interactions. Wysyłamy `store: false`, żeby zdjęcia i rozmowy nie były przechowywane po stronie Google. Domyślne modele: `gemini-3.5-flash-lite` (tani) i `gemini-3.8-flash` (średni); oba są na darmowym poziomie, podobnie jak `gemini-4-hydrogen`. Zmienia się je w `.env` (`GEMINI_MODEL_CHEAP`, `GEMINI_MODEL_MID`). Schemat Pydantic jest przed wysłaniem upraszczany do podzbioru JSON Schema z dokumentacji (`backend/app/ai/json_schema.py`). Wywołania Claude'a powstaną w etapie 2: do tego czasu dostawca zgłasza się jako niedostępny, także gdy klucz jest ustawiony.
+
+Stan na listopad 2026 **[DO WERYFIKACJI w panelach]**: darmowy poziom Gemini obejmuje modele Flash i Flash-Lite, flagowe Gemini 4 Argon i Carbon są płatne, a rzeczywiste limity widać tylko w AI Studio. Claude (USD za milion tokenów, wejście / wyjście): Haiku 5.5 — 0,10 / 0,50; Sonnet 5.5 — 2 / 10; Opus 5.5 — 4 / 20.
 
 **Koszt** (założenia: zdjęcie ≈ 2000 tokenów wejścia i 600 wyjścia; dzień ≈ 6000 / 1000; tydzień ≈ 30 000 / 3000): 4 zdjęcia dziennie na Sonnet ≈ 1,20 USD/mies., podsumowania dnia ≈ 0,66, przeglądy tygodnia na Opus ≈ 0,78. Razem ok. **2,60 USD miesięcznie** przy samych płatnych modelach.
 
@@ -438,10 +463,11 @@ coach_note(id PK, date, scope, text, ai_run_id)       -- 'day' | 'week'
 ```
 backend/
   app/
-    api/          auth.py, health.py, diet.py, probe.py, deps.py     (dojdą: training.py, coach.py)
-    core/         training.py, nutrients.py, energy.py, readiness.py,
+    api/          auth.py, health.py, diet.py, diary.py, probe.py, deps.py  (dojdą: training.py, coach.py)
+    core/         training.py, nutrients.py, diary.py, label.py, energy.py, readiness.py,
                   health_ingest.py, barcode.py                        ← czysta logika z testami
-    ai/           provider.py, router.py, schemas.py, gemini.py, claude.py
+    ai/           provider.py, router.py, schemas.py, json_schema.py, prompts.py,
+                  gemini.py, claude.py
     off/          client.py
     db/           models.py, repo.py, session.py, migrations/
     tools/        seed.py, hash_password.py
@@ -449,8 +475,8 @@ backend/
   tests/          w tym fixtures/training_reference.json (wartości z oryginalnego planu)
 web/
   src/
-    features/     home/ diet/ health/ (ekrany etapu 0), training/ coach/ (kolejne etapy)
-    lib/          api.ts, offline.ts, connectivity.ts, scanner.ts, ean.ts
+    features/     home/ diet/ diary/ health/, training/ coach/ (kolejne etapy)
+    lib/          api.ts, offline.ts, connectivity.ts, scanner.ts, ean.ts, diary.ts, label.ts, number.ts
   public/         ikony
 seed/             nutrients.json, plan_amp_2027.json (poza repo, patrz 3.5)
 shortcuts/        budowa skrótu krok po kroku
@@ -468,8 +494,8 @@ CLAUDE.md         import @AGENTS.md + rzeczy specyficzne dla Claude Code
 | Etap | Zakres | Gotowe, gdy |
 |---|---|---|
 | **0. Próby ryzyka** | Repo, „hello world" wdrożony pod HTTPS, PWA na ekranie głównym. Próba A: skan kodu kreskowego na Twoim iPhonie. Próba B: skrót czyta masę ciała i kroki z Apple Health i wysyła na backend — raz na rozbudzony serwer i raz celowo na uśpiony, z pomiarem, po ilu sekundach skrót się poddaje. Próba C: 30 produktów z Twojej kuchni — ile jest w OFF. Próba D: zapis zrobiony w trybie samolotowym przetrwa zamknięcie aplikacji. Instrukcje: `docs/etap-0.md`. | Wszystkie cztery próby mają wynik. Jeśli A, B lub D zawiedzie, wracamy do decyzji o stacku, zanim powstanie reszta. |
-| **1. Dieta bez AI** | Skan → OFF → baza, wyszukiwarka, własne produkty, posiłki, cele, widok dnia | Przez tydzień logujesz tu zamiast w Fitatu |
-| **2. AI w diecie** | Router, zdjęcie etykiety, zdjęcie posiłku, opis tekstowy, licznik kosztów | Posiłek na mieście w mniej niż 30 sekund |
+| **1. Dieta** | Skan → OFF → baza, zdjęcie etykiety (jedyna funkcja AI w tym etapie, przeniesiona z etapu 2 po próbie C), wyszukiwarka, własne produkty, posiłki, cele, widok dnia. Kroki: `docs/etap-1.md` | Przez tydzień logujesz tu zamiast w Fitatu |
+| **2. AI w diecie** | Zdjęcie posiłku, opis tekstowy, dostawca Claude, licznik kosztów | Posiłek na mieście w mniej niż 30 sekund |
 | **3. Regeneracja** | Pełny skrót, import, trend wagi, wskaźnik regeneracji, adaptacyjne TDEE | Rano widzisz stan regeneracji (start, gdy opaska dotrze) |
 | **4. Trening** | Przeniesienie planu i dziennika, migracja wpisów | Trenujesz z nowej aplikacji, stary plik idzie do archiwum |
 | **5. Coach** | Podsumowanie dnia i tygodnia | Podsumowanie mówi coś, czego sam byś nie zauważył |

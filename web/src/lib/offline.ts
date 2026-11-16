@@ -23,6 +23,7 @@ import {
   type DiaryDay,
   type DiaryEntry,
   type Food,
+  type FoodCreateBody,
   type FoodUpdateBody,
   NetworkError,
   type Probe,
@@ -99,6 +100,7 @@ export const mutationKeys = {
   probe: ["probe"] as const,
   foodUpdate: ["food", "update"] as const,
   foodVerify: ["food", "verify"] as const,
+  foodCreate: ["food", "create"] as const,
   diaryPut: ["diary", "put"] as const,
   diaryDelete: ["diary", "delete"] as const,
 };
@@ -156,6 +158,22 @@ queryClient.setMutationDefaults(mutationKeys.foodUpdate, {
 queryClient.setMutationDefaults(mutationKeys.foodVerify, {
   mutationFn: ({ id }: FoodVerifyInput) => api.post<Food>(`/api/foods/${id}/verify`),
   onSuccess: (food: Food, { barcode }: FoodVerifyInput) => {
+    queryClient.setQueryData(foodQueryKey(barcode), food);
+  },
+});
+
+export interface FoodCreateInput {
+  barcode: string;
+  body: FoodCreateBody;
+}
+
+// Własny produkt dla kodu, którego nie ma w źródłach. PUT z kodem kreskowym jako kluczem,
+// więc zapis ponowiony z kolejki nie tworzy duplikatu. Bez podglądu: produkt dostaje
+// identyfikator dopiero na serwerze, a bez niego nie da się go dodać do dnia.
+queryClient.setMutationDefaults(mutationKeys.foodCreate, {
+  mutationFn: ({ barcode, body }: FoodCreateInput) =>
+    api.put<Food>(`/api/foods/barcode/${barcode}`, body),
+  onSuccess: (food: Food, { barcode }: FoodCreateInput) => {
     queryClient.setQueryData(foodQueryKey(barcode), food);
   },
 });

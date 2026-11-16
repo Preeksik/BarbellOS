@@ -1,7 +1,10 @@
 import { onlineManager, useMutation, useMutationState, useQuery } from "@tanstack/react-query";
 import { useState, useSyncExternalStore } from "react";
 import { type Probe, api } from "../../lib/api";
+import { BUILD_TIME } from "../../lib/appUpdate";
 import { type ProbeInput, mutationKeys } from "../../lib/offline";
+
+const VERSION_FORMAT: Intl.DateTimeFormatOptions = { dateStyle: "short", timeStyle: "short" };
 
 /** Ekran etapu 0: stan serwera, instalacja PWA i próba D (zapis offline). */
 export function HomePage() {
@@ -63,6 +66,10 @@ function InstallStatus() {
           Próby A, B i D wykonuj w zainstalowanej wersji.
         </p>
       )}
+      {/* Po tej dacie widać, czy telefon ma już kod z ostatniego wdrożenia. */}
+      <p className="muted">
+        Wersja aplikacji: {new Date(BUILD_TIME).toLocaleString("pl-PL", VERSION_FORMAT)}
+      </p>
     </section>
   );
 }

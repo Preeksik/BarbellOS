@@ -79,19 +79,24 @@ def fill_implied_zeros(macros: Mapping[str, float | None]) -> dict[str, float | 
     return out
 
 
-def macro_errors(macros: Mapping[str, float | None], unit: str = "g") -> list[str]:
-    """Błędy, z którymi produktu nie zapisujemy (wartości niemożliwe).
+def value_in_range(key: str, value: float, unit: str = "g") -> bool:
+    """Czy wartość na 100 g lub 100 ml jest w ogóle możliwa.
 
     Górna granica 100 g na 100 g dotyczy tylko produktów w gramach: 100 ml gęstego
     płynu (miód, syrop) waży więcej niż 100 g.
     """
+    limit = MAX_KCAL_PER_100 if key == "kcal" else (100.0 if unit == "g" else 200.0)
+    return 0 <= value <= limit
+
+
+def macro_errors(macros: Mapping[str, float | None], unit: str = "g") -> list[str]:
+    """Błędy, z którymi produktu nie zapisujemy (wartości niemożliwe)."""
     errors = []
     for key in MACRO_KEYS:
         value = macros.get(key)
         if value is None:
             continue
-        limit = MAX_KCAL_PER_100 if key == "kcal" else (100.0 if unit == "g" else 200.0)
-        if value < 0 or value > limit:
+        if not value_in_range(key, value, unit):
             errors.append(f"{LABELS_PL[key].capitalize()}: wartość {value:g} jest poza zakresem.")
     for child, parent in SUBSETS:
         c, p = macros.get(child), macros.get(parent)

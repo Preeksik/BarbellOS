@@ -6,6 +6,7 @@ import { HealthPage } from "./features/health/HealthPage";
 import { HomePage } from "./features/home/HomePage";
 import { LoginForm } from "./features/home/LoginForm";
 import { type Session, api } from "./lib/api";
+import { applyUpdate, useUpdateReady } from "./lib/appUpdate";
 import { toIsoDay } from "./lib/diary";
 
 // Zakładki są stanem, a nie adresami URL: iOS potrafi ponownie pytać o zgodę na kamerę
@@ -25,6 +26,7 @@ export function App() {
   const restoring = useIsRestoring();
   const session = useQuery({ queryKey: ["me"], queryFn: () => api.get<Session>("/api/auth/me") });
   const unsent = useMutationState({ filters: { status: "pending" } }).length;
+  const updateReady = useUpdateReady();
 
   const needsLogin = session.data?.auth_required && !session.data.authenticated;
 
@@ -34,6 +36,11 @@ export function App() {
         <h1>BarbellOS</h1>
         {unsent > 0 && <span className="badge">niewysłane: {unsent}</span>}
       </header>
+      {updateReady && (
+        <button type="button" className="update" onClick={applyUpdate}>
+          Nowa wersja aplikacji · stuknij, żeby odświeżyć
+        </button>
+      )}
 
       <main>
         {restoring ? (

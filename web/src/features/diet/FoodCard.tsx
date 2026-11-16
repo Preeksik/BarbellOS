@@ -1,14 +1,22 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useMutationState, useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { type Food, api } from "../../lib/api";
+import { ApiError, type Food, api } from "../../lib/api";
 import { MEAL_SLOTS } from "../../lib/diary";
 import { formatDecimal } from "../../lib/number";
-import { type FoodVerifyInput, foodQueryKey, mutationKeys } from "../../lib/offline";
+import {
+  type FoodCreateInput,
+  type FoodVerifyInput,
+  foodQueryKey,
+  mutationKeys,
+} from "../../lib/offline";
 import { AddToDay, type Added } from "./AddToDay";
 import { FoodEditForm } from "./FoodEditForm";
 import { MACRO_ROWS, formatNumber } from "./macros";
 
-/** Produkt po skanie: wartości, weryfikacja, poprawianie według etykiety, dodanie do dnia. */
+/**
+ * Produkt po skanie: wartości, weryfikacja, poprawianie według etykiety, dodanie do dnia.
+ * Gdy kodu nie ma w żadnym źródle, karta proponuje dodanie własnego produktu.
+ */
 export function FoodCard({
   barcode,
   day,
@@ -29,9 +37,18 @@ export function FoodCard({
     staleTime: Number.POSITIVE_INFINITY,
   });
   const verify = useMutation<Food, Error, FoodVerifyInput>({ mutationKey: mutationKeys.foodVerify });
+  // Kodu nie ma ani u nas, ani w Open Food Facts: produkt można dodać samemu.
+  const notFound = food.error instanceof ApiError && food.error.status === 404;
+  // Nowy produkt zapisany bez sieci czeka w kolejce i pojawi się po wysłaniu.
+  const waiting = useMutationState<FoodCreateInput>({
+    filters: { mutationKey: mutationKeys.foodCreate, status: "pending" },
+    select: (mutation) => mutation.state.variables as FoodCreateInput,
+  }).some((input) => input?.barcode === barcode);
 
-  if (editing && food.data) {
-    return <FoodEditForm food={food.data} barcode={barcode} onDone={() => setEditing(false)} />;
+  if (editing && (food.data || notFound)) {
+    return (
+      <FoodEditForm food={food.data ?? null} barcode={barcode} onDone={() => setEditing(false)} />
+    );
   }
 
   return (
@@ -42,6 +59,19 @@ export function FoodCard({
       </p>
       {food.isPending && <p className="muted">Szukam produktu…</p>}
       {food.error && <p className="error">{food.error.message}</p>}
+      {notFound &&
+        (waiting ? (
+          <p className="status todo">Nowy produkt czeka na wysłanie. Pojawi się po powrocie sieci.</p>
+        ) : (
+          <>
+            <p className="muted">
+              Możesz dodać go sam: zrób zdjęcie etykiety albo wpisz wartości ręcznie.
+            </p>
+            <button type="button" className="primary" onClick={() => setEditing(true)}>
+              Dodaj produkt
+            </button>
+          </>
+        ))}
 
       {food.data && (
         <>

@@ -1,21 +1,50 @@
-"""Dieta: produkt po kodzie kreskowym, poprawianie wartości i weryfikacja z etykietą."""
+"""Dieta: produkt po kodzie kreskowym, poprawianie wartości, zdjęcie etykiety, własny produkt."""
 
+import logging
 from datetime import datetime
 from typing import Literal
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.orm import Session
 
-from app.api.deps import OffFetcher, get_off_fetcher, require_user
+from app.ai.prompts import LABEL_PROMPT
+from app.ai.router import AiRouter, AllProvidersFailed, FailureKind, Task
+from app.ai.schemas import LabelExtract
+from app.api.deps import OffFetcher, get_ai_router, get_off_fetcher, require_user
 from app.core.barcode import is_valid_ean
+from app.core.label import image_mime, label_draft
 from app.core.nutrients import MACRO_KEYS, macro_errors, macro_warnings
 from app.db import repo
 from app.db.models import Food
 from app.db.session import get_db
 
 router = APIRouter(prefix="/api/foods", tags=["diet"], dependencies=[Depends(require_user)])
+log = logging.getLogger(__name__)
+
+# Telefon zmniejsza zdjęcie przed wysłaniem; limit chroni serwer przed resztą.
+MAX_LABEL_IMAGE_BYTES = 8 * 1024 * 1024
+
+# Co widzi użytkownik, gdy żaden model nie odpowiedział: (status HTTP, komunikat).
+AI_FAILURES: dict[FailureKind, tuple[int, str]] = {
+    FailureKind.NOT_CONFIGURED: (
+        503,
+        "Odczyt etykiety jest wyłączony: na serwerze nie ma klucza GEMINI_API_KEY.",
+    ),
+    FailureKind.RATE_LIMITED: (
+        429,
+        "Darmowy limit modelu jest wyczerpany. Spróbuj później albo wpisz wartości ręcznie.",
+    ),
+    FailureKind.INVALID: (
+        502,
+        "Model nie odczytał etykiety. Zrób wyraźniejsze zdjęcie albo wpisz wartości ręcznie.",
+    ),
+    FailureKind.ERROR: (
+        502,
+        "Model AI nie odpowiada. Spróbuj ponownie albo wpisz wartości ręcznie.",
+    ),
+}
 
 
 class MicroOut(BaseModel):
@@ -65,6 +94,24 @@ class FoodUpdate(BaseModel):
     @classmethod
     def _strip(cls, value: str | None) -> str | None:
         return value.strip() or None if value is not None else None
+
+
+class FoodCreate(FoodUpdate):
+    """Własny produkt dla kodu, którego nie ma w źródłach."""
+
+    # Skąd wziął się szkic: wpisany ręcznie albo odczytany ze zdjęcia etykiety.
+    origin: Literal["user", "ai_label"] = "user"
+
+
+class LabelDraftOut(BaseModel):
+    """Szkic z etykiety do formularza produktu. Niczego nie zapisuje."""
+
+    name: str | None
+    brand: str | None
+    serving_g: float | None
+    unit: Literal["g", "ml"] | None
+    per_100: Per100
+    warnings: list[str]
 
 
 def _food_out(db: Session, food: Food, cached: bool) -> FoodOut:
@@ -117,15 +164,97 @@ def by_barcode(
     return _food_out(db, repo.save_food_draft(db, draft), cached=False)
 
 
-@router.put("/{food_id}", response_model=FoodOut)
-def update_food(food_id: int, body: FoodUpdate, db: Session = Depends(get_db)) -> FoodOut:
-    """Poprawka wartości według etykiety. Idempotentne: ten sam zapis można wysłać ponownie."""
-    food = _get_food(db, food_id)
+def _checked_macros(body: FoodUpdate) -> dict[str, float | None]:
+    """Wartości z formularza po kontroli. Niemożliwe wartości kończą żądanie błędem 422."""
     if body.name is None:
         raise HTTPException(422, "Nazwa nie może być pusta.")
     macros = body.per_100.model_dump()
     if errors := macro_errors(macros, body.unit):
         raise HTTPException(422, " ".join(errors))
+    return macros
+
+
+@router.put("/barcode/{barcode}", response_model=FoodOut)
+def put_by_barcode(barcode: str, body: FoodCreate, db: Session = Depends(get_db)) -> FoodOut:
+    """Własny produkt dla zeskanowanego kodu, np. przepisany ze zdjęcia etykiety.
+
+    Idempotentne: kluczem jest kod kreskowy, więc powtórzona wysyłka nie tworzy
+    duplikatu, tylko zapisuje te same wartości jeszcze raz.
+    """
+    if not is_valid_ean(barcode):
+        raise HTTPException(422, "Nieprawidłowy kod kreskowy.")
+    macros = _checked_macros(body)
+    food = repo.find_food_by_barcode(db, barcode)
+    if food is None:
+        food = repo.create_user_food(
+            db, barcode, body.name, body.brand, body.serving_g, body.unit, macros, body.origin
+        )
+    else:
+        repo.update_food(db, food, body.name, body.brand, body.serving_g, body.unit, macros)
+    return _food_out(db, food, cached=True)
+
+
+async def _label_image(request: Request) -> bytes:
+    """Treść żądania jako zdjęcie. Czytana porcjami, żeby limit zadziałał przed końcem wysyłki."""
+    too_big = HTTPException(413, "Zdjęcie jest za duże (limit 8 MB).")
+    declared = request.headers.get("content-length", "")
+    if declared.isdigit() and int(declared) > MAX_LABEL_IMAGE_BYTES:
+        raise too_big
+    data = bytearray()
+    async for chunk in request.stream():
+        data += chunk
+        if len(data) > MAX_LABEL_IMAGE_BYTES:
+            raise too_big
+    return bytes(data)
+
+
+@router.post("/label", response_model=LabelDraftOut)
+def read_label(
+    image: bytes = Depends(_label_image),
+    db: Session = Depends(get_db),
+    ai: AiRouter = Depends(get_ai_router),
+) -> LabelDraftOut:
+    """Zdjęcie etykiety -> szkic wartości do formularza. Zapis robi dopiero użytkownik.
+
+    Model przepisuje tabelę, a zakresy i spójność sprawdza kod (`core/label.py`).
+    """
+    if image_mime(image) is None:
+        raise HTTPException(415, "To nie jest zdjęcie (JPEG, PNG, WebP albo HEIC).")
+    task = Task.LABEL_TO_FOOD
+    try:
+        result = ai.run(task, LABEL_PROMPT, LabelExtract, images=[image])
+    except AllProvidersFailed as exc:
+        log.warning("Odczyt etykiety nieudany: %s", exc)
+        for failure in exc.called:
+            repo.log_ai_run(db, task, failure.provider, "", failure.kind)
+        status, message = AI_FAILURES[exc.kind]
+        raise HTTPException(status, message) from exc
+    repo.log_ai_run(
+        db, task, result.provider, result.model, "ok", result.input_tokens, result.output_tokens
+    )
+
+    draft = label_draft(result.data.model_dump())
+    if draft.found == 0:
+        raise HTTPException(
+            422,
+            "Nie widzę na zdjęciu tabeli wartości odżywczych na 100 g lub 100 ml. "
+            "Zrób zdjęcie samej tabeli albo wpisz wartości ręcznie.",
+        )
+    return LabelDraftOut(
+        name=draft.name,
+        brand=draft.brand,
+        serving_g=draft.serving_g,
+        unit=draft.unit,
+        per_100=Per100(**draft.macros),
+        warnings=draft.warnings,
+    )
+
+
+@router.put("/{food_id}", response_model=FoodOut)
+def update_food(food_id: int, body: FoodUpdate, db: Session = Depends(get_db)) -> FoodOut:
+    """Poprawka wartości według etykiety. Idempotentne: ten sam zapis można wysłać ponownie."""
+    food = _get_food(db, food_id)
+    macros = _checked_macros(body)
     repo.update_food(db, food, body.name, body.brand, body.serving_g, body.unit, macros)
     return _food_out(db, food, cached=True)
 

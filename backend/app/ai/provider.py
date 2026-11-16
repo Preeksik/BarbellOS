@@ -18,7 +18,11 @@ class RateLimited(Exception):
 
 
 class ProviderUnavailable(Exception):
-    """Brak klucza albo dostawca nie obsługuje danego poziomu."""
+    """Brak klucza, nieobsługiwany poziom albo błąd po stronie dostawcy (sieć, HTTP 5xx)."""
+
+
+class InvalidResponse(Exception):
+    """Odpowiedź nie pasuje do schematu. Router ponawia wywołanie jeden raz."""
 
 
 @dataclass(frozen=True)
@@ -42,5 +46,5 @@ class AiProvider(Protocol):
         schema: type[BaseModel],
         images: list[bytes] | None = None,
     ) -> AiResult:
-        """Zwraca odpowiedź zgodną ze schematem albo rzuca RateLimited / ProviderUnavailable."""
+        """Zwraca odpowiedź zgodną ze schematem albo rzuca jeden z wyjątków powyżej."""
         ...

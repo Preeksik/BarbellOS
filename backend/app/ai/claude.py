@@ -23,4 +23,6 @@ class ClaudeProvider:
     ) -> AiResult:
         if not self.supports(tier):
             raise ProviderUnavailable("brak klucza ANTHROPIC_API_KEY lub modelu dla poziomu")
-        raise NotImplementedError("Wywołania Claude powstają w etapie 2.")
+        # Nie NotImplementedError: klucz dodany przed etapem 2 nie może wywracać żądania,
+        # router ma po prostu zgłosić, że zapasowy dostawca nie odpowiedział.
+        raise ProviderUnavailable("wywołania Claude powstają w etapie 2")

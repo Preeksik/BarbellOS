@@ -6,7 +6,9 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from app.api.deps import get_off_fetcher
+from app.ai.provider import AiResult
+from app.ai.router import AiRouter
+from app.api.deps import get_ai_router, get_off_fetcher
 from app.config import Settings, get_settings
 from app.db.models import Base, Nutrient
 from app.db.session import get_db
@@ -25,6 +27,9 @@ def settings() -> Settings:
         secret_key="test-secret-key",
         app_password_hash=hash_password(PASSWORD),
         ingest_token=INGEST_TOKEN,
+        # Jawnie puste: klucz ze środowiska programisty nie może wysłać testów do sieci.
+        gemini_api_key="",
+        anthropic_api_key="",
     )
 
 
@@ -51,8 +56,56 @@ def off_calls() -> list[str]:
     return []
 
 
+# Odczyt z etykiety serka z `fake_fetch`, w kształcie `LabelExtract`.
+LABEL_EXTRACT = {
+    "name": "Serek wiejski",
+    "brand": "Testowa",
+    "basis": "100g",
+    "serving_g": 200,
+    "kcal": 97,
+    "fat_g": 5,
+    "sat_fat_g": 3.5,
+    "carbs_g": 2,
+    "sugars_g": 2,
+    "fiber_g": None,
+    "protein_g": 11,
+    "salt_g": 0.7,
+}
+
+
+class FakeLabelAi:
+    """Udaje dostawcę modeli: oddaje przygotowane odczyty albo rzuca przygotowane wyjątki."""
+
+    name = "gemini"
+
+    def __init__(self) -> None:
+        self.calls: list[dict] = []
+        self.outcomes: list[dict | Exception] = []  # kolejka; pusta = odczyt domyślny
+
+    def supports(self, tier) -> bool:
+        return True
+
+    def generate(self, tier, prompt, schema, images=None) -> AiResult:
+        self.calls.append({"tier": tier, "prompt": prompt, "images": images})
+        outcome = self.outcomes.pop(0) if self.outcomes else LABEL_EXTRACT
+        if isinstance(outcome, Exception):
+            raise outcome
+        return AiResult(
+            data=schema.model_validate(outcome),
+            provider=self.name,
+            model="gemini-test",
+            input_tokens=1500,
+            output_tokens=120,
+        )
+
+
 @pytest.fixture
-def client(settings, db_factory, off_calls):
+def label_ai() -> FakeLabelAi:
+    return FakeLabelAi()
+
+
+@pytest.fixture
+def client(settings, db_factory, off_calls, label_ai):
     from app.off.client import FoodDraft
 
     def fake_fetch(barcode: str):
@@ -87,6 +140,7 @@ def client(settings, db_factory, off_calls):
     app.dependency_overrides[get_settings] = lambda: settings
     app.dependency_overrides[get_db] = override_db
     app.dependency_overrides[get_off_fetcher] = lambda: fake_fetch
+    app.dependency_overrides[get_ai_router] = lambda: AiRouter({"gemini": label_ai})
     # Adres https, bo ciasteczko sesji w trybie prod ma flagę Secure.
     with TestClient(app, base_url="https://testserver") as test_client:
         yield test_client
