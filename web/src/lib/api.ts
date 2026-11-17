@@ -200,3 +200,40 @@ export interface Probe {
   received_at: string;
   note: string | null;
 }
+
+// ---------- profil ----------
+
+export type Sex = "male" | "female";
+export type Activity = "sedentary" | "light" | "moderate" | "active" | "very_active";
+export type Goal = "lose" | "maintain" | "gain";
+
+export interface Profile {
+  sex: Sex;
+  birth_date: string;
+  height_cm: number;
+  weight_kg: number;
+  activity: Activity;
+  goal: Goal;
+  pace_kg_week: number;
+  /** `null` = domyślne dla celu. */
+  protein_g_per_kg: number | null;
+}
+
+/** Propozycja policzona na serwerze (`backend/app/core/profile.py`). */
+export interface Plan {
+  age: number;
+  bmr: number;
+  tdee: number;
+  kcal: number;
+  adjustment: number;
+  pace_kg_week: number;
+  protein_g_per_kg: number;
+  goals: Per100;
+  notes: string[];
+  warnings: string[];
+}
+
+export interface ProfileResponse {
+  profile: Profile | null;
+  plan: Plan | null;
+}

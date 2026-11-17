@@ -705,3 +705,39 @@ button.forget {
   padding-bottom: 12px;
   border-bottom: 1px solid var(--border);
 }
+
+/* ---------- profil i plan ---------- */
+
+.plan .kcal {
+  margin: 0;
+  color: var(--muted);
+}
+
+.plan .kcal strong {
+  color: var(--text);
+  font-size: 2rem;
+  font-variant-numeric: tabular-nums;
+}
+
+details > summary {
+  min-height: 44px;
+  padding: 10px 0;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.notes {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0 0 8px;
+  padding-left: 18px;
+  font-size: 0.9rem;
+}
+
+/* Diagnostyka z etapu 0 schowana pod profilem; karty w środku bez podwójnej ramki. */
+.diagnostics > .card {
+  padding: 12px 0 0;
+  border: 0;
+  background: transparent;
+}

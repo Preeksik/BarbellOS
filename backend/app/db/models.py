@@ -172,6 +172,23 @@ class DailyTarget(Base):
     max: Mapped[float | None]
 
 
+class UserProfile(Base):
+    """Dane do szacowania zapotrzebowania. Aplikacja ma jednego użytkownika: jeden wiersz."""
+
+    __tablename__ = "user_profile"
+
+    id: Mapped[int] = mapped_column(primary_key=True)  # zawsze 1
+    sex: Mapped[str] = mapped_column(String(8))  # male | female
+    birth_date: Mapped[date] = mapped_column(Date)
+    height_cm: Mapped[float]
+    weight_kg: Mapped[float]
+    activity: Mapped[str] = mapped_column(String(16))  # klucz z core.profile.ACTIVITY_FACTORS
+    goal: Mapped[str] = mapped_column(String(8))  # lose | maintain | gain
+    pace_kg_week: Mapped[float]
+    protein_g_per_kg: Mapped[float | None]  # None = domyślne dla celu
+    updated_at: Mapped[datetime] = mapped_column(TZDateTime, default=utcnow, onupdate=utcnow)
+
+
 class MealTemplate(Base):
     """Zapisany posiłek: zestaw produktów z ilościami, dodawany do dnia jednym stuknięciem.
 

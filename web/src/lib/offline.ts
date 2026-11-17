@@ -29,6 +29,8 @@ import {
   NetworkError,
   type Per100,
   type Probe,
+  type Profile,
+  type ProfileResponse,
   type Targets,
   api,
 } from "./api";
@@ -112,6 +114,7 @@ export const mutationKeys = {
   targetsPut: ["targets", "put"] as const,
   mealPut: ["meals", "put"] as const,
   mealDelete: ["meals", "delete"] as const,
+  profilePut: ["profile", "put"] as const,
 };
 
 export interface ProbeInput {
@@ -293,6 +296,27 @@ queryClient.setMutationDefaults(mutationKeys.mealDelete, {
   onMutate: ({ id }: MealDeleteInput) =>
     queryClient.setQueryData<Meal[]>(MEALS_QUERY_KEY, (old = []) => old.filter((m) => m.id !== id)),
   onSettled: () => queryClient.invalidateQueries({ queryKey: MEALS_QUERY_KEY }),
+});
+
+// ---------- profil ----------
+
+export const PROFILE_QUERY_KEY = ["profile"] as const;
+
+export interface ProfilePutInput {
+  profile: Profile;
+}
+
+// Profil zapisuje się także bez sieci. Plan (kalorie, makro) liczy serwer, więc do czasu
+// wysłania ekran pokazuje nowy profil ze starym planem i informację, że plan się przeliczy.
+queryClient.setMutationDefaults(mutationKeys.profilePut, {
+  mutationFn: ({ profile }: ProfilePutInput) => api.put<ProfileResponse>("/api/profile", profile),
+  onMutate: ({ profile }: ProfilePutInput) =>
+    queryClient.setQueryData<ProfileResponse>(PROFILE_QUERY_KEY, (old) => ({
+      profile,
+      plan: old?.plan ?? null,
+    })),
+  onSuccess: (response: ProfileResponse) => queryClient.setQueryData(PROFILE_QUERY_KEY, response),
+  onError: () => queryClient.invalidateQueries({ queryKey: PROFILE_QUERY_KEY }),
 });
 
 // ---------- dziennik dnia ----------

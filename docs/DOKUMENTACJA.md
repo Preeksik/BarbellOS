@@ -1,6 +1,8 @@
-# BarbellOS — dokumentacja techniczna v0.8
+# BarbellOS — dokumentacja techniczna v0.9
 
 Stan: 17.11.2026.
+
+Zmiany w v0.9: profil użytkownika i plan kalorii oraz makroskładników z celem redukcja, utrzymanie albo masa (4.10); tabela `user_profile` (8); zakładka „Start” zastąpiona przez „Profil” (diagnostyka etapu 0 schowana pod profilem); praca bezpośrednio na `main` (11).
 
 Zmiany w v0.8 (etap 1, kroki 4–6): cele dzienne wersjonowane datą (4.7); wyszukiwarka, ostatnie, ulubione i produkt bez kodu (4.8); zapisane posiłki (4.9); nowe kolumny i tabele (8); zakres kolejki offline (3.6).
 
@@ -294,6 +296,35 @@ Zestaw produktów z ilościami, np. „Śniadanie standard", dodawany do dnia je
 - `GET /api/meals`, `PUT /api/meals/{uuid}` (nazwa i skład; powtórka zastępuje skład), `DELETE /api/meals/{uuid}` (wpisy w dzienniku zostają). Logika: `backend/app/core/meals.py`.
 - Edycja składu zestawu (zmiana ilości, usunięcie produktu) nie jest jeszcze dostępna: zestaw zapisuje się od nowa z dziennika.
 
+### 4.10 Profil i plan żywieniowy
+
+Zakładka „Profil": płeć, data urodzenia, wzrost, masa ciała, aktywność, cel (schudnąć, utrzymać, przytyć), tempo i opcjonalnie białko na kg. Z tego serwer liczy plan (`backend/app/core/profile.py`); to szacunek z ogólnych wzorów, punkt startowy.
+
+| Liczba | Jak liczona | Źródło |
+|---|---|---|
+| Przemiana spoczynkowa (BMR) | 10 × kg + 6,25 × cm − 5 × wiek, +5 (mężczyzna) albo −161 (kobieta) | Mifflin-St Jeor, 1990 |
+| Zapotrzebowanie (TDEE) | BMR × 1,2 / 1,375 / 1,55 / 1,725 / 1,9 według aktywności | standardowe współczynniki PAL |
+| Deficyt / nadwyżka | tempo (kg/tydz.) × 7700 kcal ÷ 7 | 1 kg tkanki ≈ 7700 kcal |
+| Białko (co najmniej) | domyślnie 2,2 g/kg na redukcji, 1,8 g/kg w pozostałych celach; do zmiany 1,2–3,1 | ISSN 2017 |
+| Tłuszcz | 25% kalorii (20%, gdy białko zajmuje dużo kalorii) | National Academies, 20–35% |
+| Węglowodany | reszta kalorii | — |
+| Błonnik (co najmniej) | 14 g na 1000 kcal, nie mniej niż 25 g | Dietary Guidelines; WHO |
+| Nasycone (najwyżej) | 10% kalorii | WHO |
+| Sól (najwyżej) | 5 g | WHO |
+| Cukry | bez limitu: zalecenie WHO dotyczy cukrów dodanych, a etykieta podaje wszystkie cukry | — |
+
+Bezpieczniki w kodzie:
+
+- Tempo redukcji: 0,25 / 0,5 / 0,75 / 1 kg na tydzień, ale najwyżej 1% masy ciała na tydzień. Szybsze wybrane tempo jest obniżane z wyjaśnieniem.
+- Cel kaloryczny redukcji nie schodzi poniżej przemiany spoczynkowej. Gdy wybrane tempo by tego wymagało, plan zatrzymuje się na BMR i podaje wynikające z tego tempo.
+- Tempo masy: 0,1 / 0,25 / 0,5 kg na tydzień.
+
+Plan ma przy każdej liczbie opis, skąd się wzięła („Skąd te liczby"). **Plan nie zmienia celów sam:** przycisk „Ustaw jako cele dzienne od dziś" zapisuje je przez `PUT /api/targets/{dziś}` (4.7), więc wcześniejsze dni zachowują stare cele.
+
+- `GET /api/profile` zwraca profil i plan (`null`, gdy profilu nie wypełniono). `PUT /api/profile` zapisuje cały profil (idempotentne) i zwraca nowy plan. Wiek liczony jest od dzisiejszej daty w strefie `DEFAULT_TIMEZONE`.
+- Zapis profilu działa bez sieci (kolejka offline). Plan liczy serwer, więc do czasu wysłania ekran pokazuje informację, że plan przeliczy się po powrocie sieci.
+- Masę ciała wpisuje się ręcznie. W etapie 3 będzie brana z trendu wagi z Apple Health, a zapotrzebowanie korygowane adaptacyjnie (6.4). Wtedy też AI skomentuje plan na podstawie gotowych liczb; liczby nadal liczy kod (zasada 2).
+
 ## 5. Moduł 2 — Trening
 
 ### 5.1 Punkt wyjścia: plan już jest aplikacją
@@ -478,6 +509,8 @@ meal_entry(id UUID PK,            -- nadawany na telefonie (idempotentny zapis o
            source,                -- 'scan' | 'search' | 'photo' | 'text' | 'manual' | 'meal'
            ai_run_id NULL, created_at)
 daily_target(date_from, nutrient_id, min, max)  -- wersja celów od date_from; min i max puste = bez celu
+user_profile(id PK = 1, sex, birth_date, height_cm, weight_kg, activity, goal,   -- 4.10
+             pace_kg_week, protein_g_per_kg NULL, updated_at)
 meal_template(id UUID PK, name, created_at, updated_at)   -- zapisany posiłek (4.9)
 meal_template_item(meal_id, position, food_id, amount,   -- skład: produkty i ilości, bez wartości
                    PRIMARY KEY(meal_id, position))
@@ -507,8 +540,8 @@ coach_note(id PK, date, scope, text, ai_run_id)       -- 'day' | 'week'
 ```
 backend/
   app/
-    api/          auth.py, health.py, diet.py, diary.py, targets.py, meals.py, probe.py, deps.py
-    core/         training.py, nutrients.py, diary.py, label.py, targets.py, search.py, meals.py,
+    api/          auth.py, health.py, diet.py, diary.py, targets.py, meals.py, profile.py, probe.py, deps.py
+    core/         training.py, nutrients.py, diary.py, label.py, targets.py, search.py, meals.py, profile.py,
                   energy.py, readiness.py,
                   health_ingest.py, barcode.py                        ← czysta logika z testami
     ai/           provider.py, router.py, schemas.py, json_schema.py, prompts.py,
@@ -520,7 +553,7 @@ backend/
   tests/          w tym fixtures/training_reference.json (wartości z oryginalnego planu)
 web/
   src/
-    features/     home/ diet/ diary/ health/, training/ coach/ (kolejne etapy)
+    features/     diet/ diary/ health/ profile/ home/ (diagnostyka), training/ coach/ (kolejne etapy)
     lib/          api.ts, offline.ts, connectivity.ts, scanner.ts, ean.ts, diary.ts, label.ts,
                   number.ts, targets.ts, meals.ts, appUpdate.ts
   public/         ikony

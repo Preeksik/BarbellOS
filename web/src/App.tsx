@@ -3,8 +3,8 @@ import { useState } from "react";
 import { DiaryPage } from "./features/diary/DiaryPage";
 import { AddPage } from "./features/diet/AddPage";
 import { HealthPage } from "./features/health/HealthPage";
-import { HomePage } from "./features/home/HomePage";
 import { LoginForm } from "./features/home/LoginForm";
+import { ProfilePage } from "./features/profile/ProfilePage";
 import { type Session, api } from "./lib/api";
 import { applyUpdate, useUpdateReady } from "./lib/appUpdate";
 import { toIsoDay } from "./lib/diary";
@@ -15,7 +15,7 @@ const TABS = [
   { id: "diary", label: "Dziennik" },
   { id: "add", label: "Dodaj" },
   { id: "health", label: "Zdrowie" },
-  { id: "home", label: "Start" },
+  { id: "profile", label: "Profil" },
 ] as const;
 type TabId = (typeof TABS)[number]["id"];
 
@@ -54,7 +54,7 @@ export function App() {
             )}
             {tab === "add" && <AddPage day={day} onShowDiary={() => setTab("diary")} />}
             {tab === "health" && <HealthPage />}
-            {tab === "home" && <HomePage />}
+            {tab === "profile" && <ProfilePage />}
           </>
         )}
       </main>

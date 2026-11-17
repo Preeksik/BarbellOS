@@ -107,3 +107,16 @@ Tylko na telefonie (kolejka offline):
 14. Tryb samolotowy → dodaj zapisany posiłek, zmień cele, dodaj gwiazdkę. Plakietka „niewysłane" rośnie, dziennik od razu pokazuje zmiany. Zamknij aplikację z listy, otwórz bez sieci: zmiany nadal są. Wyłącz tryb samolotowy: plakietka znika.
 15. Bez sieci wyszukiwarka pokazuje błąd połączenia, ale „Ostatnie", „Ulubione" i „Posiłki" działają z pamięci telefonu.
 16. „Skanuj kod" w zakładce „Dodaj": kamera nie pyta ponownie o zgodę przy przechodzeniu między listą a skanerem.
+
+## Profil i plan (dodatek do etapu 1)
+
+Zakładka **„Start" nazywa się teraz „Profil"**. Na górze profil i plan, na dole schowana „Diagnostyka" (dawny ekran „Start": serwer, instalacja, próba offline). Po pobraniu zmian uruchom `alembic upgrade head` w katalogu `backend`.
+
+Co sprawdzić:
+
+1. „Profil" → wypełnij dane, cel „Schudnąć", tempo 0,5 kg → „Zapisz i policz plan". Plan pokazuje kalorie, deficyt i osiem celów.
+2. „Skąd te liczby": każda liczba ma opis i wzór.
+3. Wybierz tempo 1 kg na tydzień przy masie poniżej 100 kg: pojawia się ostrzeżenie, że plan liczy wolniej (najwyżej 1% masy ciała na tydzień).
+4. „Ustaw jako cele dzienne od dziś" → Dziennik: paski mają wartości z planu. Wczorajszy dzień zachowuje stare cele.
+5. „Zmień profil" → zmień masę ciała → plan się przelicza, ale cele w dzienniku zostają, dopóki nie stukniesz „Ustaw jako cele…" ponownie.
+6. Na telefonie: tryb samolotowy → zmień profil → „Profil czeka na wysłanie". Po powrocie sieci pojawia się nowy plan.
