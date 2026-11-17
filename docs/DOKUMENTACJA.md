@@ -551,9 +551,9 @@ Trening jest dopiero czwarty, bo działający tracker już masz. Największą lu
 
 ## 11. Praca z Claude Code i Antigravity
 
-- Claude Code pisze funkcje; Antigravity robi przegląd, uruchamia aplikację w przeglądarce i testuje. Jeden agent pisze na jednej gałęzi naraz.
+- Claude Code pisze funkcje; Antigravity robi przegląd, uruchamia aplikację w przeglądarce i testuje. Agenci nie pracują równocześnie: jeden pisze, drugi czeka.
 - Antigravity czyta `AGENTS.md`, Claude Code czyta `CLAUDE.md`. Treść zasad trzymamy w `AGENTS.md`, a `CLAUDE.md` ją importuje.
-- Jedno zadanie = jedna gałąź = jeden PR z testami. Agent dostaje konkretny rozdział tej dokumentacji jako specyfikację.
+- Jedno zadanie = jeden commit na `main` z testami, bez gałęzi i pull requestów (decyzja właściciela z 17.11.2026). Agent dostaje konkretny rozdział tej dokumentacji jako specyfikację.
 - `AGENTS.md` zawiera wymogi twarde, których agent nie może pominąć: trwała kolejka offline (3.6), reguły publicznego repo (3.5), zamrożona historia spożycia (8), liczby z kodu zamiast z modelu (2).
 - Najpierw kontrakt (model Pydantic, tabela), potem kod. Typy dla frontendu generujemy ze schematu OpenAPI, który FastAPI wystawia sam.
 

@@ -22,16 +22,17 @@ Aplikacja jednego użytkownika łącząca dietę, trening siłowy i regenerację
 9. **Robienie wagi:** Coach nie generuje protokołów ani dawek wody i sodu. Wartości pochodzą z szablonu `meet_week` wypełnionego przez użytkownika, granice są w kodzie (dokumentacja 7).
 10. **Daty w bazie są w UTC i zawsze ze strefą** (typ `UtcDateTime`). Data bez strefy jest błędem. Znaczniki czasu nadaje aplikacja (`default=utcnow` w modelu), nie baza: `now()` nie istnieje w SQLite.
 11. **Zakładki frontendu są stanem, nie adresami URL.** Zmiana adresu w zainstalowanej PWA potrafi na iOS ponownie wywołać pytanie o kamerę.
-12. **Nie dodawaj do commitów ani PR linijek Co-Authored-By ani "Generated with Claude Code".**
+12. **Nie dodawaj do commitów linijek Co-Authored-By ani "Generated with Claude Code".**
+13. **Pracujemy bezpośrednio na `main`. Nie zakładaj gałęzi i nie otwieraj pull requestów.** Właściciel wypycha zmiany zwykłym `git push` i mają od razu być na GitHubie.
 
 ## Praca nad zmianą
 
-- Jedno zadanie = jedna gałąź = jeden PR z testami. Specyfikacją jest wskazany rozdział dokumentacji.
+- Jedno zadanie = jeden commit na `main` z testami (bez gałęzi i PR, zasada 13). Specyfikacją jest wskazany rozdział dokumentacji. Przed commitem przechodzi cała definicja ukończenia, bo nie ma przeglądu w PR.
 - Najpierw kontrakt (model Pydantic, tabela, migracja), potem implementacja.
 - Zmiana kształtu odpowiedzi API, którą frontend trzyma w pamięci podręcznej = podbicie `CACHE_VERSION` w `web/src/lib/offline.ts`. Inaczej telefon wczyta starą kopię w starym kształcie.
 - `gcTime` w TanStack Query nie może przekroczyć ok. 24 dni (przepełnienie licznika przeglądarki). Używaj `GC_TIME_MS` z `web/src/lib/offline.ts`.
 - Zmiana schematu bazy = migracja Alembic: `alembic revision --autogenerate -m "opis"`, potem przegląd wygenerowanego pliku. Typ `UtcDateTime` w migracji zapisuj jako `sa.DateTime(timezone=True)`.
-- Zmiana zachowania opisanego w dokumentacji = aktualizacja `docs/DOKUMENTACJA.md` w tym samym PR.
+- Zmiana zachowania opisanego w dokumentacji = aktualizacja `docs/DOKUMENTACJA.md` w tym samym commicie.
 - Nazwy modeli AI i ceny zmieniają się często. Przed pisaniem wywołań API sprawdź aktualną dokumentację dostawcy zamiast polegać na pamięci.
 - Komunikaty dla użytkownika i komentarze są po polsku; nazwy w kodzie po angielsku.
 
@@ -62,4 +63,4 @@ npm run build
 
 - `pytest`, `ruff check`, `ruff format --check`, `npm run typecheck`, `npm test` i `npm run build` przechodzą.
 - Nowa logika ma testy; poprawka błędu ma test, który bez niej nie przechodzi.
-- Zmiany dotyczące kamery, kolejki offline, instalacji PWA i Skrótów są sprawdzone na prawdziwym iPhonie. Agent nie może tego zrobić sam, więc w opisie PR wypisuje kroki do ręcznego sprawdzenia.
+- Zmiany dotyczące kamery, kolejki offline, instalacji PWA i Skrótów są sprawdzone na prawdziwym iPhonie. Agent nie może tego zrobić sam, więc w podsumowaniu pracy (i w `docs/etap-*.md`) wypisuje kroki do ręcznego sprawdzenia.
