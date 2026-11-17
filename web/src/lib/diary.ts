@@ -134,3 +134,15 @@ export function withoutEntry(day: DiaryDay, entryId: string): DiaryDay {
 export function withAmount(entry: DiaryEntry, amount: number): DiaryEntry {
   return { ...entry, amount, values: scaleValues(entry.values, amount / entry.amount) };
 }
+
+/**
+ * Ile wpisów nie ma danej wartości (brak danych, nie zero). Suma dnia liczy brak jak zero,
+ * więc ekran musi pokazać, że „0 g soli" to w rzeczywistości „nie wiadomo".
+ */
+export function missingCounts(entries: { values: Per100 }[]): Record<MacroKey, number> {
+  const counts = {} as Record<MacroKey, number>;
+  for (const key of MACRO_KEYS) {
+    counts[key] = entries.filter((entry) => entry.values[key] == null).length;
+  }
+  return counts;
+}

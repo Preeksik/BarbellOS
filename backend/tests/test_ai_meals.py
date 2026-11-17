@@ -26,7 +26,16 @@ def item(name, name_en="", grams=150, low=None, high=None, kcal=100.0, **extra) 
         "grams": grams,
         "grams_low": grams * 0.8 if low is None else low,
         "grams_high": grams * 1.3 if high is None else high,
-        "per_100g_estimate": {"kcal": kcal, "protein_g": 5.0, "fat_g": 2.0, "carbs_g": 15.0},
+        "per_100g_estimate": {
+            "kcal": kcal,
+            "protein_g": 5.0,
+            "fat_g": 2.0,
+            "sat_fat_g": 0.5,
+            "carbs_g": 15.0,
+            "sugars_g": 3.0,
+            "fiber_g": 1.5,
+            "salt_g": 0.4,
+        },
         "confidence": "medium",
         **extra,
     }
@@ -90,13 +99,34 @@ def test_no_match_without_common_words():
 # ====================================================================== porządkowanie odczytu
 
 
-def test_clean_item_keeps_estimate_and_marks_missing_values():
+def test_clean_item_keeps_all_eight_estimated_values():
     cleaned = clean_item(item("ryż biały gotowany", grams=200, low=150, high=260, kcal=130))
     assert (cleaned.grams, cleaned.grams_low, cleaned.grams_high) == (200, 150, 260)
-    assert cleaned.estimate_per_100["kcal"] == 130
-    # Model nie szacuje soli, cukrów itd.: brak danych, nie zero.
-    assert cleaned.estimate_per_100["salt_g"] is None
-    assert cleaned.estimate_per_100["fiber_g"] is None
+    e = cleaned.estimate_per_100
+    assert (e["kcal"], e["sat_fat_g"], e["sugars_g"], e["fiber_g"], e["salt_g"]) == (
+        130,
+        0.5,
+        3.0,
+        1.5,
+        0.4,
+    )
+
+
+def test_clean_item_unknown_values_stay_missing_and_contradictions_are_dropped():
+    raw = item("pierś z kurczaka pieczona", kcal=165)
+    raw["per_100g_estimate"].update(fiber_g=None, sat_fat_g=9.0, salt_g=0.012)
+    cleaned = clean_item(raw)
+    assert cleaned.estimate_per_100["fiber_g"] is None  # model nie wiedział: brak, nie zero
+    assert cleaned.estimate_per_100["sat_fat_g"] is None  # 9 g nasyconych przy 2 g tłuszczu
+    assert cleaned.estimate_per_100["salt_g"] == 0.01  # zaokrąglenie do setnych
+    assert "kwasy nasycone większe niż tłuszcz" in cleaned.warnings[0]
+
+
+def test_clean_item_fills_zeros_that_follow_from_estimate():
+    raw = item("woda", kcal=0)
+    raw["per_100g_estimate"].update(fat_g=0, sat_fat_g=None, carbs_g=0, sugars_g=None)
+    e = clean_item(raw).estimate_per_100
+    assert (e["sat_fat_g"], e["sugars_g"]) == (0, 0)
 
 
 def test_clean_item_fixes_impossible_values():
@@ -237,7 +267,8 @@ def test_photo_draft_matches_own_products_and_keeps_estimates(logged_in, label_a
     assert cheese["values"]["kcal"] == pytest.approx(194)
     assert tomato["match"] is None
     assert tomato["values"]["kcal"] == pytest.approx(21.6)  # szacunek: 18 × 1,2
-    assert tomato["values"]["salt_g"] is None
+    assert tomato["values"]["salt_g"] == pytest.approx(0.48)  # 0,4 g/100 g × 1,2
+    assert tomato["estimate_per_100"]["fiber_g"] == 1.5
     assert (tomato["grams_low"], tomato["grams_high"]) == (96, 156)
 
     (call,) = label_ai.calls

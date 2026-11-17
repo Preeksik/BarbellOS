@@ -18,6 +18,8 @@ Po pobraniu zmian uruchom `alembic upgrade head` w katalogu `backend` (nowa kolu
 3. Zmień gramaturę: kalorie składnika i „Razem” zmieniają się od razu. Zmień produkt na inny z listy albo na „Szacunek AI”.
 4. Odznacz jeden składnik: znika z sumy i nie zostanie dodany.
 5. „Dodaj do dnia” → „Pokaż dziennik”: wpisy z szacunkiem mają dopisek „≈ szacunek AI”. Zmiana ilości takiego wpisu działa jak przy zwykłym produkcie.
+5a. Szacunek ma wszystkie osiem wartości: w dzienniku rosną też nasycone, cukry, błonnik i sól. Wpisy dodane przed 18.11.2026 tych wartości nie mają: przy sumie widać wtedy gwiazdkę i przypis, że suma jest zaniżona.
+5b. Cel ustawiony tylko dla kalorii: białko, tłuszcz i węglowodany nadal są widoczne pod paskiem.
 6. „Profil” → „AI w tym miesiącu”: liczba wywołań i koszt według cennika.
 7. Gdy Google jest przeciążony, aplikacja sama próbuje drugiego modelu. Jeśli oba nie odpowiadają, widać komunikat „Model AI nie odpowiada. Spróbuj ponownie za chwilę.”
 

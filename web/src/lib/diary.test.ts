@@ -4,6 +4,7 @@ import {
   dayLabel,
   defaultSlot,
   emptyDay,
+  missingCounts,
   portionOf,
   shiftDay,
   toIsoDay,
@@ -124,5 +125,19 @@ describe("dzień z podglądem zmian", () => {
     expect(withoutEntry(day, "a").entries).toEqual([]);
     expect(withoutEntry(day, "a").by_slot).toEqual({});
     expect(withoutEntry(day, "nie-ma").totals.kcal).toBeCloseTo(194);
+  });
+});
+
+describe("missingCounts", () => {
+  it("liczy wpisy bez danej wartości, a zero to nie brak", () => {
+    const none = { kcal: null, protein_g: null, fat_g: null, sat_fat_g: null, carbs_g: null, sugars_g: null, fiber_g: null, salt_g: null };
+    const counts = missingCounts([
+      { values: { ...none, kcal: 100, salt_g: 0 } },
+      { values: { ...none, kcal: 50, salt_g: 0.4, fiber_g: 2 } },
+    ]);
+    expect(counts.kcal).toBe(0);
+    expect(counts.salt_g).toBe(0); // 0 g soli to wartość, nie brak danych
+    expect(counts.fiber_g).toBe(1);
+    expect(counts.sugars_g).toBe(2);
   });
 });

@@ -15,7 +15,13 @@ from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 from difflib import SequenceMatcher
 
-from app.core.nutrients import value_in_range
+from app.core.nutrients import (
+    LABELS_PL,
+    MACRO_KEYS,
+    SUBSETS,
+    fill_implied_zeros,
+    value_in_range,
+)
 from app.core.search import Candidate, words
 
 MAX_ITEMS = 15
@@ -24,7 +30,6 @@ STEM = 4  # najdłuższy porównywany początek słowa (polska odmiana zmienia k
 MATCH_THRESHOLD = 0.7  # od tej oceny składnik dostaje produkt automatycznie
 CANDIDATE_THRESHOLD = 0.3  # od tej oceny produkt trafia na listę do wyboru
 MAX_CANDIDATES = 5
-ESTIMATE_KEYS = ("kcal", "protein_g", "fat_g", "carbs_g")
 # Słowa, które nie mówią, czym jest produkt.
 STOPWORDS = {"z", "w", "i", "na", "ze", "do", "bez", "po", "of", "with", "and", "the", "a"}
 
@@ -102,7 +107,7 @@ class DraftItem:
     grams_low: float
     grams_high: float
     confidence: str
-    estimate_per_100: dict[str, float | None]  # osiem kluczy; poza czterema makro: None
+    estimate_per_100: dict[str, float | None]  # osiem wartości z etykiety; None = brak
     warnings: list[str] = field(default_factory=list)
 
 
@@ -131,13 +136,20 @@ def clean_item(raw: Mapping) -> DraftItem | None:
 
     estimate: dict[str, float | None] = {}
     per_100 = raw.get("per_100g_estimate") or {}
-    for key in ESTIMATE_KEYS:
+    for key in MACRO_KEYS:
         value = _number(per_100.get(key))
-        estimate[key] = (
-            round(value, 1) if value is not None and value_in_range(key, value) else None
-        )
-    for key in ("sat_fat_g", "sugars_g", "fiber_g", "salt_g"):
-        estimate[key] = None  # model tego nie szacuje: brak danych, nie zero
+        in_range = value is not None and value_in_range(key, value)
+        estimate[key] = round(value, 2) if in_range else None  # sól bywa setnymi grama
+    # Składnik „w tym" większy od całości jest sprzeczny: kod nie wie, która liczba jest zła,
+    # więc odrzuca podrzędną (brak danych zamiast błędnej wartości).
+    for child, parent in SUBSETS:
+        c, p = estimate.get(child), estimate.get(parent)
+        if c is not None and p is not None and c > p:
+            estimate[child] = None
+            warnings.append(
+                f"„{name}”: {LABELS_PL[child]} większe niż {LABELS_PL[parent]}, pominięto."
+            )
+    estimate = fill_implied_zeros(estimate)
 
     return DraftItem(
         name=name,

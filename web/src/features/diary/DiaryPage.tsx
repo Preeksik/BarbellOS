@@ -12,8 +12,10 @@ import {
   api,
 } from "../../lib/api";
 import {
+  MACRO_KEYS,
   MEAL_SLOTS,
   dayLabel,
+  missingCounts,
   scaleValues,
   shiftDay,
   sumValues,
@@ -218,8 +220,13 @@ function Totals({
   onEditGoals: () => void;
 }) {
   const t = day.totals;
+  const missing = missingCounts(day.entries);
+  const total = day.entries.length;
   const withGoals = GOAL_ROWS.filter(({ key }) => targets?.goals[key] != null);
-  const withoutGoals = MINOR_ROWS.filter(({ key }) => targets?.goals[key] == null);
+  // Wartości bez celu: główne (B, T, W) większe, pozostałe drobno.
+  const mainWithout = MAIN_ROWS.filter(({ key }) => targets?.goals[key] == null);
+  const minorWithout = MINOR_ROWS.filter(({ key }) => targets?.goals[key] == null);
+  const partial = MACRO_KEYS.some((key) => key !== "kcal" && missing[key] > 0 && missing[key] < total);
   return (
     <section className="card totals">
       <p className="kcal">
@@ -228,7 +235,7 @@ function Totals({
           <span className="muted"> / {formatKcal(targets.goals.kcal)}</span>
         )}
       </p>
-      {withGoals.length > 0 ? (
+      {withGoals.length > 0 && (
         <ul className="goals">
           {withGoals.map(({ key, label, unit, kind }) => (
             <GoalBar
@@ -238,22 +245,31 @@ function Totals({
               kind={kind}
               value={t[key]}
               goal={targets!.goals[key]!}
+              missing={missing[key]}
+              total={total}
             />
           ))}
         </ul>
-      ) : (
-        <dl className="macros">
-          <Macro label="Białko" value={t.protein_g} />
-          <Macro label="Tłuszcz" value={t.fat_g} />
-          <Macro label="Węglowodany" value={t.carbs_g} />
-        </dl>
       )}
-      {withoutGoals.length > 0 && (
-        <dl className="macros minor">
-          {withoutGoals.map(({ key, short }) => (
-            <Macro key={key} label={short} value={t[key]} />
+      {mainWithout.length > 0 && (
+        <dl className="macros">
+          {mainWithout.map(({ key, short }) => (
+            <Macro key={key} label={short} value={t[key]} missing={missing[key]} total={total} />
           ))}
         </dl>
+      )}
+      {minorWithout.length > 0 && (
+        <dl className="macros minor">
+          {minorWithout.map(({ key, short }) => (
+            <Macro key={key} label={short} value={t[key]} missing={missing[key]} total={total} />
+          ))}
+        </dl>
+      )}
+      {partial && (
+        <p className="muted footnote">
+          * część wpisów nie ma tej wartości (brak na etykiecie albo w szacunku): suma jest
+          zaniżona.
+        </p>
       )}
       <button type="button" className="link" onClick={onEditGoals}>
         {targets?.date_from ? "Zmień cele" : "Ustaw cele dzienne"}
@@ -262,7 +278,12 @@ function Totals({
   );
 }
 
-// Wartości pokazywane drobno, gdy nie mają celu.
+// Wartości pokazywane bez paska, gdy nie mają celu.
+const MAIN_ROWS: { key: MacroKey; short: string }[] = [
+  { key: "protein_g", short: "Białko" },
+  { key: "fat_g", short: "Tłuszcz" },
+  { key: "carbs_g", short: "Węglowodany" },
+];
 const MINOR_ROWS: { key: MacroKey; short: string }[] = [
   { key: "sat_fat_g", short: "nasycone" },
   { key: "sugars_g", short: "cukry" },
@@ -276,12 +297,16 @@ function GoalBar({
   kind,
   value,
   goal,
+  missing,
+  total,
 }: {
   label: string;
   unit: string;
   kind: GoalKind;
   value: number;
   goal: number;
+  missing: number;
+  total: number;
 }) {
   const p = progress(value, goal, kind);
   const shown = (x: number) =>
@@ -291,7 +316,8 @@ function GoalBar({
       <div className="goalhead">
         <span>{label}</span>
         <span>
-          {shown(value)} / {shown(goal)} {unit}
+          {total > 0 && missing === total ? "brak danych" : shown(value)}
+          {missing > 0 && missing < total && "*"} / {shown(goal)} {unit}
         </span>
       </div>
       <div
@@ -436,11 +462,25 @@ function SaveMealForm({
   );
 }
 
-function Macro({ label, value }: { label: string; value: number }) {
+/** Wartość dnia: „–", gdy żaden wpis jej nie ma; z gwiazdką, gdy nie mają jej niektóre. */
+function Macro({
+  label,
+  value,
+  missing,
+  total,
+}: {
+  label: string;
+  value: number;
+  missing: number;
+  total: number;
+}) {
   return (
     <div>
       <dt>{label}</dt>
-      <dd>{formatGrams(value)}</dd>
+      <dd title={missing > 0 ? `Bez danych: ${missing} z ${total} wpisów` : undefined}>
+        {total > 0 && missing === total ? "brak danych" : formatGrams(value)}
+        {missing > 0 && missing < total && "*"}
+      </dd>
     </div>
   );
 }

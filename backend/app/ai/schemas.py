@@ -44,7 +44,13 @@ class Per100gEstimate(BaseModel):
     kcal: float = Field(description="kcal na 100 g")
     protein_g: float = Field(description="białko, g na 100 g")
     fat_g: float = Field(description="tłuszcz, g na 100 g")
+    sat_fat_g: float | None = Field(description="w tym kwasy nasycone, g na 100 g")
     carbs_g: float = Field(description="węglowodany, g na 100 g")
+    sugars_g: float | None = Field(description="w tym cukry, g na 100 g")
+    fiber_g: float | None = Field(description="błonnik, g na 100 g")
+    salt_g: float | None = Field(
+        description="sól, g na 100 g, razem z solą zwykle dodawaną przy przyrządzaniu"
+    )
 
 
 class MealItem(BaseModel):

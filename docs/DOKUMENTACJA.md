@@ -467,7 +467,8 @@ Stan na listopad 2026 **[DO WERYFIKACJI w panelach]**: darmowy poziom Gemini obe
 ```json
 { "items": [ { "name_pl": "ryż biały gotowany", "name_en": "white rice, cooked",
                "category": "grains", "grams": 200, "grams_low": 150, "grams_high": 260,
-               "per_100g_estimate": { "kcal": 130, "protein_g": 2.7, "fat_g": 0.3, "carbs_g": 28 },
+               "per_100g_estimate": { "kcal": 130, "protein_g": 2.7, "fat_g": 0.3, "sat_fat_g": 0.1,
+                                      "carbs_g": 28, "sugars_g": 0.1, "fiber_g": 0.4, "salt_g": 0.0 },
                "confidence": "medium" } ],
   "notes": "Nie widać, czy użyto tłuszczu do smażenia." }
 ```
@@ -477,7 +478,7 @@ Stan na listopad 2026 **[DO WERYFIKACJI w panelach]**: darmowy poziom Gemini obe
 1. Dopasowanie przybliżone po nazwie polskiej i angielskiej do nazwy i marki produktu (`backend/app/core/meal_draft.py`). Słowa pasują po wspólnym początku (min. 3, maks. 4 litery), więc polska odmiana nie przeszkadza („ryżu białego" → „Ryż biały"). Ocena łączy oba kierunki: ile słów składnika jest w produkcie i ile słów nazwy produktu opisuje składnik, więc „banan" nie trafia automatycznie w „Baton bananowy". Liczone w Pythonie jak wyszukiwarka (4.8); `pg_trgm` przyda się przy `generic_foods` w etapie 6.
 2. Ocena od 0,7 → składnik dostaje `food_id`, a wartości (i mikroskładniki) liczone są z produktu.
 3. Ocena od 0,3 → produkt trafia na listę „Produkt" na ekranie szkicu (do 5 pozycji). Wybór z zamkniętej listy przez tani model **[ZAŁOŻENIE: na razie nie]**: wybierasz sam.
-4. Brak dopasowania → wpis bez `food_id`, z makro z `per_100g_estimate`, `macro_source = 'estimated'`, bez mikroskładników. W dzienniku ma dopisek „≈ szacunek AI".
+4. Brak dopasowania → wpis bez `food_id`, z ośmioma wartościami z `per_100g_estimate`, `macro_source = 'estimated'`, bez mikroskładników. W dzienniku ma dopisek „≈ szacunek AI". Szacunek obejmuje wszystkie osiem wartości z etykiety (od 18.11.2026; wcześniej tylko kcal, B, T, W): sól razem z solą typowo dodawaną przy przyrządzaniu. Wartość, której model nie zna, jest pusta, a nie zerem; nasycone większe od tłuszczu albo cukry większe od węglowodanów są odrzucane.
 
 Model **nie sumuje** kalorii posiłku i nie przelicza wartości na porcję (polecenia w `backend/app/ai/meal_prompts.py`). `per_100g_estimate` to wiedza o typowym składzie, nie rachunek. Gramatury i wartości sprawdza kod: ilość ponad 2000 g jest przycinana, zakres gramatury porządkowany, a wartość na 100 g spoza zakresu (np. 2500 kcal) odrzucana.
 
@@ -489,6 +490,7 @@ Zakładka „Dodaj" ma przyciski „Zdjęcie posiłku (AI)" i „Opisz posiłek 
 - Na ekranie szkicu zmieniasz gramaturę, produkt (z listy albo „Szacunek AI"), odznaczasz składniki i wybierasz posiłek dnia. Podgląd kalorii przelicza telefon, tak jak w dzienniku.
 - „Dodaj do dnia" zapisuje zwykłe wpisy przez kolejkę offline (`PUT /api/diary/entries/{id}`): z `food_id`, gdy wybrano produkt, albo z `estimate` (nazwa i wartości na 100 g), gdy szacunek. Wpis pamięta `ai_run_id`. Samo rozpoznanie wymaga sieci.
 - Wpis z szacunkiem można potem zmieniać w dzienniku jak każdy inny: zamrożone wartości są skalowane.
+- Suma dnia liczy brak danych jak zero (4.5), więc dziennik oznacza to wprost: wartość, której nie ma żaden wpis, to „brak danych", a wartość, której nie mają niektóre wpisy, ma gwiazdkę i przypis „suma jest zaniżona".
 
 ### 7.2 Licznik kosztów
 

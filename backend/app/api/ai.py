@@ -59,7 +59,7 @@ class DraftItemOut(BaseModel):
     match: FoodOut | None
     # Inne produkty z bazy do wyboru (bez `match`), od najlepszego.
     candidates: list[FoodOut]
-    estimate_per_100: Per100  # szacunek modelu: kcal, B, T, W; reszta pusta
+    estimate_per_100: Per100  # szacunek modelu, osiem wartości; pusta = model nie wiedział
     # Wartości porcji dla `grams` z dopasowania albo z szacunku (podgląd).
     values: Per100
 

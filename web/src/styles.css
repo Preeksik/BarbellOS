@@ -880,3 +880,8 @@ textarea {
   color: var(--muted);
   font-size: 0.8rem;
 }
+
+.footnote {
+  margin: 0;
+  font-size: 0.8rem;
+}

@@ -160,7 +160,16 @@ def test_meal_contract_has_no_database_ids():
                 "grams": 200,
                 "grams_low": 150,
                 "grams_high": 260,
-                "per_100g_estimate": {"kcal": 130, "protein_g": 2.7, "fat_g": 0.3, "carbs_g": 28},
+                "per_100g_estimate": {
+                    "kcal": 130,
+                    "protein_g": 2.7,
+                    "fat_g": 0.3,
+                    "sat_fat_g": 0.1,
+                    "carbs_g": 28,
+                    "sugars_g": 0.1,
+                    "fiber_g": 0.4,
+                    "salt_g": 0.0,
+                },
                 "confidence": "medium",
             }
         ],
