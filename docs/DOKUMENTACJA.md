@@ -1,6 +1,8 @@
-# BarbellOS — dokumentacja techniczna v0.9
+# BarbellOS — dokumentacja techniczna v0.10
 
 Stan: 17.11.2026.
+
+Zmiany w v0.10 (etap 2): posiłek ze zdjęcia i z opisu (7.1), dopasowanie składników do bazy w Pythonie, drugi model Gemini jako zapas i ponowienie przy przeciążeniu (7), wpis dziennika ze źródłem wartości `macro_source` (8), licznik kosztów (7.2), kontrakt `MealEstimate` z `grams_low` i `grams_high` zamiast pary.
 
 Zmiany w v0.9: profil użytkownika i plan kalorii oraz makroskładników z celem redukcja, utrzymanie albo masa (4.10); tabela `user_profile` (8); zakładka „Start” zastąpiona przez „Profil” (diagnostyka etapu 0 schowana pod profilem); praca bezpośrednio na `main` (11).
 
@@ -444,15 +446,17 @@ Klucze i wywołania są na serwerze. Jeden interfejs `AiProvider`, dwie implemen
 | Zadanie | Poziom | Domyślnie | Zapasowo |
 |---|---|---|---|
 | Skan kodu, wyszukiwanie | bez AI | — | — |
-| Zdjęcie etykiety → produkt | tani | Gemini Flash-Lite (darmowy) | Claude Haiku 5.5 |
-| Opis tekstowy → składniki | tani | Gemini Flash-Lite (darmowy) | Claude Haiku 5.5 |
-| Zdjęcie posiłku → szkic | średni | Gemini Flash (darmowy) | Claude Sonnet 5.5 |
+| Zdjęcie etykiety → produkt | tani | Gemini Flash-Lite (darmowy) | Gemini Flash, potem Claude Haiku 5.5 |
+| Opis tekstowy → składniki | tani | Gemini Flash-Lite (darmowy) | Gemini Flash, potem Claude Haiku 5.5 |
+| Zdjęcie posiłku → szkic | średni | Gemini Flash (darmowy) | Gemini Flash-Lite, potem Claude Sonnet 5.5 |
 | Podsumowanie dnia | średni | Claude Sonnet 5.5 | Gemini Flash |
 | Przegląd tygodnia | mocny | Claude Opus 5.5 | — |
 
+**Drugi model Gemini jest zapasem** (od etapu 2): każdy model ma osobny limit i osobne obciążenie. Podczas testów `gemini-3.5-flash-lite` przez kilka minut odpowiadał HTTP 503 „high demand”, a Flash działał. Przeciążenie (HTTP 500–504) jest dodatkowo ponawiane raz po 3 sekundach, zanim router przejdzie do zapasu.
+
 **Na start działa tylko kolumna Gemini:** wszystkie zadania, także podsumowania, idą na darmowy klucz z AI Studio. Router ma obsługę Claude'a od początku, ale jest ona wyłączona, dopóki w konfiguracji nie pojawi się klucz. Skutek uboczny: przy wyczerpaniu darmowego limitu funkcje AI czekają do następnego dnia, a reszta aplikacji działa normalnie.
 
-**Gemini: stan na 16.11.2026** (dokumentacja na aistudio.google.com/docs). Wywołania idą przez Interactions API: `POST /v1beta/interactions`, klucz w nagłówku `x-goog-api-key`, schemat JSON w `response_format`, zdjęcie jako część `input` zakodowana w base64. Starsze `generateContent` nadal działa, ale nowe projekty mają używać Interactions. Wysyłamy `store: false`, żeby zdjęcia i rozmowy nie były przechowywane po stronie Google. Domyślne modele: `gemini-3.5-flash-lite` (tani) i `gemini-3.8-flash` (średni); oba są na darmowym poziomie, podobnie jak `gemini-4-hydrogen`. Zmienia się je w `.env` (`GEMINI_MODEL_CHEAP`, `GEMINI_MODEL_MID`). Schemat Pydantic jest przed wysłaniem upraszczany do podzbioru JSON Schema z dokumentacji (`backend/app/ai/json_schema.py`). Wywołania Claude'a powstaną w etapie 2: do tego czasu dostawca zgłasza się jako niedostępny, także gdy klucz jest ustawiony.
+**Gemini: stan na 16.11.2026** (dokumentacja na aistudio.google.com/docs). Wywołania idą przez Interactions API: `POST /v1beta/interactions`, klucz w nagłówku `x-goog-api-key`, schemat JSON w `response_format`, zdjęcie jako część `input` zakodowana w base64. Starsze `generateContent` nadal działa, ale nowe projekty mają używać Interactions. Wysyłamy `store: false`, żeby zdjęcia i rozmowy nie były przechowywane po stronie Google. Domyślne modele: `gemini-3.5-flash-lite` (tani) i `gemini-3.8-flash` (średni); oba są na darmowym poziomie, podobnie jak `gemini-4-hydrogen`. Zmienia się je w `.env` (`GEMINI_MODEL_CHEAP`, `GEMINI_MODEL_MID`). Schemat Pydantic jest przed wysłaniem upraszczany do podzbioru JSON Schema z dokumentacji (`backend/app/ai/json_schema.py`). Wywołania Claude'a nie są jeszcze zaimplementowane (brak klucza do sprawdzenia, przeniesione z etapu 2 na moment, gdy klucz się pojawi): dostawca zgłasza się jako niedostępny, także gdy klucz jest ustawiony.
 
 Stan na listopad 2026 **[DO WERYFIKACJI w panelach]**: darmowy poziom Gemini obejmuje modele Flash i Flash-Lite, flagowe Gemini 4 Argon i Carbon są płatne, a rzeczywiste limity widać tylko w AI Studio. Claude (USD za milion tokenów, wejście / wyjście): Haiku 5.5 — 0,10 / 0,50; Sonnet 5.5 — 2 / 10; Opus 5.5 — 4 / 20.
 
@@ -462,7 +466,7 @@ Stan na listopad 2026 **[DO WERYFIKACJI w panelach]**: darmowy poziom Gemini obe
 
 ```json
 { "items": [ { "name_pl": "ryż biały gotowany", "name_en": "white rice, cooked",
-               "category": "grains", "grams": 200, "grams_range": [150, 260],
+               "category": "grains", "grams": 200, "grams_low": 150, "grams_high": 260,
                "per_100g_estimate": { "kcal": 130, "protein_g": 2.7, "fat_g": 0.3, "carbs_g": 28 },
                "confidence": "medium" } ],
   "notes": "Nie widać, czy użyto tłuszczu do smażenia." }
@@ -470,10 +474,25 @@ Stan na listopad 2026 **[DO WERYFIKACJI w panelach]**: darmowy poziom Gemini obe
 
 `category` to zamknięta lista kilkunastu wartości wymuszona schematem. Dopasowanie do bazy robi backend:
 
-1. Wyszukiwanie przybliżone po nazwie polskiej, angielskiej i aliasach (`pg_trgm` + `unaccent`), zawężone kategorią.
-2. Wynik powyżej progu podobieństwa → składnik dostaje `food_id`, a kalorie i mikroskładniki liczone są z bazy.
-3. Kilku bliskich kandydatów → opcjonalnie tani model wybiera spośród 5 podanych pozycji. Lista jest zamknięta, więc nie ma czego zmyślić.
-4. Brak dopasowania → wpis bez `food_id`, z makro z `per_100g_estimate`, oznaczony `estimated`, bez mikroskładników.
+1. Dopasowanie przybliżone po nazwie polskiej i angielskiej do nazwy i marki produktu (`backend/app/core/meal_draft.py`). Słowa pasują po wspólnym początku (min. 3, maks. 4 litery), więc polska odmiana nie przeszkadza („ryżu białego" → „Ryż biały"). Ocena łączy oba kierunki: ile słów składnika jest w produkcie i ile słów nazwy produktu opisuje składnik, więc „banan" nie trafia automatycznie w „Baton bananowy". Liczone w Pythonie jak wyszukiwarka (4.8); `pg_trgm` przyda się przy `generic_foods` w etapie 6.
+2. Ocena od 0,7 → składnik dostaje `food_id`, a wartości (i mikroskładniki) liczone są z produktu.
+3. Ocena od 0,3 → produkt trafia na listę „Produkt" na ekranie szkicu (do 5 pozycji). Wybór z zamkniętej listy przez tani model **[ZAŁOŻENIE: na razie nie]**: wybierasz sam.
+4. Brak dopasowania → wpis bez `food_id`, z makro z `per_100g_estimate`, `macro_source = 'estimated'`, bez mikroskładników. W dzienniku ma dopisek „≈ szacunek AI".
+
+Model **nie sumuje** kalorii posiłku i nie przelicza wartości na porcję (polecenia w `backend/app/ai/meal_prompts.py`). `per_100g_estimate` to wiedza o typowym składzie, nie rachunek. Gramatury i wartości sprawdza kod: ilość ponad 2000 g jest przycinana, zakres gramatury porządkowany, a wartość na 100 g spoza zakresu (np. 2500 kcal) odrzucana.
+
+### 7.1 Posiłek ze zdjęcia i z opisu (etap 2)
+
+Zakładka „Dodaj" ma przyciski „Zdjęcie posiłku (AI)" i „Opisz posiłek (AI)".
+
+- `POST /api/ai/meal/photo` (zdjęcie w treści żądania, zmniejszone na telefonie jak etykieta; opcjonalnie `?description=`) i `POST /api/ai/meal/text` (`{"text": …}`) zwracają szkic: składniki z gramaturą i zakresem, pewnością, dopasowanym produktem, listą innych produktów do wyboru, szacunkiem na 100 g i wartościami porcji. Szkic niczego nie zapisuje.
+- Na ekranie szkicu zmieniasz gramaturę, produkt (z listy albo „Szacunek AI"), odznaczasz składniki i wybierasz posiłek dnia. Podgląd kalorii przelicza telefon, tak jak w dzienniku.
+- „Dodaj do dnia" zapisuje zwykłe wpisy przez kolejkę offline (`PUT /api/diary/entries/{id}`): z `food_id`, gdy wybrano produkt, albo z `estimate` (nazwa i wartości na 100 g), gdy szacunek. Wpis pamięta `ai_run_id`. Samo rozpoznanie wymaga sieci.
+- Wpis z szacunkiem można potem zmieniać w dzienniku jak każdy inny: zamrożone wartości są skalowane.
+
+### 7.2 Licznik kosztów
+
+Każde wywołanie trafia do `ai_run` z tokenami i kosztem według cennika (`backend/app/core/ai_cost.py`, cennik sprawdzony 17.11.2026). `GET /api/ai/usage?month=RRRR-MM` zwraca liczbę wywołań i koszt według zadań; zakładka „Profil" pokazuje bieżący miesiąc. Na darmowym kluczu Gemini płacisz 0, a licznik pokazuje koszt na płatnym poziomie. Przykład z testu: opis owsianki to ok. 450 tokenów wejścia i 760 wyjścia, czyli 0,002 USD.
 
 Na ekranie szkicu widać, do czego składnik został dopasowany, i można to zmienić. Niedopasowane nazwy trafiają do listy, z której uzupełniamy `generic_foods` i aliasy.
 
@@ -519,6 +538,7 @@ meal_entry(id UUID PK,            -- nadawany na telefonie (idempotentny zapis o
            -- wartości dla tej porcji, zamrożone w chwili zapisu
            kcal, protein_g, fat_g, sat_fat_g, carbs_g, sugars_g, fiber_g, salt_g,
            micros JSONB,          -- { "magnesium": { "amount": 48, "source": "estimated" } }
+           macro_source NULL,     -- źródło wartości: jak w produkcie albo 'estimated' (szacunek AI)
            source,                -- 'scan' | 'search' | 'photo' | 'text' | 'manual' | 'meal'
            ai_run_id NULL, created_at)
 daily_target(date_from, nutrient_id, min, max)  -- wersja celów od date_from; min i max puste = bez celu
@@ -554,11 +574,12 @@ coach_note(id PK, date, scope, text, ai_run_id)       -- 'day' | 'week'
 ```
 backend/
   app/
-    api/          auth.py, health.py, diet.py, diary.py, targets.py, meals.py, profile.py, probe.py, deps.py
+    api/          auth.py, health.py, diet.py, diary.py, targets.py, meals.py, profile.py, ai.py, probe.py, deps.py
     core/         training.py, nutrients.py, diary.py, label.py, targets.py, search.py, meals.py, profile.py,
+                  meal_draft.py, ai_cost.py,
                   energy.py, readiness.py,
                   health_ingest.py, barcode.py                        ← czysta logika z testami
-    ai/           provider.py, router.py, schemas.py, json_schema.py, prompts.py,
+    ai/           provider.py, router.py, schemas.py, json_schema.py, prompts.py, meal_prompts.py,
                   gemini.py, claude.py
     off/          client.py
     db/           models.py, repo.py, session.py, migrations/
@@ -569,7 +590,7 @@ web/
   src/
     features/     diet/ diary/ health/ profile/ home/ (diagnostyka), training/ coach/ (kolejne etapy)
     lib/          api.ts, offline.ts, connectivity.ts, scanner.ts, ean.ts, diary.ts, label.ts,
-                  number.ts, targets.ts, meals.ts, appUpdate.ts
+                  number.ts, targets.ts, meals.ts, aiDraft.ts, appUpdate.ts
   public/         ikony
 seed/             nutrients.json, plan_amp_2027.json (poza repo, patrz 3.5)
 shortcuts/        budowa skrótu krok po kroku
@@ -588,7 +609,7 @@ CLAUDE.md         import @AGENTS.md + rzeczy specyficzne dla Claude Code
 |---|---|---|
 | **0. Próby ryzyka** | Repo, „hello world" wdrożony pod HTTPS, PWA na ekranie głównym. Próba A: skan kodu kreskowego na Twoim iPhonie. Próba B: skrót czyta masę ciała i kroki z Apple Health i wysyła na backend — raz na rozbudzony serwer i raz celowo na uśpiony, z pomiarem, po ilu sekundach skrót się poddaje. Próba C: 30 produktów z Twojej kuchni — ile jest w OFF. Próba D: zapis zrobiony w trybie samolotowym przetrwa zamknięcie aplikacji. Instrukcje: `docs/etap-0.md`. | Wszystkie cztery próby mają wynik. Jeśli A, B lub D zawiedzie, wracamy do decyzji o stacku, zanim powstanie reszta. |
 | **1. Dieta** | Skan → OFF → baza, zdjęcie etykiety (jedyna funkcja AI w tym etapie, przeniesiona z etapu 2 po próbie C), wyszukiwarka, własne produkty, posiłki, cele, widok dnia. Kroki: `docs/etap-1.md` | Przez tydzień logujesz tu zamiast w Fitatu |
-| **2. AI w diecie** | Zdjęcie posiłku, opis tekstowy, dostawca Claude, licznik kosztów | Posiłek na mieście w mniej niż 30 sekund |
+| **2. AI w diecie** | Zdjęcie posiłku, opis tekstowy, licznik kosztów (dostawca Claude, gdy pojawi się klucz). Kroki: `docs/etap-2.md` | Posiłek na mieście w mniej niż 30 sekund |
 | **3. Regeneracja** | Pełny skrót, import, trend wagi, wskaźnik regeneracji, adaptacyjne TDEE | Rano widzisz stan regeneracji (start, gdy opaska dotrze) |
 | **4. Trening** | Przeniesienie planu i dziennika, migracja wpisów | Trenujesz z nowej aplikacji, stary plik idzie do archiwum |
 | **5. Coach** | Podsumowanie dnia i tygodnia | Podsumowanie mówi coś, czego sam byś nie zauważył |

@@ -159,6 +159,12 @@ export function DiaryPage({
                         >
                           <span className="name">
                             {entry.food_name}
+                            {entry.macro_source === "estimated" && (
+                              <span className="estimated" title="Wartości oszacowane przez AI">
+                                {" "}
+                                ≈ szacunek AI
+                              </span>
+                            )}
                             {waiting.has(entry.id) && <em> · czeka na wysłanie</em>}
                           </span>
                           <span className="amount">

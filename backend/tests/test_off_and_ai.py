@@ -119,7 +119,21 @@ def test_router_uses_primary_provider():
 def test_router_falls_back_on_rate_limit():
     gemini, claude = FakeProvider("gemini", ALL, limited=True), FakeProvider("claude", ALL)
     result = AiRouter({"gemini": gemini, "claude": claude}).run(Task.MEAL_PHOTO, "p", Out)
-    assert (result.provider, gemini.calls, claude.calls) == ("claude", 1, 1)
+    # Najpierw oba modele Gemini (każdy ma osobny limit), potem Claude.
+    assert (result.provider, gemini.calls, claude.calls) == ("claude", 2, 1)
+
+
+def test_router_falls_back_to_the_other_gemini_model():
+    class FirstModelBusy(FakeProvider):
+        def generate(self, tier, prompt, schema, images=None):
+            self.calls += 1
+            if tier == Tier.CHEAP:
+                raise RateLimited
+            return AiResult(data=schema(), provider=self.name, model=f"{self.name}-{tier}")
+
+    gemini = FirstModelBusy("gemini", ALL)
+    result = AiRouter({"gemini": gemini}).run(Task.TEXT_TO_ITEMS, "p", Out)
+    assert (result.model, gemini.calls) == ("gemini-mid", 2)
 
 
 def test_router_with_gemini_only_handles_every_task():
@@ -144,11 +158,13 @@ def test_meal_contract_has_no_database_ids():
                 "name_en": "white rice, cooked",
                 "category": "grains",
                 "grams": 200,
-                "grams_range": [150, 260],
+                "grams_low": 150,
+                "grams_high": 260,
                 "per_100g_estimate": {"kcal": 130, "protein_g": 2.7, "fat_g": 0.3, "carbs_g": 28},
                 "confidence": "medium",
             }
-        ]
+        ],
+        "notes": None,
     }
     assert MealEstimate.model_validate(sample).items[0].category == "grains"
 

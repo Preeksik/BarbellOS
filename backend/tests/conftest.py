@@ -168,7 +168,9 @@ def client(settings, db_factory, off_calls, label_ai, off_search):
     app.dependency_overrides[get_settings] = lambda: settings
     app.dependency_overrides[get_db] = override_db
     app.dependency_overrides[get_off_fetcher] = lambda: fake_fetch
-    app.dependency_overrides[get_ai_router] = lambda: AiRouter({"gemini": label_ai})
+    app.dependency_overrides[get_ai_router] = lambda: AiRouter(
+        {"gemini": label_ai}, sleep=lambda _: None
+    )
     app.dependency_overrides[get_off_searcher] = lambda: off_search.search
     # Adres https, bo ciasteczko sesji w trybie prod ma flagę Secure.
     with TestClient(app, base_url="https://testserver") as test_client:

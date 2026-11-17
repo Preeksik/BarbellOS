@@ -21,6 +21,10 @@ class ProviderUnavailable(Exception):
     """Brak klucza, nieobsługiwany poziom albo błąd po stronie dostawcy (sieć, HTTP 5xx)."""
 
 
+class Overloaded(ProviderUnavailable):
+    """Chwilowe przeciążenie dostawcy (HTTP 500–504). Router ponawia raz po krótkiej przerwie."""
+
+
 class InvalidResponse(Exception):
     """Odpowiedź nie pasuje do schematu. Router ponawia wywołanie jeden raz."""
 

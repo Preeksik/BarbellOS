@@ -123,7 +123,10 @@ export interface DiaryEntry {
   amount: number;
   unit: "g" | "ml";
   values: Per100;
+  /** `estimated` = szacunek AI (składnika nie było w bazie); inaczej źródło produktu. */
+  macro_source?: string | null;
   source: string;
+  ai_run_id?: number | null;
   created_at: string;
 }
 
@@ -243,4 +246,47 @@ export interface Plan {
 export interface ProfileResponse {
   profile: Profile | null;
   plan: Plan | null;
+}
+
+// ---------- AI w diecie (etap 2) ----------
+
+export type Confidence = "low" | "medium" | "high";
+
+export interface DraftItem {
+  name: string;
+  category: string;
+  grams: number;
+  grams_low: number;
+  grams_high: number;
+  confidence: Confidence;
+  /** Produkt z bazy dobrany przez serwer; `null` = szacunek modelu. */
+  match: Food | null;
+  /** Inne produkty z bazy do wyboru. */
+  candidates: Food[];
+  /** Szacunek modelu na 100 g (kcal, B, T, W; reszta `null`). */
+  estimate_per_100: Per100;
+  values: Per100;
+}
+
+export interface MealDraft {
+  ai_run_id: number;
+  source: "photo" | "text";
+  items: DraftItem[];
+  notes: string | null;
+  warnings: string[];
+}
+
+export interface AiUsage {
+  month: string;
+  runs: number;
+  cost_usd: number;
+  unpriced_runs: number;
+  by_task: {
+    task: string;
+    runs: number;
+    failed: number;
+    input_tokens: number;
+    output_tokens: number;
+    cost_usd: number;
+  }[];
 }

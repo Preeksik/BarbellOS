@@ -41,7 +41,8 @@ const IDB_KEY = "barbellos-query-client";
 // (razem z kolejką niewysłanych zapisów, więc nie zmieniaj bez potrzeby).
 // 3: produkt ma pole `favorite` (etap 1, krok 5).
 // 4: profil ma tryb życia, kroki i treningi zamiast jednej „aktywności”.
-const CACHE_VERSION = "4";
+// 5: wpis dziennika ma źródło wartości i powiązanie z wywołaniem AI (etap 2).
+const CACHE_VERSION = "5";
 const DAY_MS = 1000 * 60 * 60 * 24;
 const THIRTY_DAYS_MS = 30 * DAY_MS;
 // Czas trzymania nieużywanych danych w pamięci. Przeglądarka liczy opóźnienia na 32 bitach:
@@ -334,6 +335,8 @@ const DIARY_SCOPE = { id: "diary" };
 /** Pełny wpis w stanie po zmianie. Serwer dostaje z niego tylko to, co potrzebne. */
 export interface DiaryPutInput {
   entry: DiaryEntry;
+  /** Składnik z AI bez produktu w bazie: szacunek modelu na 100 g (tylko przy dodaniu). */
+  estimate?: { name: string; per_100: Per100 };
 }
 
 export interface DiaryDeleteInput {
@@ -363,13 +366,15 @@ function refreshDiaryAfterLastWrite(): void {
 
 queryClient.setMutationDefaults(mutationKeys.diaryPut, {
   scope: DIARY_SCOPE,
-  mutationFn: ({ entry }: DiaryPutInput) =>
+  mutationFn: ({ entry, estimate }: DiaryPutInput) =>
     api.put<DiaryEntry>(`/api/diary/entries/${entry.id}`, {
       date: entry.date,
       meal_slot: entry.meal_slot,
       food_id: entry.food_id,
       amount: entry.amount,
       source: entry.source,
+      estimate: estimate ?? null,
+      ai_run_id: entry.ai_run_id ?? null,
     }),
   onMutate: ({ entry }: DiaryPutInput) => previewDay(entry.date, (day) => withEntry(day, entry)),
   onSettled: refreshDiaryAfterLastWrite,

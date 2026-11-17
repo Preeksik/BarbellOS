@@ -1,6 +1,7 @@
 import { useMutation, useMutationState, useQuery } from "@tanstack/react-query";
 import { type FormEvent, useEffect, useState } from "react";
 import {
+  type AiUsage,
   type Goal,
   type Lifestyle,
   type Plan,
@@ -109,6 +110,8 @@ export function ProfilePage() {
           )}
         </>
       )}
+
+      <AiUsageCard />
 
       <details className="card diagnostics">
         <summary>Diagnostyka: serwer, instalacja, próba offline</summary>
@@ -490,5 +493,51 @@ function ProfileForm({
         </button>
       </div>
     </form>
+  );
+}
+
+const TASK_LABELS: Record<string, string> = {
+  label_to_food: "Zdjęcie etykiety",
+  meal_photo: "Zdjęcie posiłku",
+  text_to_items: "Opis posiłku",
+  day_summary: "Podsumowanie dnia",
+  week_review: "Przegląd tygodnia",
+};
+
+/** Licznik kosztów AI w bieżącym miesiącu (etap 2). Koszt według cennika płatnego poziomu. */
+function AiUsageCard() {
+  const usage = useQuery({
+    queryKey: ["ai-usage"],
+    queryFn: () => api.get<AiUsage>("/api/ai/usage"),
+  });
+  if (!usage.data) return null;
+  const { runs, cost_usd, by_task, month } = usage.data;
+  return (
+    <section className="card">
+      <h2>AI w tym miesiącu</h2>
+      {runs === 0 ? (
+        <p className="muted">Jeszcze nie używałeś funkcji AI w {month}.</p>
+      ) : (
+        <>
+          <table>
+            <tbody>
+              {by_task.map((t) => (
+                <tr key={t.task}>
+                  <th scope="row">
+                    {TASK_LABELS[t.task] ?? t.task}
+                    {t.failed > 0 && <span className="muted"> (nieudane: {t.failed})</span>}
+                  </th>
+                  <td>{t.runs}×</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p className="muted">
+            Według cennika płatnego poziomu: {cost_usd.toLocaleString("pl-PL", { maximumFractionDigits: 4 })}{" "}
+            USD. Na darmowym kluczu Gemini płacisz 0 zł.
+          </p>
+        </>
+      )}
+    </section>
   );
 }

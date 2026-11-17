@@ -283,12 +283,13 @@ def test_router_retries_once_on_invalid_response(label_ai):
 
 
 def test_router_gives_up_after_second_invalid_response(label_ai):
-    label_ai.outcomes = [InvalidResponse("1"), InvalidResponse("2")]
+    # Dwie próby na model (ponowienie przy złej odpowiedzi), dwa modele Gemini.
+    label_ai.outcomes = [InvalidResponse(str(i)) for i in range(4)]
     with pytest.raises(AllProvidersFailed) as caught:
         AiRouter({"gemini": label_ai}).run(Task.LABEL_TO_FOOD, "p", LabelExtract)
-    assert len(label_ai.calls) == 2
+    assert [call["tier"] for call in label_ai.calls] == [Tier.CHEAP] * 2 + [Tier.MID] * 2
     assert caught.value.kind == FailureKind.INVALID
-    assert [f.provider for f in caught.value.called] == ["gemini"]
+    assert [f.provider for f in caught.value.called] == ["gemini", "gemini"]
 
 
 def test_router_without_any_key_reports_not_configured():
@@ -390,9 +391,10 @@ def test_label_without_nutrition_table(logged_in, label_ai, db_factory):
 @pytest.mark.parametrize(
     ("outcomes", "status", "fragment", "logged"),
     [
-        ([RateLimited()], 429, "limit modelu jest wyczerpany", ["rate_limited"]),
-        ([InvalidResponse("a"), InvalidResponse("b")], 502, "nie odczytał etykiety", ["invalid"]),
-        ([ProviderUnavailable("HTTP 503")], 502, "nie odpowiada", ["error"]),
+        # Każda porażka dotyczy obu modeli Gemini: tańszego i zapasowego.
+        ([RateLimited()] * 2, 429, "limit modelu jest wyczerpany", ["rate_limited"] * 2),
+        ([InvalidResponse("x")] * 4, 502, "nie odczytał etykiety", ["invalid"] * 2),
+        ([ProviderUnavailable("HTTP 403")] * 2, 502, "nie odpowiada", ["error"] * 2),
     ],
 )
 def test_label_ai_failures_are_visible(

@@ -1,5 +1,7 @@
 """Wybór dostawcy i poziomu modelu dla zadania, z przejściem na zapasowego przy limicie."""
 
+import time
+from collections.abc import Callable
 from dataclasses import dataclass
 from enum import StrEnum
 
@@ -9,6 +11,7 @@ from app.ai.provider import (
     AiProvider,
     AiResult,
     InvalidResponse,
+    Overloaded,
     ProviderUnavailable,
     RateLimited,
     Tier,
@@ -24,17 +27,20 @@ class Task(StrEnum):
 
 
 # Kolejność prób: (dostawca, poziom). Dostawca bez klucza jest pomijany, więc dopóki
-# nie ma klucza Claude, wszystko idzie na Gemini.
+# nie ma klucza Claude, wszystko idzie na Gemini. Drugi model Gemini jest zapasem: każdy
+# model ma osobny limit i osobne obciążenie (HTTP 503 „high demand" dotyczy jednego modelu).
 ROUTES: dict[Task, tuple[tuple[str, Tier], ...]] = {
-    Task.LABEL_TO_FOOD: (("gemini", Tier.CHEAP), ("claude", Tier.CHEAP)),
-    Task.TEXT_TO_ITEMS: (("gemini", Tier.CHEAP), ("claude", Tier.CHEAP)),
-    Task.MEAL_PHOTO: (("gemini", Tier.MID), ("claude", Tier.MID)),
+    Task.LABEL_TO_FOOD: (("gemini", Tier.CHEAP), ("gemini", Tier.MID), ("claude", Tier.CHEAP)),
+    Task.TEXT_TO_ITEMS: (("gemini", Tier.CHEAP), ("gemini", Tier.MID), ("claude", Tier.CHEAP)),
+    Task.MEAL_PHOTO: (("gemini", Tier.MID), ("gemini", Tier.CHEAP), ("claude", Tier.MID)),
     Task.DAY_SUMMARY: (("claude", Tier.MID), ("gemini", Tier.MID)),
     Task.WEEK_REVIEW: (("claude", Tier.STRONG), ("gemini", Tier.MID)),
 }
 
 # Odpowiedź niezgodna ze schematem: jedno ponowienie, potem błąd (dokumentacja 7).
 ATTEMPTS_ON_INVALID = 2
+# Przeciążenie dostawcy (HTTP 503 „high demand") zwykle mija po chwili: jedno ponowienie.
+OVERLOAD_RETRY_DELAY_S = 3.0
 
 
 class FailureKind(StrEnum):
@@ -72,8 +78,12 @@ class AllProvidersFailed(Exception):
 
 
 class AiRouter:
-    def __init__(self, providers: dict[str, AiProvider]) -> None:
-        self.providers = providers
+    def __init__(
+        self,
+        providers: dict[str, AiProvider],
+        sleep: Callable[[float], None] = time.sleep,  # w testach bez czekania
+    ) -> None:
+        self.providers, self.sleep = providers, sleep
 
     def run(
         self,
@@ -98,8 +108,22 @@ class AiRouter:
                 failures.append(Failure(name, FailureKind.ERROR, str(exc)))
         raise AllProvidersFailed(task, failures)
 
-    @staticmethod
     def _call(
+        self,
+        provider: AiProvider,
+        tier: Tier,
+        prompt: str,
+        schema: type[BaseModel],
+        images: list[bytes] | None,
+    ) -> AiResult:
+        try:
+            return self._call_with_schema_retry(provider, tier, prompt, schema, images)
+        except Overloaded:
+            self.sleep(OVERLOAD_RETRY_DELAY_S)
+            return self._call_with_schema_retry(provider, tier, prompt, schema, images)
+
+    @staticmethod
+    def _call_with_schema_retry(
         provider: AiProvider,
         tier: Tier,
         prompt: str,

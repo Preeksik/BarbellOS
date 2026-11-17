@@ -149,7 +149,10 @@ class MealEntry(MacroColumns, Base):
     amount: Mapped[float]
     unit: Mapped[str] = mapped_column(String(2), default="g", server_default="g")
     micros: Mapped[dict | None] = mapped_column(JsonType)
-    source: Mapped[str] = mapped_column(String(16))  # scan | search | photo | text | manual
+    # Skąd są wartości porcji: źródło produktu (label | user | reference) albo `estimated`,
+    # gdy składnika ze zdjęcia lub opisu nie było w bazie i liczy się szacunek modelu.
+    macro_source: Mapped[str | None] = mapped_column(String(16))
+    source: Mapped[str] = mapped_column(String(16))  # scan | search | photo | text | manual | meal
     ai_run_id: Mapped[int | None] = mapped_column(ForeignKey("ai_run.id"))
     created_at: Mapped[datetime] = mapped_column(
         TZDateTime, default=utcnow, server_default=func.now()

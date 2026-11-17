@@ -11,9 +11,9 @@ from sqlalchemy.orm import Session
 from app.api.deps import require_user
 from app.api.diet import Per100 as MacroValues
 from app.core.diary import MEAL_SLOTS, day_totals, freeze_portion, scale_portion
-from app.core.nutrients import MACRO_KEYS
+from app.core.nutrients import MACRO_KEYS, macro_errors
 from app.db import repo
-from app.db.models import Food, MealEntry
+from app.db.models import AiRun, Food, MealEntry
 from app.db.session import get_db
 
 router = APIRouter(prefix="/api/diary", tags=["diary"], dependencies=[Depends(require_user)])
@@ -22,13 +22,22 @@ MealSlot = Literal["breakfast", "second_breakfast", "lunch", "snack", "dinner"]
 assert MealSlot.__args__ == MEAL_SLOTS  # jedna lista posiłków w core/diary.py
 
 
+class EstimateIn(BaseModel):
+    """Składnik ze zdjęcia lub opisu, którego nie ma w bazie: szacunek modelu na 100 g."""
+
+    name: str = Field(min_length=1, max_length=120)
+    per_100: MacroValues
+
+
 class EntryIn(BaseModel):
     date: dt.date
     meal_slot: MealSlot
-    food_id: int
+    food_id: int | None = None  # None tylko dla składnika z AI bez produktu w bazie
+    estimate: EstimateIn | None = None
     amount: float = Field(gt=0, le=5000)  # gramy albo mililitry, zależnie od produktu
-    # meal: dodany z zapisanego posiłku (krok 6)
+    # meal: dodany z zapisanego posiłku (krok 6); photo/text: ze szkicu AI (etap 2)
     source: Literal["scan", "search", "photo", "text", "manual", "meal"] = "scan"
+    ai_run_id: int | None = None  # wywołanie modelu, z którego pochodzi wpis
 
 
 class EntryOut(BaseModel):
@@ -40,7 +49,9 @@ class EntryOut(BaseModel):
     amount: float
     unit: Literal["g", "ml"]
     values: MacroValues  # wartości dla tej porcji, zamrożone w chwili dodania
+    macro_source: str | None  # estimated = szacunek modelu; inaczej źródło produktu
     source: str
+    ai_run_id: int | None
     created_at: dt.datetime
 
 
@@ -65,9 +76,28 @@ def _entry_out(entry: MealEntry) -> EntryOut:
         amount=entry.amount,
         unit=entry.unit or "g",
         values=MacroValues(**_values(entry)),
+        macro_source=entry.macro_source,
         source=entry.source,
+        ai_run_id=entry.ai_run_id,
         created_at=entry.created_at,
     )
+
+
+def _known_run(db: Session, run_id: int | None) -> int | None:
+    """Powiązanie z wywołaniem modelu tylko, gdy takie wywołanie istnieje."""
+    return run_id if run_id is not None and db.get(AiRun, run_id) is not None else None
+
+
+def _estimate(body: EntryIn) -> EstimateIn:
+    """Szacunek dla wpisu bez produktu. Tylko wpisy ze zdjęcia lub opisu mogą go mieć."""
+    if body.estimate is None or body.source not in ("photo", "text"):
+        raise HTTPException(
+            422, "Wpis bez produktu musi mieć szacunek wartości i pochodzić ze zdjęcia lub opisu."
+        )
+    errors = macro_errors(body.estimate.per_100.model_dump())
+    if errors:
+        raise HTTPException(422, " ".join(errors))
+    return body.estimate
 
 
 @router.put("/entries/{entry_id}", response_model=EntryOut)
@@ -80,8 +110,14 @@ def put_entry(entry_id: uuid.UUID, body: EntryIn, db: Session = Depends(get_db))
     """
     entry = db.get(MealEntry, entry_id)
     if entry is not None and entry.food_id == body.food_id:
+        # Zmiana ilości lub posiłku: zamrożone wartości są skalowane (także szacunek modelu).
         values, micros = scale_portion(_values(entry), entry.micros, body.amount / entry.amount)
-        food_name, unit = entry.food_name, entry.unit
+        food_name, unit, macro_source = entry.food_name, entry.unit, entry.macro_source
+    elif body.food_id is None:
+        # Szacunek modelu: bez mikroskładników, wartości oznaczone jako `estimated`.
+        estimate = _estimate(body)
+        values, micros = freeze_portion(estimate.per_100.model_dump(), {}, body.amount)
+        food_name, unit, macro_source = estimate.name.strip(), "g", "estimated"
     else:
         food = db.get(Food, body.food_id)
         if food is None:
@@ -91,7 +127,7 @@ def put_entry(entry_id: uuid.UUID, body: EntryIn, db: Session = Depends(get_db))
             m.nutrient_id: (m.amount_per_100g, m.source) for m in repo.food_micros(db, food.id)
         }
         values, micros = freeze_portion(per_100, micros_per_100, body.amount)
-        food_name, unit = food.name, food.unit or "g"
+        food_name, unit, macro_source = food.name, food.unit or "g", food.macro_source
 
     entry = repo.save_meal_entry(
         db,
@@ -104,7 +140,9 @@ def put_entry(entry_id: uuid.UUID, body: EntryIn, db: Session = Depends(get_db))
         amount=body.amount,
         unit=unit,
         micros=micros,
+        macro_source=macro_source,
         source=body.source,
+        ai_run_id=entry.ai_run_id if entry is not None else _known_run(db, body.ai_run_id),
         **values,
     )
     return _entry_out(entry)

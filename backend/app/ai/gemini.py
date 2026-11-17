@@ -13,7 +13,14 @@ import httpx
 from pydantic import BaseModel, ValidationError
 
 from app.ai.json_schema import provider_schema
-from app.ai.provider import AiResult, InvalidResponse, ProviderUnavailable, RateLimited, Tier
+from app.ai.provider import (
+    AiResult,
+    InvalidResponse,
+    Overloaded,
+    ProviderUnavailable,
+    RateLimited,
+    Tier,
+)
 from app.core.label import image_mime
 
 DEFAULT_BASE_URL = "https://generativelanguage.googleapis.com"
@@ -106,6 +113,8 @@ class GeminiProvider:
             raise ProviderUnavailable(f"brak odpowiedzi ({type(exc).__name__})") from exc
         if response.status_code == 429:
             raise RateLimited
+        if 500 <= response.status_code <= 504:
+            raise Overloaded(f"HTTP {response.status_code}: {_error_message(response)}")
         if response.status_code >= 400:
             raise ProviderUnavailable(f"HTTP {response.status_code}: {_error_message(response)}")
         try:

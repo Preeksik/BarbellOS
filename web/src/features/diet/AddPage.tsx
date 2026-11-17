@@ -22,6 +22,7 @@ import {
 import type { EntrySource } from "./AddToDay";
 import { FoodCard, type FoodRef } from "./FoodCard";
 import { FoodEditForm } from "./FoodEditForm";
+import { MealAi } from "./MealAi";
 import { Scanner } from "./Scanner";
 import { formatKcal } from "./macros";
 
@@ -32,10 +33,12 @@ type View =
   | { kind: "home" }
   | { kind: "scan" }
   | { kind: "card"; target: FoodRef; source: EntrySource; back: "scan" | "home" }
-  | { kind: "new" };
+  | { kind: "new" }
+  | { kind: "ai"; mode: "photo" | "text" };
 
 /**
- * Dodawanie do dnia: wyszukiwarka, ostatnie, ulubione, zapisane posiłki i skan kodu.
+ * Dodawanie do dnia: wyszukiwarka, ostatnie, ulubione, zapisane posiłki, skan kodu
+ * oraz posiłek ze zdjęcia lub opisu (AI, etap 2).
  * Widoki są stanem, nie adresami (AGENTS.md, zasada 11).
  */
 export function AddPage({ day, onShowDiary }: { day: string; onShowDiary: () => void }) {
@@ -78,6 +81,9 @@ export function AddPage({ day, onShowDiary }: { day: string; onShowDiary: () => 
       />
     );
   }
+  if (view.kind === "ai") {
+    return <MealAi mode={view.mode} day={day} onBack={home} onShowDiary={onShowDiary} />;
+  }
   if (view.kind === "new") {
     return (
       <FoodEditForm
@@ -113,6 +119,14 @@ export function AddPage({ day, onShowDiary }: { day: string; onShowDiary: () => 
           </button>
           <button type="button" onClick={() => setView({ kind: "new" })}>
             Produkt bez kodu
+          </button>
+        </div>
+        <div className="row">
+          <button type="button" onClick={() => setView({ kind: "ai", mode: "photo" })}>
+            Zdjęcie posiłku (AI)
+          </button>
+          <button type="button" onClick={() => setView({ kind: "ai", mode: "text" })}>
+            Opisz posiłek (AI)
           </button>
         </div>
       </section>

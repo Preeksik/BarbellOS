@@ -802,3 +802,81 @@ caption {
 .parts td {
   white-space: nowrap;
 }
+
+/* ---------- etap 2: posiłek ze zdjęcia lub opisu ---------- */
+
+textarea {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  resize: vertical;
+}
+
+.file.primary {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-text);
+  font-weight: 600;
+}
+
+.mealphoto {
+  width: 100%;
+  max-height: 260px;
+  object-fit: cover;
+  border-radius: 10px;
+}
+
+.draftitems {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.draftitems li {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 0;
+  border-top: 1px solid var(--border);
+}
+
+.draftitems li.off strong {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+.draftitems .muted {
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.itemhead {
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+}
+
+.itemhead input {
+  min-height: 0;
+  width: 20px;
+  height: 20px;
+  accent-color: var(--accent);
+}
+
+.itemhead em {
+  color: var(--warn);
+  font-size: 0.8rem;
+  font-style: normal;
+}
+
+.entry .name .estimated {
+  color: var(--muted);
+  font-size: 0.8rem;
+}

@@ -35,27 +35,36 @@ class Confidence(StrEnum):
 
 
 class Per100gEstimate(BaseModel):
-    kcal: float = Field(ge=0)
-    protein_g: float = Field(ge=0)
-    fat_g: float = Field(ge=0)
-    carbs_g: float = Field(ge=0)
+    """Typowe wartości na 100 g z wiedzy modelu (nie liczone). Zapas, gdy produktu nie ma w bazie.
+
+    Bez ograniczeń w schemacie: zakresy sprawdza `core/meal_draft.py`, a słowa kluczowe
+    w rodzaju `minimum` komplikują schemat wysyłany do dostawcy.
+    """
+
+    kcal: float = Field(description="kcal na 100 g")
+    protein_g: float = Field(description="białko, g na 100 g")
+    fat_g: float = Field(description="tłuszcz, g na 100 g")
+    carbs_g: float = Field(description="węglowodany, g na 100 g")
 
 
 class MealItem(BaseModel):
-    name_pl: str
-    name_en: str
+    name_pl: str = Field(description="Nazwa składnika po polsku, np. „ryż biały gotowany”.")
+    name_en: str = Field(description="Ta sama nazwa po angielsku.")
     category: FoodCategory
-    grams: float = Field(gt=0)
-    grams_range: tuple[float, float]
+    grams: float = Field(description="Najbardziej prawdopodobna ilość w gramach.")
+    grams_low: float = Field(description="Dolna granica ilości w gramach.")
+    grams_high: float = Field(description="Górna granica ilości w gramach.")
     per_100g_estimate: Per100gEstimate
-    confidence: Confidence
+    confidence: Confidence = Field(description="Pewność rozpoznania składnika i ilości.")
 
 
 class MealEstimate(BaseModel):
     """Zdjęcie lub opis posiłku -> składniki z gramaturą. Kalorie liczy backend."""
 
     items: list[MealItem]
-    notes: str | None = None
+    notes: str | None = Field(
+        description="Krótka uwaga, czego nie widać lub co jest niepewne; null, gdy nic."
+    )
 
 
 class LabelBasis(StrEnum):

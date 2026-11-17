@@ -7,6 +7,7 @@ from datetime import UTC, date, datetime
 from sqlalchemy import delete, func, insert, select
 from sqlalchemy.orm import Session
 
+from app.core.ai_cost import call_cost
 from app.core.health_ingest import Sample
 from app.core.nutrients import MACRO_KEYS, fill_implied_zeros
 from app.core.search import Candidate
@@ -357,7 +358,7 @@ def log_ai_run(
     input_tokens: int | None = None,
     output_tokens: int | None = None,
 ) -> AiRun:
-    """Zapisuje wywołanie modelu. Koszt zostaje pusty do czasu licznika kosztów (etap 2)."""
+    """Zapisuje wywołanie modelu z kosztem według cennika (`core/ai_cost.py`)."""
     run = AiRun(
         task=task,
         provider=provider,
@@ -365,10 +366,15 @@ def log_ai_run(
         status=status,
         input_tokens=input_tokens,
         output_tokens=output_tokens,
+        cost_usd=call_cost(model, input_tokens, output_tokens),
     )
     db.add(run)
     db.commit()
     return run
+
+
+def ai_runs_between(db: Session, start: datetime, end: datetime) -> list[AiRun]:
+    return list(db.scalars(select(AiRun).where(AiRun.created_at >= start, AiRun.created_at < end)))
 
 
 # ---------- dziennik ----------
