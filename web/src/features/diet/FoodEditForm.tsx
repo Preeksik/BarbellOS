@@ -3,7 +3,12 @@ import { type ChangeEvent, type FormEvent, useEffect, useState } from "react";
 import { ApiError, type Food, type MacroKey } from "../../lib/api";
 import { applyLabelDraft, labelKeys, readLabel } from "../../lib/label";
 import { INVALID, formatDecimal, parseDecimal } from "../../lib/number";
-import { type FoodCreateInput, type FoodUpdateInput, mutationKeys } from "../../lib/offline";
+import {
+  type FoodCreateInput,
+  type FoodCustomInput,
+  type FoodUpdateInput,
+  mutationKeys,
+} from "../../lib/offline";
 import { MACRO_ROWS } from "./macros";
 
 type Texts = Record<MacroKey, string>;
@@ -26,18 +31,24 @@ interface FromLabel {
 /**
  * Formularz produktu według etykiety. Puste pole oznacza brak danych, nie zero.
  *
- * `food` to poprawiany produkt; `null` oznacza nowy produkt dla kodu, którego nie ma
- * w Open Food Facts. Zdjęcie etykiety tylko wypełnia pola: zapisuje dopiero „Zapisz".
+ * `food` to poprawiany produkt; `null` oznacza nowy produkt: dla kodu, którego nie ma
+ * w Open Food Facts, albo (bez `barcode`) produkt bez kodu kreskowego.
+ * Zdjęcie etykiety tylko wypełnia pola: zapisuje dopiero „Zapisz".
  */
 export function FoodEditForm({
   food,
   barcode,
   onDone,
+  onSaved,
 }: {
   food: Food | null;
-  barcode: string;
+  barcode: string | null;
   onDone: () => void;
+  /** Wywoływane z produktem z serwera po udanym zapisie (nie przy zapisie w kolejce). */
+  onSaved?: (food: Food) => void;
 }) {
+  // Identyfikator produktu bez kodu, nadany raz na formularz: powtórka nie tworzy duplikatu.
+  const [clientId] = useState(() => crypto.randomUUID());
   const [name, setName] = useState(food?.name ?? "");
   const [brand, setBrand] = useState(food?.brand ?? "");
   const [unit, setUnit] = useState<"g" | "ml">(food?.unit ?? "g");
@@ -54,9 +65,10 @@ export function FoodEditForm({
   // Funkcje zapisu są w rejestrze lib/offline.ts, więc zapis przetrwa brak sieci.
   const update = useMutation<Food, Error, FoodUpdateInput>({ mutationKey: mutationKeys.foodUpdate });
   const create = useMutation<Food, Error, FoodCreateInput>({ mutationKey: mutationKeys.foodCreate });
-  const saving = update.isPending || create.isPending;
-  const paused = update.isPaused || create.isPaused;
-  const saveError = update.error ?? create.error;
+  const custom = useMutation<Food, Error, FoodCustomInput>({ mutationKey: mutationKeys.foodCustom });
+  const saving = update.isPending || create.isPending || custom.isPending;
+  const paused = update.isPaused || create.isPaused || custom.isPaused;
+  const saveError = update.error ?? create.error ?? custom.error;
 
   // Bez sieci zapis czeka w kolejce: nie trzymamy użytkownika w formularzu.
   useEffect(() => {
@@ -123,18 +135,26 @@ export function FoodEditForm({
       unit,
       per_100,
     };
+    // Z `onSaved` to rodzic decyduje, co pokazać dalej (np. kartę nowego produktu).
+    const saved = (result: Food) => (onSaved ? onSaved(result) : onDone());
+    const origin = fromLabel ? "ai_label" : "user";
     if (food) {
-      update.mutate({ id: food.id, barcode, body }, { onSuccess: onDone });
+      update.mutate({ id: food.id, barcode: food.barcode, body }, { onSuccess: saved });
+    } else if (barcode) {
+      create.mutate({ barcode, body: { ...body, origin } }, { onSuccess: saved });
     } else {
-      const origin = fromLabel ? "ai_label" : "user";
-      create.mutate({ barcode, body: { ...body, origin } }, { onSuccess: onDone });
+      custom.mutate({ clientId, body: { ...body, origin } }, { onSuccess: saved });
     }
   }
 
   return (
     <form className="card" onSubmit={submit}>
       <h2>{food ? "Popraw według etykiety" : "Nowy produkt"}</h2>
-      {!food && <p className="muted">EAN {barcode}</p>}
+      {!food && (
+        <p className="muted">
+          {barcode ? `EAN ${barcode}` : "Bez kodu kreskowego (np. danie domowe, produkt na wagę)"}
+        </p>
+      )}
 
       <label className={reading ? "file busy" : "file"}>
         {reading ? "Czytam etykietę…" : "Zdjęcie etykiety"}

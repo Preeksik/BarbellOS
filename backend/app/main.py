@@ -8,7 +8,7 @@ from fastapi.responses import FileResponse
 from starlette.middleware.sessions import SessionMiddleware
 
 from app import __version__
-from app.api import auth, diary, diet, health, probe
+from app.api import auth, diary, diet, health, meals, probe, targets
 from app.config import Settings, get_settings
 
 mimetypes.add_type("application/manifest+json", ".webmanifest")
@@ -36,7 +36,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         same_site="lax",
         max_age=SESSION_MAX_AGE_S,
     )
-    for module in (health, auth, diet, diary, probe):
+    for module in (health, auth, diet, diary, targets, meals, probe):
         app.include_router(module.router)
 
     static = Path(settings.static_dir).resolve() if settings.static_dir else None

@@ -1,7 +1,7 @@
 import { useIsRestoring, useMutationState, useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { DiaryPage } from "./features/diary/DiaryPage";
-import { ScanPage } from "./features/diet/ScanPage";
+import { AddPage } from "./features/diet/AddPage";
 import { HealthPage } from "./features/health/HealthPage";
 import { HomePage } from "./features/home/HomePage";
 import { LoginForm } from "./features/home/LoginForm";
@@ -13,7 +13,7 @@ import { toIsoDay } from "./lib/diary";
 // po zmianie adresu wewnątrz zainstalowanej aplikacji (dokumentacja 3.3).
 const TABS = [
   { id: "diary", label: "Dziennik" },
-  { id: "scan", label: "Skan" },
+  { id: "add", label: "Dodaj" },
   { id: "health", label: "Zdrowie" },
   { id: "home", label: "Start" },
 ] as const;
@@ -21,7 +21,7 @@ type TabId = (typeof TABS)[number]["id"];
 
 export function App() {
   const [tab, setTab] = useState<TabId>("diary");
-  // Dzień oglądany w dzienniku. Skan dodaje produkty do tego samego dnia.
+  // Dzień oglądany w dzienniku. Zakładka „Dodaj" dodaje produkty do tego samego dnia.
   const [day, setDay] = useState(() => toIsoDay(new Date()));
   const restoring = useIsRestoring();
   const session = useQuery({ queryKey: ["me"], queryFn: () => api.get<Session>("/api/auth/me") });
@@ -50,9 +50,9 @@ export function App() {
         ) : (
           <>
             {tab === "diary" && (
-              <DiaryPage day={day} onDayChange={setDay} onScan={() => setTab("scan")} />
+              <DiaryPage day={day} onDayChange={setDay} onAdd={() => setTab("add")} />
             )}
-            {tab === "scan" && <ScanPage day={day} onShowDiary={() => setTab("diary")} />}
+            {tab === "add" && <AddPage day={day} onShowDiary={() => setTab("diary")} />}
             {tab === "health" && <HealthPage />}
             {tab === "home" && <HomePage />}
           </>

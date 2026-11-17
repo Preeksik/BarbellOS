@@ -25,8 +25,11 @@ import {
   type Food,
   type FoodCreateBody,
   type FoodUpdateBody,
+  type Meal,
   NetworkError,
+  type Per100,
   type Probe,
+  type Targets,
   api,
 } from "./api";
 import { emptyDay, withEntry, withoutEntry } from "./diary";
@@ -34,7 +37,8 @@ import { emptyDay, withEntry, withoutEntry } from "./diary";
 const IDB_KEY = "barbellos-query-client";
 // Zwiększ po zmianie kształtu odpowiedzi API: stara kopia w telefonie zostanie odrzucona
 // (razem z kolejką niewysłanych zapisów, więc nie zmieniaj bez potrzeby).
-const CACHE_VERSION = "2";
+// 3: produkt ma pole `favorite` (etap 1, krok 5).
+const CACHE_VERSION = "3";
 const DAY_MS = 1000 * 60 * 60 * 24;
 const THIRTY_DAYS_MS = 30 * DAY_MS;
 // Czas trzymania nieużywanych danych w pamięci. Przeglądarka liczy opóźnienia na 32 bitach:
@@ -101,8 +105,13 @@ export const mutationKeys = {
   foodUpdate: ["food", "update"] as const,
   foodVerify: ["food", "verify"] as const,
   foodCreate: ["food", "create"] as const,
+  foodCustom: ["food", "custom"] as const,
+  foodFavorite: ["food", "favorite"] as const,
   diaryPut: ["diary", "put"] as const,
   diaryDelete: ["diary", "delete"] as const,
+  targetsPut: ["targets", "put"] as const,
+  mealPut: ["meals", "put"] as const,
+  mealDelete: ["meals", "delete"] as const,
 };
 
 export interface ProbeInput {
@@ -118,48 +127,67 @@ queryClient.setMutationDefaults(mutationKeys.probe, {
 
 // ---------- produkty ----------
 
+/** Produkt otwarty po kodzie kreskowym (skan, wynik z Open Food Facts). */
 export const foodQueryKey = (barcode: string) => ["food", barcode] as const;
+/** Produkt otwarty z listy (wyszukiwarka, ostatnie, ulubione), także bez kodu. */
+export const foodByIdKey = (id: number) => ["food", "id", id] as const;
+
+/** Listy produktów, które trzeba odświeżyć po zmianie produktu. */
+const FOOD_LISTS = [["search"], ["recent"], ["favorites"], ["meals"]] as const;
+
+function refreshFoodLists(): void {
+  for (const queryKey of FOOD_LISTS) void queryClient.invalidateQueries({ queryKey });
+}
+
+/** Zmienia produkt we wszystkich miejscach pamięci, gdzie jest trzymany. */
+function updateFood(id: number, barcode: string | null, change: (food: Food) => Food): void {
+  const apply = (old: Food | undefined) => old && change(old);
+  queryClient.setQueryData<Food>(foodByIdKey(id), apply);
+  if (barcode) queryClient.setQueryData<Food>(foodQueryKey(barcode), apply);
+}
+
+function storeFood(food: Food): void {
+  queryClient.setQueryData(foodByIdKey(food.id), food);
+  if (food.barcode) queryClient.setQueryData(foodQueryKey(food.barcode), food);
+}
 
 export interface FoodUpdateInput {
   id: number;
-  barcode: string;
+  barcode: string | null;
   body: FoodUpdateBody;
 }
 
 export interface FoodVerifyInput {
   id: number;
-  barcode: string;
+  barcode: string | null;
 }
 
 queryClient.setMutationDefaults(mutationKeys.foodUpdate, {
   mutationFn: ({ id, body }: FoodUpdateInput) => api.put<Food>(`/api/foods/${id}`, body),
   // Poprawione wartości widać od razu, także bez sieci. Serwer potwierdza je po wysłaniu.
-  onMutate: ({ barcode, body }: FoodUpdateInput) => {
-    queryClient.setQueryData<Food>(
-      foodQueryKey(barcode),
-      (old) =>
-        old && {
-          ...old,
-          ...body,
-          macro_source: "user",
-          verified_at: new Date().toISOString(),
-          warnings: [],
-        },
-    );
+  onMutate: ({ id, barcode, body }: FoodUpdateInput) => {
+    updateFood(id, barcode, (old) => ({
+      ...old,
+      ...body,
+      macro_source: "user",
+      verified_at: new Date().toISOString(),
+      warnings: [],
+    }));
   },
-  onSuccess: (food: Food, { barcode }: FoodUpdateInput) => {
-    queryClient.setQueryData(foodQueryKey(barcode), food);
+  onSuccess: (food: Food) => {
+    storeFood(food);
+    refreshFoodLists();
   },
   // Serwer odrzucił zapis: wracamy do tego, co naprawdę jest w bazie.
-  onError: (_error: Error, { barcode }: FoodUpdateInput) =>
-    queryClient.invalidateQueries({ queryKey: foodQueryKey(barcode) }),
+  onError: (_error: Error, { id, barcode }: FoodUpdateInput) => {
+    void queryClient.invalidateQueries({ queryKey: foodByIdKey(id) });
+    if (barcode) void queryClient.invalidateQueries({ queryKey: foodQueryKey(barcode) });
+  },
 });
 
 queryClient.setMutationDefaults(mutationKeys.foodVerify, {
   mutationFn: ({ id }: FoodVerifyInput) => api.post<Food>(`/api/foods/${id}/verify`),
-  onSuccess: (food: Food, { barcode }: FoodVerifyInput) => {
-    queryClient.setQueryData(foodQueryKey(barcode), food);
-  },
+  onSuccess: storeFood,
 });
 
 export interface FoodCreateInput {
@@ -173,9 +201,98 @@ export interface FoodCreateInput {
 queryClient.setMutationDefaults(mutationKeys.foodCreate, {
   mutationFn: ({ barcode, body }: FoodCreateInput) =>
     api.put<Food>(`/api/foods/barcode/${barcode}`, body),
-  onSuccess: (food: Food, { barcode }: FoodCreateInput) => {
-    queryClient.setQueryData(foodQueryKey(barcode), food);
+  onSuccess: (food: Food) => {
+    storeFood(food);
+    refreshFoodLists();
   },
+});
+
+export interface FoodCustomInput {
+  /** Identyfikator nadany na telefonie: powtórka z kolejki nie tworzy drugiego produktu. */
+  clientId: string;
+  body: FoodCreateBody;
+}
+
+// Produkt bez kodu kreskowego. Jak wyżej: bez podglądu, bo identyfikator nadaje serwer.
+queryClient.setMutationDefaults(mutationKeys.foodCustom, {
+  mutationFn: ({ clientId, body }: FoodCustomInput) =>
+    api.put<Food>(`/api/foods/custom/${clientId}`, body),
+  onSuccess: (food: Food) => {
+    storeFood(food);
+    refreshFoodLists();
+  },
+});
+
+export interface FoodFavoriteInput {
+  id: number;
+  barcode: string | null;
+  favorite: boolean;
+}
+
+queryClient.setMutationDefaults(mutationKeys.foodFavorite, {
+  mutationFn: ({ id, favorite }: FoodFavoriteInput) =>
+    api.put<Food>(`/api/foods/${id}/favorite`, { favorite }),
+  // Gwiazdka zmienia się od razu, także bez sieci.
+  onMutate: ({ id, barcode, favorite }: FoodFavoriteInput) =>
+    updateFood(id, barcode, (old) => ({ ...old, favorite })),
+  onSuccess: storeFood,
+  onSettled: () => queryClient.invalidateQueries({ queryKey: ["favorites"] }),
+});
+
+// ---------- cele dzienne ----------
+
+export const targetsQueryKey = (day: string) => ["targets", day] as const;
+
+export interface TargetsPutInput {
+  dateFrom: string;
+  goals: Per100;
+}
+
+queryClient.setMutationDefaults(mutationKeys.targetsPut, {
+  mutationFn: ({ dateFrom, goals }: TargetsPutInput) =>
+    api.put<Targets>(`/api/targets/${dateFrom}`, { goals }),
+  // Nowe cele widać od razu we wszystkich dniach od `dateFrom`, także bez sieci.
+  onMutate: ({ dateFrom, goals }: TargetsPutInput) => {
+    for (const [queryKey, old] of queryClient.getQueriesData<Targets>({ queryKey: ["targets"] })) {
+      if (old && old.date >= dateFrom) {
+        queryClient.setQueryData<Targets>(queryKey, { ...old, date_from: dateFrom, goals });
+      }
+    }
+  },
+  onSettled: () => queryClient.invalidateQueries({ queryKey: ["targets"] }),
+});
+
+// ---------- zapisane posiłki ----------
+
+export const MEALS_QUERY_KEY = ["meals"] as const;
+
+/** Pełny zestaw: serwer dostaje nazwę i skład, telefon trzyma resztę do podglądu. */
+export interface MealPutInput {
+  meal: Meal;
+}
+
+export interface MealDeleteInput {
+  id: string;
+}
+
+queryClient.setMutationDefaults(mutationKeys.mealPut, {
+  mutationFn: ({ meal }: MealPutInput) =>
+    api.put<void>(`/api/meals/${meal.id}`, {
+      name: meal.name,
+      items: meal.items.map(({ food_id, amount }) => ({ food_id, amount })),
+    }),
+  onMutate: ({ meal }: MealPutInput) =>
+    queryClient.setQueryData<Meal[]>(MEALS_QUERY_KEY, (old = []) =>
+      [...old.filter((m) => m.id !== meal.id), meal].sort((a, b) => a.name.localeCompare(b.name)),
+    ),
+  onSettled: () => queryClient.invalidateQueries({ queryKey: MEALS_QUERY_KEY }),
+});
+
+queryClient.setMutationDefaults(mutationKeys.mealDelete, {
+  mutationFn: ({ id }: MealDeleteInput) => api.delete(`/api/meals/${id}`),
+  onMutate: ({ id }: MealDeleteInput) =>
+    queryClient.setQueryData<Meal[]>(MEALS_QUERY_KEY, (old = []) => old.filter((m) => m.id !== id)),
+  onSettled: () => queryClient.invalidateQueries({ queryKey: MEALS_QUERY_KEY }),
 });
 
 // ---------- dziennik dnia ----------
@@ -214,6 +331,8 @@ async function previewDay(date: string, change: (day: DiaryDay) => DiaryDay): Pr
 function refreshDiaryAfterLastWrite(): void {
   if (queryClient.isMutating({ mutationKey: DIARY_MUTATIONS }) <= 1) {
     void queryClient.invalidateQueries({ queryKey: ["diary"] });
+    // „Ostatnie" bierze się z dziennika: bez tego lista pokazywałaby stan sprzed wpisu.
+    void queryClient.invalidateQueries({ queryKey: ["recent"] });
   }
 }
 

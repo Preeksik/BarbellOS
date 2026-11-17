@@ -9,7 +9,7 @@ from app.ai.gemini import GeminiProvider
 from app.ai.provider import Tier
 from app.ai.router import AiRouter
 from app.config import Settings, get_settings
-from app.off.client import FoodDraft, fetch_product
+from app.off.client import FoodDraft, fetch_product, search_products
 from app.security import token_matches
 
 
@@ -33,6 +33,13 @@ OffFetcher = Callable[[str], FoodDraft | None]
 
 def get_off_fetcher(settings: Settings = Depends(get_settings)) -> OffFetcher:
     return lambda barcode: fetch_product(barcode, settings.off_base_url, settings.off_user_agent)
+
+
+OffSearcher = Callable[[str], dict]
+
+
+def get_off_searcher(settings: Settings = Depends(get_settings)) -> OffSearcher:
+    return lambda query: search_products(query, settings.off_search_url, settings.off_user_agent)
 
 
 def get_ai_router(settings: Settings = Depends(get_settings)) -> AiRouter:

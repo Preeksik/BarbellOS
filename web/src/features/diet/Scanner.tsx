@@ -1,28 +1,14 @@
 import { type ChangeEvent, type FormEvent, useEffect, useRef, useState } from "react";
 import { isValidEan } from "../../lib/ean";
 import { decodeImageFile, decodeVideoFrame } from "../../lib/scanner";
-import { FoodCard } from "./FoodCard";
 
 const SCAN_INTERVAL_MS = 200;
 
-/** Skan kodu kreskowego, potem karta produktu (własna baza albo Open Food Facts). */
-export function ScanPage({ day, onShowDiary }: { day: string; onShowDiary: () => void }) {
-  const [barcode, setBarcode] = useState<string | null>(null);
-  return barcode ? (
-    // `key`: kolejny skan zaczyna od czystej karty (bez „Dodano" z poprzedniego produktu).
-    <FoodCard
-      key={barcode}
-      barcode={barcode}
-      day={day}
-      onAgain={() => setBarcode(null)}
-      onShowDiary={onShowDiary}
-    />
-  ) : (
-    <Scanner onDetected={setBarcode} />
-  );
-}
-
-function Scanner({ onDetected }: { onDetected: (barcode: string) => void }) {
+/**
+ * Skaner kodów kreskowych: podgląd z kamery, zdjęcie kodu albo kod wpisany ręcznie.
+ * Zostaje na jednym ekranie (bez zmiany adresu), żeby iOS nie pytał ponownie o kamerę.
+ */
+export function Scanner({ onDetected }: { onDetected: (barcode: string) => void }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [active, setActive] = useState(false);

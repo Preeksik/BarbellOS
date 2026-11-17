@@ -26,6 +26,8 @@ class Settings(BaseSettings):
 
     off_user_agent: str = "BarbellOS/0.1 (prywatny projekt; kontakt w repozytorium)"
     off_base_url: str = "https://world.openfoodfacts.org"
+    # Wyszukiwanie po nazwie (search-a-licious). Stare API nie ma wyszukiwania pełnotekstowego.
+    off_search_url: str = "https://search.openfoodfacts.org"
 
     # AI: na start działa tylko Gemini. Claude włącza się po dodaniu klucza.
     gemini_api_key: str = ""

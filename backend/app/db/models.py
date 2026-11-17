@@ -110,6 +110,10 @@ class Food(MacroColumns, Base):
     generic_parent_id: Mapped[int | None] = mapped_column(ForeignKey("food.id"))
     fetched_at: Mapped[datetime | None] = mapped_column(TZDateTime)
     raw: Mapped[dict | None] = mapped_column(JsonType)
+    # Kiedy produkt trafił do ulubionych. NULL = nie jest ulubiony.
+    favorite_at: Mapped[datetime | None] = mapped_column(TZDateTime)
+    # Produkt bez kodu kreskowego: identyfikator nadany na telefonie (idempotentny zapis).
+    client_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, unique=True)
 
 
 class FoodAlias(Base):
@@ -153,6 +157,12 @@ class MealEntry(MacroColumns, Base):
 
 
 class DailyTarget(Base):
+    """Cel dzienny obowiązujący od `date_from` do następnej zmiany celów.
+
+    Zmiana celów zapisuje komplet wierszy z nową datą, więc dni sprzed zmiany
+    zachowują stare cele. Wiersz z pustymi `min` i `max` oznacza „bez celu".
+    """
+
     __tablename__ = "daily_target"
 
     date_from: Mapped[date] = mapped_column(Date, primary_key=True)
@@ -160,6 +170,33 @@ class DailyTarget(Base):
     nutrient_id: Mapped[str] = mapped_column(String(32), primary_key=True)
     min: Mapped[float | None]
     max: Mapped[float | None]
+
+
+class MealTemplate(Base):
+    """Zapisany posiłek: zestaw produktów z ilościami, dodawany do dnia jednym stuknięciem.
+
+    Zestaw przechowuje produkty i ilości, nie wartości. Wartości liczy wpis dziennika
+    w chwili dodania (i tam są zamrażane), więc poprawka produktu działa w przód.
+    """
+
+    __tablename__ = "meal_template"
+
+    # UUID nadaje telefon: zapis zestawu może czekać w kolejce offline.
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True)
+    name: Mapped[str] = mapped_column(String(120))
+    created_at: Mapped[datetime] = mapped_column(TZDateTime, default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(TZDateTime, default=utcnow, onupdate=utcnow)
+
+
+class MealTemplateItem(Base):
+    __tablename__ = "meal_template_item"
+
+    meal_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("meal_template.id", ondelete="CASCADE"), primary_key=True
+    )
+    position: Mapped[int] = mapped_column(primary_key=True)
+    food_id: Mapped[int] = mapped_column(ForeignKey("food.id"))
+    amount: Mapped[float]  # g albo ml, jak w produkcie
 
 
 # ---------- Trening ----------

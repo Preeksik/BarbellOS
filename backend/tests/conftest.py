@@ -8,7 +8,7 @@ from sqlalchemy.pool import StaticPool
 
 from app.ai.provider import AiResult
 from app.ai.router import AiRouter
-from app.api.deps import get_ai_router, get_off_fetcher
+from app.api.deps import get_ai_router, get_off_fetcher, get_off_searcher
 from app.config import Settings, get_settings
 from app.db.models import Base, Nutrient
 from app.db.session import get_db
@@ -104,8 +104,36 @@ def label_ai() -> FakeLabelAi:
     return FakeLabelAi()
 
 
+class FakeOffSearch:
+    """Udaje search-a-licious: zapisuje zapytania i oddaje przygotowaną odpowiedź."""
+
+    def __init__(self) -> None:
+        self.queries: list[str] = []
+        self.payload: dict = {"hits": []}
+        self.error: Exception | None = None
+
+    def search(self, query: str) -> dict:
+        self.queries.append(query)
+        if self.error:
+            raise self.error
+        return self.payload
+
+
 @pytest.fixture
-def client(settings, db_factory, off_calls, label_ai):
+def off_search() -> FakeOffSearch:
+    return FakeOffSearch()
+
+
+@pytest.fixture(autouse=True)
+def fresh_search_limiter(monkeypatch):
+    """Każdy test zaczyna z pustym limitem wyszukiwań w OFF."""
+    from app.off.client import RateLimiter
+
+    monkeypatch.setattr("app.api.diet.search_limiter", RateLimiter(limit=8, window_s=60.0))
+
+
+@pytest.fixture
+def client(settings, db_factory, off_calls, label_ai, off_search):
     from app.off.client import FoodDraft
 
     def fake_fetch(barcode: str):
@@ -141,6 +169,7 @@ def client(settings, db_factory, off_calls, label_ai):
     app.dependency_overrides[get_db] = override_db
     app.dependency_overrides[get_off_fetcher] = lambda: fake_fetch
     app.dependency_overrides[get_ai_router] = lambda: AiRouter({"gemini": label_ai})
+    app.dependency_overrides[get_off_searcher] = lambda: off_search.search
     # Adres https, bo ciasteczko sesji w trybie prod ma flagę Secure.
     with TestClient(app, base_url="https://testserver") as test_client:
         yield test_client

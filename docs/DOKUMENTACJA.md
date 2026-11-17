@@ -1,6 +1,8 @@
-# BarbellOS — dokumentacja techniczna v0.7
+# BarbellOS — dokumentacja techniczna v0.8
 
-Stan: 16.11.2026.
+Stan: 17.11.2026.
+
+Zmiany w v0.8 (etap 1, kroki 4–6): cele dzienne wersjonowane datą (4.7); wyszukiwarka, ostatnie, ulubione i produkt bez kodu (4.8); zapisane posiłki (4.9); nowe kolumny i tabele (8); zakres kolejki offline (3.6).
 
 Zmiany w v0.7 (etap 1, krok 3): zdjęcie etykiety wypełnia formularz produktu, a kod spoza Open Food Facts można dodać jako własny produkt (4.6); Gemini przez Interactions API i sprawdzone nazwy modeli (7); zakres kolejki offline (3.6); przycisk „Nowa wersja" po wdrożeniu (3.3).
 
@@ -162,7 +164,7 @@ TanStack Query domyślnie trzyma wstrzymane zapisy tylko w pamięci. Jeśli iOS 
 10. Zmiana jest widoczna od razu jako podgląd policzony na telefonie (`web/src/lib/diary.ts`). To jedyny wyjątek od zasady, że liczy serwer: po wysłaniu ostatniego zapisu z kolejki dzień jest pobierany z serwera i podgląd znika.
 11. Odpowiedź 401 nie usuwa zapisu z kolejki. Aplikacja pokazuje logowanie, a zapis ponawia się po zalogowaniu.
 
-Zakres kolejki: logowanie serii, wpisy posiłków z produktów, które telefon już zna, oraz poprawka i zapis własnego produktu. Skan nowego kodu i funkcje AI (odczyt etykiety) wymagają sieci: odczyt jest zwykłym żądaniem, nie zapisem w kolejce, więc bez połączenia od razu pokazuje błąd, a formularz da się wypełnić ręcznie.
+Zakres kolejki: logowanie serii, wpisy posiłków z produktów, które telefon już zna (także dodanie zapisanego posiłku), poprawka i zapis własnego produktu (z kodem i bez), ulubione, cele dzienne oraz zapisanie i usunięcie posiłku. Wyszukiwanie wymaga sieci; listy „Ostatnie”, „Ulubione” i „Posiłki” są w pamięci telefonu. Skan nowego kodu i funkcje AI (odczyt etykiety) wymagają sieci: odczyt jest zwykłym żądaniem, nie zapisem w kolejce, więc bez połączenia od razu pokazuje błąd, a formularz da się wypełnić ręcznie.
 
 Test akceptacyjny na prawdziwym iPhonie: tryb samolotowy → zapis serii → zamknięcie aplikacji z przełącznika aplikacji → otwarcie z siecią → seria jest w bazie.
 
@@ -253,7 +255,44 @@ Formularz produktu (ten sam co „Popraw") ma przycisk „Zdjęcie etykiety". Zd
 - `origin` to `ai_label`, gdy formularz wypełniło zdjęcie, albo `user`, gdy wartości wpisano ręcznie. W obu przypadkach `macro_source = 'user'` i produkt jest od razu zweryfikowany, bo wartości zatwierdził człowiek.
 - Kolejny skan tego kodu odpowiada z własnej bazy i nie pyta Open Food Facts.
 - Zapis jest zarejestrowany w kolejce offline, ale bez podglądu: produkt dostaje identyfikator dopiero na serwerze, więc do dnia można go dodać po wysłaniu.
-- Produkt bez kodu kreskowego to osobny krok (etap 1, krok 5).
+- Produkt bez kodu kreskowego: 4.8.
+
+### 4.7 Cele dzienne
+
+Cele dotyczą ośmiu wartości z etykiety. Każda ma stały rodzaj celu (`backend/app/core/targets.py`):
+
+| Rodzaj | Składniki | Znaczenie na pasku |
+|---|---|---|
+| cel | kalorie, tłuszcz, węglowodany | „zostało X", po przekroczeniu „+X ponad cel" |
+| co najmniej | białko, błonnik | po osiągnięciu „cel osiągnięty", przekroczenie nie jest problemem |
+| najwyżej | nasycone, cukry, sól | „zostało X do limitu", po przekroczeniu „+X ponad limit" |
+
+- **Cele są wersjonowane datą.** Zapis obowiązuje od oglądanego dnia do następnej zmiany. Dni wcześniejsze zachowują cele, które wtedy obowiązywały, więc zmiana celu nie przepisuje historii.
+- `PUT /api/targets/{od_dnia}` zapisuje komplet ośmiu wartości (puste = bez celu). Zapis z tą samą datą zastępuje poprzedni (idempotentny). Usunięty cel nie wraca z wcześniejszej wersji, bo zapisywany jest wiersz „bez celu".
+- `GET /api/targets/{dzień}` zwraca cele obowiązujące w danym dniu: wersję z najpóźniejszą datą nie późniejszą niż ten dzień.
+- Cel musi być większy od zera; górne granice chronią przed literówką (np. 10 000 kcal).
+- Pasek pokazuje sumę dnia (także podgląd z kolejki offline) względem celu. Wartości bez celu są pokazane drobno pod paskami.
+- **[ZAŁOŻENIE]** Kalorie przekroczone choćby o 1 kcal są oznaczone jako „ponad cel". Tolerancję dodamy, jeśli będzie przeszkadzać.
+
+### 4.8 Wyszukiwarka, ostatnie, ulubione, produkt bez kodu
+
+Zakładka „Dodaj" zastępuje „Skan": wyszukiwarka, przyciski „Skanuj kod" i „Produkt bez kodu", a pod spodem listy „Posiłki", „Ulubione" i „Ostatnie".
+
+- **Własna baza** jest przeszukiwana przy pisaniu (`GET /api/foods/search?q=`). Każde słowo zapytania musi być początkiem słowa w nazwie albo marce, bez polskich znaków i wielkości liter („ser wiej" znajduje „Serek wiejski"). Wyżej są całe słowa, nazwa zaczynająca się od zapytania, produkty często dodawane do dziennika i ulubione. Logika: `backend/app/core/search.py`. Dopasowanie jest liczone w Pythonie, bo baza jednego użytkownika ma setki produktów; indeksy pg_trgm przydadzą się w etapie 6.
+- **Open Food Facts** jest przeszukiwane na przycisk (`GET /api/foods/search/off?q=`), przez search-a-licious (`https://search.openfoodfacts.org/search`): stare API v2 nie ma wyszukiwania po nazwie. OFF pozwala na 10 wyszukiwań na minutę z jednego adresu i za przekroczenie blokuje adres, dlatego serwer przepuszcza najwyżej 8 na minutę i nie wyszukuje przy każdym znaku. Wynik z OFF nie zapisuje się w bazie: po wybraniu produkt jest pobierany po kodzie kreskowym, jak przy skanie.
+- **Ostatnie** (`GET /api/foods/recent`): 20 ostatnio jedzonych produktów, każdy raz, z ilością z ostatniego wpisu, która jest podpowiedzią przy dodawaniu.
+- **Ulubione:** gwiazdka na karcie produktu (`PUT /api/foods/{id}/favorite` ze stanem, nie przełącznikiem, więc powtórka jest bezpieczna).
+- **Produkt bez kodu** (danie domowe, produkt na wagę): ten sam formularz co „Popraw", także ze zdjęciem etykiety. `PUT /api/foods/custom/{uuid}` z identyfikatorem nadanym na telefonie, więc zapis może czekać w kolejce offline bez ryzyka duplikatu.
+
+### 4.9 Zapisane posiłki
+
+Zestaw produktów z ilościami, np. „Śniadanie standard", dodawany do dnia jednym stuknięciem.
+
+- **Zapis:** w dzienniku przy posiłku (śniadanie, obiad…) przycisk „Zapisz jako posiłek" zapisuje jego produkty z ilościami. Wpis bez produktu (w przyszłości ze zdjęcia posiłku) jest pomijany.
+- **Dodanie:** w zakładce „Dodaj" wybierasz posiłek dnia (podpowiadany według godziny) i stukasz zestaw. Powstają zwykłe wpisy dziennika, po jednym na produkt, ze źródłem `meal`. Działa bez sieci tak samo jak pojedynczy produkt. „Cofnij" usuwa właśnie dodane wpisy.
+- **Zestaw przechowuje produkty i ilości, nie wartości.** Wartości liczy i zamraża wpis dziennika w chwili dodania (rozdział 8), więc poprawka produktu działa od tej pory w przód, a dodane wcześniej wpisy się nie zmieniają. Kalorie zestawu na liście są liczone według produktów na dziś.
+- `GET /api/meals`, `PUT /api/meals/{uuid}` (nazwa i skład; powtórka zastępuje skład), `DELETE /api/meals/{uuid}` (wpisy w dzienniku zostają). Logika: `backend/app/core/meals.py`.
+- Edycja składu zestawu (zmiana ilości, usunięcie produktu) nie jest jeszcze dostępna: zestaw zapisuje się od nowa z dziennika.
 
 ## 5. Moduł 2 — Trening
 
@@ -421,7 +460,9 @@ food(id PK, kind,                 -- 'packaged' | 'generic' | 'recipe'
      macro_source,                -- skąd są aktualne wartości: 'label' | 'reference' | 'estimated' | 'user'
      source_updated_at NULL,      -- kiedy dane zmieniono w źródle (np. w OFF)
      verified_at NULL,            -- kiedy użytkownik potwierdził zgodność z etykietą
-     generic_parent_id NULL, fetched_at, raw JSONB)   -- raw: oryginalna odpowiedź źródła
+     generic_parent_id NULL, fetched_at, raw JSONB,   -- raw: oryginalna odpowiedź źródła
+     favorite_at NULL,            -- kiedy dodany do ulubionych
+     client_id UUID UNIQUE NULL)  -- produkt bez kodu: identyfikator z telefonu (idempotentny zapis)
 food_alias(food_id, alias)        -- synonimy do wyszukiwania; indeks GIN pg_trgm na name i alias
 food_nutrient(food_id, nutrient_id, amount_per_100g,   -- mikroskładniki
               source,             -- 'label' | 'reference' | 'estimated'
@@ -434,9 +475,12 @@ meal_entry(id UUID PK,            -- nadawany na telefonie (idempotentny zapis o
            -- wartości dla tej porcji, zamrożone w chwili zapisu
            kcal, protein_g, fat_g, sat_fat_g, carbs_g, sugars_g, fiber_g, salt_g,
            micros JSONB,          -- { "magnesium": { "amount": 48, "source": "estimated" } }
-           source,                -- 'scan' | 'search' | 'photo' | 'text' | 'manual'
+           source,                -- 'scan' | 'search' | 'photo' | 'text' | 'manual' | 'meal'
            ai_run_id NULL, created_at)
-daily_target(date_from, nutrient_id, min, max)
+daily_target(date_from, nutrient_id, min, max)  -- wersja celów od date_from; min i max puste = bez celu
+meal_template(id UUID PK, name, created_at, updated_at)   -- zapisany posiłek (4.9)
+meal_template_item(meal_id, position, food_id, amount,   -- skład: produkty i ilości, bez wartości
+                   PRIMARY KEY(meal_id, position))
 
 plan(id PK, name, data JSONB)                    -- zawartość plan_amp_2027.json
 plan_settings(plan_id PK, tm JSONB, meet_date, adj JSONB, collars)
@@ -463,8 +507,9 @@ coach_note(id PK, date, scope, text, ai_run_id)       -- 'day' | 'week'
 ```
 backend/
   app/
-    api/          auth.py, health.py, diet.py, diary.py, probe.py, deps.py  (dojdą: training.py, coach.py)
-    core/         training.py, nutrients.py, diary.py, label.py, energy.py, readiness.py,
+    api/          auth.py, health.py, diet.py, diary.py, targets.py, meals.py, probe.py, deps.py
+    core/         training.py, nutrients.py, diary.py, label.py, targets.py, search.py, meals.py,
+                  energy.py, readiness.py,
                   health_ingest.py, barcode.py                        ← czysta logika z testami
     ai/           provider.py, router.py, schemas.py, json_schema.py, prompts.py,
                   gemini.py, claude.py
@@ -476,7 +521,8 @@ backend/
 web/
   src/
     features/     home/ diet/ diary/ health/, training/ coach/ (kolejne etapy)
-    lib/          api.ts, offline.ts, connectivity.ts, scanner.ts, ean.ts, diary.ts, label.ts, number.ts
+    lib/          api.ts, offline.ts, connectivity.ts, scanner.ts, ean.ts, diary.ts, label.ts,
+                  number.ts, targets.ts, meals.ts, appUpdate.ts
   public/         ikony
 seed/             nutrients.json, plan_amp_2027.json (poza repo, patrz 3.5)
 shortcuts/        budowa skrótu krok po kroku

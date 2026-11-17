@@ -534,3 +534,174 @@ button.entry {
   border-color: var(--text);
   color: var(--text);
 }
+
+/* ---------- etap 1, kroki 4–6: cele, wyszukiwarka, posiłki ---------- */
+
+input[type="search"] {
+  width: 100%;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.daynote {
+  margin: 0 0 8px;
+  font-size: 0.9rem;
+}
+
+/* Przycisk wyglądający jak link: drugorzędne akcje w kartach. */
+button.link {
+  align-self: flex-start;
+  min-height: 36px;
+  padding: 4px 0;
+  border: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+  text-decoration: underline;
+}
+
+.cardhead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+button.star {
+  flex: 0 0 44px;
+  padding: 0;
+  border: 0;
+  color: var(--muted);
+  font-size: 1.6rem;
+  line-height: 1;
+}
+
+button.star.on {
+  color: var(--warn);
+}
+
+/* Paski celów dziennych. */
+.goals {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.goal {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.9rem;
+}
+
+.goal > .muted {
+  font-size: 0.8rem;
+}
+
+.goalhead {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.bar {
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--border);
+}
+
+.bar > div {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--muted);
+}
+
+.goal.done .bar > div {
+  background: var(--ok);
+}
+
+.goal.over .bar > div {
+  background: var(--error);
+}
+
+.goal.over > .muted {
+  color: var(--error);
+}
+
+/* Listy produktów i posiłków do wyboru. */
+.list.foods li,
+.list.meals li {
+  align-items: stretch;
+  gap: 8px;
+}
+
+.list.foods li + li,
+.list.meals li + li {
+  border-top: 1px solid var(--border);
+}
+
+button.food {
+  display: grid;
+  flex: 1;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  min-width: 0;
+  padding: 10px 0;
+  border: 0;
+  border-radius: 0;
+  text-align: left;
+  font-variant-numeric: tabular-nums;
+}
+
+.food .name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.food .name em {
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-style: normal;
+}
+
+.food .kcal {
+  align-self: center;
+  color: var(--muted);
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+button.forget {
+  flex: 0 0 44px;
+  padding: 0;
+  border: 0;
+  color: var(--muted);
+}
+
+.slothead select {
+  width: auto;
+  min-height: 36px;
+  padding: 4px 10px;
+  font-size: 0.9rem;
+}
+
+.row.added {
+  align-items: center;
+}
+
+.row.added .status {
+  flex: 1;
+  margin: 0;
+}
+
+.savemeal {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}

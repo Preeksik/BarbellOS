@@ -85,6 +85,7 @@ export interface Food {
   micros: { nutrient_id: string; amount_per_100g: number; source: string }[];
   warnings: string[];
   cached: boolean;
+  favorite: boolean;
 }
 
 export interface FoodUpdateBody {
@@ -133,6 +134,53 @@ export interface DiaryDay {
   entries: DiaryEntry[];
   totals: MacroTotals;
   by_slot: Partial<Record<MealSlot, MacroTotals>>;
+}
+
+// ---------- cele dzienne ----------
+
+/** target: cel, min: co najmniej, max: najwyżej. */
+export type GoalKind = "target" | "min" | "max";
+
+export interface Targets {
+  date: string;
+  /** Od kiedy obowiązują; `null`, gdy celów jeszcze nie ustawiono. */
+  date_from: string | null;
+  /** `null` = bez celu. */
+  goals: Per100;
+  kinds: Record<MacroKey, GoalKind>;
+}
+
+// ---------- wyszukiwanie ----------
+
+export interface OffHit {
+  barcode: string;
+  name: string;
+  brand: string | null;
+  kcal: number | null;
+  unit: "g" | "ml";
+}
+
+export interface RecentFood {
+  food: Food;
+  last_amount: number;
+  last_slot: MealSlot;
+}
+
+// ---------- zapisane posiłki ----------
+
+export interface MealItem {
+  food_id: number;
+  food_name: string;
+  amount: number;
+  unit: "g" | "ml";
+  per_100: Per100;
+}
+
+export interface Meal {
+  id: string;
+  name: string;
+  items: MealItem[];
+  totals: MacroTotals;
 }
 
 export interface HealthTypeSummary {

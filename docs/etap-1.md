@@ -7,9 +7,9 @@ Cel: przez tydzień logować jedzenie tutaj zamiast w Fitatu. Każdy krok kończ
 | 1 | **Edycja produktu.** Status weryfikacji, „Zgadza się z etykietą", formularz „Popraw", jednostka g/ml, data danych w źródle, reguły spójności | gotowe 15.11.2026 |
 | 2 | **Dziennik dnia.** „Dodaj do dnia" z gramaturą i posiłkiem, widok dnia z sumami, zmiana ilości, usuwanie, zapis przez kolejkę offline | gotowe 16.11.2026 |
 | 3 | **Zdjęcie etykiety.** AI wypełnia formularz z kroku 1, użytkownik zatwierdza (pierwsze użycie klucza Gemini). Kod, którego nie ma w Open Food Facts, można dodać jako własny produkt | kod gotowy 16.11.2026; przed Tobą test z prawdziwym kluczem i na telefonie |
-| 4 | **Cele dzienne** i pasek postępu | |
-| 5 | **Wyszukiwarka**, ostatnie i ulubione, własny produkt bez kodu | |
-| 6 | **Posiłki:** zestawy dodawane jednym stuknięciem | |
+| 4 | **Cele dzienne** i pasek postępu. Cele wersjonowane datą: zmiana nie przepisuje historii | kod gotowy 17.11.2026 |
+| 5 | **Wyszukiwarka** (własna baza przy pisaniu, Open Food Facts na przycisk), ostatnie i ulubione, własny produkt bez kodu | kod gotowy 17.11.2026 |
+| 6 | **Posiłki:** zestawy dodawane jednym stuknięciem | kod gotowy 17.11.2026 |
 
 Przed codziennym używaniem kroku 2 trzeba wdrożyć aplikację na serwer: lokalna baza SQLite nie przenosi się sama.
 
@@ -70,3 +70,40 @@ Pierwszy test kroku 3 pokazał starą aplikację: po wdrożeniu telefon podawał
 7. Zeskanuj ten sam kod ponownie: produkt otwiera się od razu z Twoimi wartościami.
 8. Tryb samolotowy → „Zdjęcie etykiety": komunikat o braku połączenia, formularz zostaje otwarty i da się go wypełnić ręcznie.
 9. Po powrocie z aparatu formularz nadal jest otwarty i ma wpisane wcześniej wartości. Jeśli aplikacja się przeładowała (iOS potrafi to zrobić przy małej ilości pamięci), zapisz to w wynikach: wtedy zdjęcie trzeba robić przed wpisywaniem.
+
+## Kroki 4–6: zmiany na ekranie
+
+- Zakładka **„Skan" nazywa się teraz „Dodaj"**: wyszukiwarka, przyciski „Skanuj kod" i „Produkt bez kodu", pod spodem „Posiłki", „Ulubione" i „Ostatnie".
+- Dziennik ma pod sumą link **„Ustaw cele dzienne"**, a przy każdym posiłku **„Zapisz jako posiłek"**.
+- Po aktualizacji telefon zaczyna z pustą pamięcią podręczną (zmienił się kształt danych produktu). **Przed aktualizacją poczekaj, aż zniknie plakietka „niewysłane"**, bo zapisy czekające w kolejce przepadną.
+- Baza dostaje nowe kolumny i tabele: po pobraniu zmian uruchom `alembic upgrade head` w katalogu `backend`.
+
+## Kroki 4–6: co sprawdzić (najpierw na komputerze, potem na telefonie)
+
+Cele (krok 4):
+
+1. Dziennik → „Ustaw cele dzienne" → wpisz kalorie, białko i sól → „Zapisz cele". Pod sumą pojawiają się trzy paski z napisami „zostało …".
+2. Dodaj coś do dnia: paski się wypełniają. Białko po osiągnięciu celu robi się zielone; sól ponad limit czerwona.
+3. Przejdź strzałką na wczoraj: cele obowiązują od dnia, w którym je zapisałeś, więc wczoraj ich nie ma.
+4. „Zmień cele", wyczyść pole „Sól", zapisz: pasek soli znika, sól wraca do drobnych wartości.
+
+Wyszukiwarka, ostatnie, ulubione (krok 5):
+
+5. „Dodaj" → wpisz kilka liter produktu, który już masz (np. „nute"): wynik pojawia się przy pisaniu, bez polskich znaków też („smietan").
+6. Wpisz coś, czego nie masz → „Szukaj … w Open Food Facts" → wybierz wynik: otwiera się karta produktu jak po skanie. Porównaj wartości z etykietą.
+7. Gwiazdka ☆ na karcie: produkt trafia do „Ulubionych".
+8. Wyczyść wyszukiwarkę: „Ostatnie" pokazują produkty z dziennika z ilością z ostatniego razu; po wybraniu ta ilość jest już wpisana.
+9. „Produkt bez kodu" → np. „Leczo domowe", wartości na 100 g → „Zapisz" → „Dodaj do dnia". Potem wyszukaj „lecz": jest na liście.
+
+Posiłki (krok 6):
+
+10. Dziennik → przy śniadaniu „Zapisz jako posiłek" → nazwa → „Zapisz".
+11. „Dodaj" → „Posiłki": wybierz porę („do: Kolacja") i stuknij zestaw. Pojawia się „Dodano … · Cofnij", a w dzienniku wszystkie produkty zestawu.
+12. „Cofnij" usuwa właśnie dodane wpisy.
+13. ✕ przy zestawie usuwa zapisany posiłek; wpisy w dzienniku zostają.
+
+Tylko na telefonie (kolejka offline):
+
+14. Tryb samolotowy → dodaj zapisany posiłek, zmień cele, dodaj gwiazdkę. Plakietka „niewysłane" rośnie, dziennik od razu pokazuje zmiany. Zamknij aplikację z listy, otwórz bez sieci: zmiany nadal są. Wyłącz tryb samolotowy: plakietka znika.
+15. Bez sieci wyszukiwarka pokazuje błąd połączenia, ale „Ostatnie", „Ulubione" i „Posiłki" działają z pamięci telefonu.
+16. „Skanuj kod" w zakładce „Dodaj": kamera nie pyta ponownie o zgodę przy przechodzeniu między listą a skanerem.

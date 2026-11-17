@@ -27,7 +27,8 @@ class EntryIn(BaseModel):
     meal_slot: MealSlot
     food_id: int
     amount: float = Field(gt=0, le=5000)  # gramy albo mililitry, zależnie od produktu
-    source: Literal["scan", "search", "photo", "text", "manual"] = "scan"
+    # meal: dodany z zapisanego posiłku (krok 6)
+    source: Literal["scan", "search", "photo", "text", "manual", "meal"] = "scan"
 
 
 class EntryOut(BaseModel):

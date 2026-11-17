@@ -14,17 +14,28 @@ export interface Added {
   slot: MealSlot;
 }
 
+/** Skąd wpis trafił do dziennika (kolumna `source` na serwerze). */
+export type EntrySource = "scan" | "search";
+
 /** Ilość i posiłek, a potem zapis do dziennika (działa także bez sieci). */
 export function AddToDay({
   food,
   day,
+  source,
+  initialAmount,
   onAdded,
 }: {
   food: Food;
   day: string;
+  source: EntrySource;
+  /** Np. ilość z ostatniego razu, gdy produkt wybrano z listy „Ostatnie". */
+  initialAmount?: number;
   onAdded: (added: Added) => void;
 }) {
-  const [amountText, setAmountText] = useState(formatDecimal(food.serving_g ?? 100));
+  const [amountText, setAmountText] = useState(
+    formatDecimal(initialAmount ?? food.serving_g ?? 100),
+  );
+  // Posiłek według godziny: „Ostatnie" podpowiada ilość, a nie porę dnia.
   const [slot, setSlot] = useState<MealSlot>(() => defaultSlot(new Date().getHours()));
   const put = useMutation<DiaryEntry, Error, DiaryPutInput>({ mutationKey: mutationKeys.diaryPut });
 
@@ -32,7 +43,7 @@ export function AddToDay({
   const amount =
     typeof parsed === "number" && parsed > 0 && parsed <= MAX_AMOUNT ? parsed : null;
   const preview = amount == null ? null : portionOf(food.per_100, amount);
-  const quick = [...new Set([food.serving_g, ...QUICK_AMOUNTS])].filter(
+  const quick = [...new Set([initialAmount, food.serving_g, ...QUICK_AMOUNTS])].filter(
     (value): value is number => value != null && value > 0,
   );
 
@@ -48,7 +59,7 @@ export function AddToDay({
         amount,
         unit: food.unit,
         values: portionOf(food.per_100, amount),
-        source: "scan",
+        source,
         created_at: new Date().toISOString(),
       },
     });
