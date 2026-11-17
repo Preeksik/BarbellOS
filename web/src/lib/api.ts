@@ -204,7 +204,7 @@ export interface Probe {
 // ---------- profil ----------
 
 export type Sex = "male" | "female";
-export type Activity = "sedentary" | "light" | "moderate" | "active" | "very_active";
+export type Lifestyle = "sitting" | "mixed" | "standing" | "physical";
 export type Goal = "lose" | "maintain" | "gain";
 
 export interface Profile {
@@ -212,7 +212,12 @@ export interface Profile {
   birth_date: string;
   height_cm: number;
   weight_kg: number;
-  activity: Activity;
+  lifestyle: Lifestyle;
+  steps_per_day: number;
+  strength_sessions_week: number;
+  /** Długość jednej sesji w minutach. */
+  strength_minutes: number;
+  cardio_minutes_week: number;
   goal: Goal;
   pace_kg_week: number;
   /** `null` = domyślne dla celu. */
@@ -224,6 +229,8 @@ export interface Plan {
   age: number;
   bmr: number;
   tdee: number;
+  /** Z czego składa się zapotrzebowanie: przemiana, tryb życia, kroki… */
+  parts: { key: string; label: string; kcal: number; detail: string }[];
   kcal: number;
   adjustment: number;
   pace_kg_week: number;

@@ -1,8 +1,8 @@
 import { useMutation, useMutationState, useQuery } from "@tanstack/react-query";
 import { type FormEvent, useEffect, useState } from "react";
 import {
-  type Activity,
   type Goal,
+  type Lifestyle,
   type Plan,
   type Profile,
   type ProfileResponse,
@@ -22,12 +22,35 @@ import { GOAL_ROWS, KIND_HINT } from "../../lib/targets";
 import { formatKcal } from "../diet/macros";
 import { HomePage } from "../home/HomePage";
 
-const ACTIVITIES: { id: Activity; label: string }[] = [
-  { id: "sedentary", label: "Siedzący tryb, bez treningów" },
-  { id: "light", label: "1–3 treningi w tygodniu" },
-  { id: "moderate", label: "3–5 treningów w tygodniu" },
-  { id: "active", label: "6–7 treningów w tygodniu" },
-  { id: "very_active", label: "Praca fizyczna i codzienne treningi" },
+/**
+ * Tryb życia BEZ chodzenia i treningów (te liczą się osobno). Procent przemiany
+ * spoczynkowej jest kopią z serwera (`core/profile.py`, LIFESTYLES), tylko do opisu.
+ */
+const LIFESTYLES: { id: Lifestyle; label: string; example: string; share: string }[] = [
+  {
+    id: "sitting",
+    label: "Siedzący",
+    example: "nauka, biuro, dojazd autem; większość dnia na krześle",
+    share: "+15%",
+  },
+  {
+    id: "mixed",
+    label: "Mieszany",
+    example: "część dnia na nogach: nauczyciel, laborant, dużo prac w domu",
+    share: "+25%",
+  },
+  {
+    id: "standing",
+    label: "Praca na stojąco",
+    example: "sklep, kuchnia, fryzjer, magazyn bez dźwigania",
+    share: "+40%",
+  },
+  {
+    id: "physical",
+    label: "Ciężka praca fizyczna",
+    example: "budowa, przeprowadzki, rolnictwo",
+    share: "+70%",
+  },
 ];
 
 const GOALS: { id: Goal; label: string }[] = [
@@ -106,7 +129,15 @@ function ProfileSummary({ profile, onEdit }: { profile: Profile; onEdit: () => v
         {formatDecimal(profile.weight_kg)} kg
       </p>
       <p className="muted">
-        {ACTIVITIES.find((a) => a.id === profile.activity)?.label} · Cel: {goal}
+        Tryb życia: {LIFESTYLES.find((l) => l.id === profile.lifestyle)?.label.toLowerCase()} ·{" "}
+        {profile.steps_per_day.toLocaleString("pl-PL")} kroków ·{" "}
+        {profile.strength_sessions_week > 0
+          ? `siłownia ${profile.strength_sessions_week} × ${profile.strength_minutes} min`
+          : "bez siłowni"}
+        {profile.cardio_minutes_week > 0 && ` · cardio ${profile.cardio_minutes_week} min/tydz.`}
+      </p>
+      <p className="muted">
+        Cel: {goal}
         {pace}
       </p>
       <button type="button" className="link" onClick={onEdit}>
@@ -143,7 +174,27 @@ function PlanCard({ plan }: { plan: Plan }) {
         </p>
       ))}
 
+      <table className="parts">
+        <caption>Na co idą kalorie (dziennie)</caption>
+        <tbody>
+          {plan.parts.map((part) => (
+            <tr key={part.key}>
+              <th scope="row">
+                {part.label}
+                <span className="muted">{part.detail}</span>
+              </th>
+              <td>{formatKcal(part.kcal)} kcal</td>
+            </tr>
+          ))}
+          <tr className="sum">
+            <th scope="row">Zapotrzebowanie</th>
+            <td>{formatKcal(plan.tdee)} kcal</td>
+          </tr>
+        </tbody>
+      </table>
+
       <table>
+        <caption>Cele dzienne</caption>
         <tbody>
           {GOAL_ROWS.map(({ key, label, unit, kind }) => {
             const value = plan.goals[key];
@@ -198,6 +249,17 @@ interface Texts {
   height: string;
   weight: string;
   protein: string;
+  steps: string;
+  sessions: string;
+  minutes: string;
+  cardio: string;
+}
+
+/** Liczba całkowita z pola: puste pole = 0, tekst = INVALID. */
+function parseCount(text: string): number | typeof INVALID {
+  const parsed = parseDecimal(text.replace(/\s/g, ""));
+  if (parsed === INVALID) return INVALID;
+  return Math.round(parsed ?? 0);
 }
 
 function ProfileForm({
@@ -211,13 +273,17 @@ function ProfileForm({
 }) {
   const [sex, setSex] = useState<Sex>(current?.sex ?? "male");
   const [birthDate, setBirthDate] = useState(current?.birth_date ?? "");
-  const [activity, setActivity] = useState<Activity>(current?.activity ?? "moderate");
+  const [lifestyle, setLifestyle] = useState<Lifestyle>(current?.lifestyle ?? "sitting");
   const [goal, setGoal] = useState<Goal>(current?.goal ?? "maintain");
   const [pace, setPace] = useState<number>(current?.pace_kg_week ?? 0);
   const [texts, setTexts] = useState<Texts>({
     height: formatDecimal(current?.height_cm),
     weight: formatDecimal(current?.weight_kg),
     protein: formatDecimal(current?.protein_g_per_kg),
+    steps: String(current?.steps_per_day ?? ""),
+    sessions: String(current?.strength_sessions_week ?? ""),
+    minutes: String(current?.strength_minutes ?? 60),
+    cardio: String(current?.cardio_minutes_week ?? ""),
   });
   const [problem, setProblem] = useState<string | null>(null);
   const save = useMutation<ProfileResponse, Error, ProfilePutInput>({
@@ -243,6 +309,14 @@ function ProfileForm({
     if (height === INVALID || height == null) return setProblem("Podaj wzrost w centymetrach.");
     if (weight === INVALID || weight == null) return setProblem("Podaj masę ciała w kilogramach.");
     if (protein === INVALID) return setProblem("Białko: wpisz liczbę albo zostaw puste pole.");
+    const steps = parseCount(texts.steps);
+    const sessions = parseCount(texts.sessions);
+    const minutes = parseCount(texts.minutes);
+    const cardio = parseCount(texts.cardio);
+    if (steps === INVALID) return setProblem("Kroki: wpisz średnią liczbę kroków dziennie.");
+    if (sessions === INVALID || minutes === INVALID || cardio === INVALID) {
+      return setProblem("Treningi: wpisz liczby albo zostaw puste pola.");
+    }
     setProblem(null);
     save.mutate(
       {
@@ -251,7 +325,11 @@ function ProfileForm({
           birth_date: birthDate,
           height_cm: height,
           weight_kg: weight,
-          activity,
+          lifestyle,
+          steps_per_day: steps,
+          strength_sessions_week: sessions,
+          strength_minutes: sessions > 0 ? minutes : 60,
+          cardio_minutes_week: cardio,
           goal,
           pace_kg_week: pace,
           protein_g_per_kg: protein,
@@ -308,15 +386,65 @@ function ProfileForm({
           />
         </label>
       </div>
+      <fieldset className="choices">
+        <legend>Tryb życia (bez chodzenia i treningów)</legend>
+        {LIFESTYLES.map((l) => (
+          <label key={l.id} className={lifestyle === l.id ? "choice active" : "choice"}>
+            <input
+              type="radio"
+              name="lifestyle"
+              checked={lifestyle === l.id}
+              onChange={() => setLifestyle(l.id)}
+            />
+            <span>
+              <strong>{l.label}</strong> <span className="muted">{l.share}</span>
+              <span className="muted">{l.example}</span>
+            </span>
+          </label>
+        ))}
+      </fieldset>
+
       <label>
-        Aktywność
-        <select value={activity} onChange={(e) => setActivity(e.target.value as Activity)}>
-          {ACTIVITIES.map((a) => (
-            <option key={a.id} value={a.id}>
-              {a.label}
-            </option>
-          ))}
-        </select>
+        Średnio kroków dziennie
+        <input
+          inputMode="numeric"
+          placeholder="np. 5000"
+          value={texts.steps}
+          onChange={(e) => setTexts({ ...texts, steps: e.target.value })}
+        />
+        <span className="muted">
+          Z aplikacji Zdrowie: Przeglądaj → Aktywność → Kroki → R (rok). Potem przyjdzie stamtąd
+          samo.
+        </span>
+      </label>
+
+      <div className="row">
+        <label>
+          Treningi siłowe w tygodniu
+          <input
+            inputMode="numeric"
+            placeholder="0"
+            value={texts.sessions}
+            onChange={(e) => setTexts({ ...texts, sessions: e.target.value })}
+          />
+        </label>
+        <label>
+          Minut na trening
+          <input
+            inputMode="numeric"
+            value={texts.minutes}
+            onChange={(e) => setTexts({ ...texts, minutes: e.target.value })}
+          />
+        </label>
+      </div>
+      <label>
+        Cardio, minut w tygodniu (rower, bieganie)
+        <input
+          inputMode="numeric"
+          placeholder="0"
+          value={texts.cardio}
+          onChange={(e) => setTexts({ ...texts, cardio: e.target.value })}
+        />
       </label>
 
       <fieldset className="segmented">

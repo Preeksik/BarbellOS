@@ -5,7 +5,12 @@ będzie korygowane trendem wagi i spożyciem (`core/energy.py`, dokumentacja 6.4
 
 Źródła:
 - przemiana materii (BMR): Mifflin i in., Am J Clin Nutr 1990 (wzór Mifflin-St Jeor),
-- mnożniki aktywności: standardowe współczynniki PAL 1,2–1,9,
+- zapotrzebowanie metodą składników: BMR + tryb życia (bez chodzenia) + kroki + treningi,
+  plus trawienie (efekt termiczny pożywienia ≈ 10% całości),
+- kroki: długość kroku 0,415 × wzrost (mężczyźni) / 0,413 × wzrost (kobiety); koszt chodzenia
+  ponad spoczynek z równania ACSM: 0,1 ml O₂ na kg na metr ≈ 0,5 kcal na kg na km,
+- treningi: Compendium of Physical Activities 2024 (przysiad, martwy ciąg: 5,0 MET; cardio
+  umiarkowane: 7,0 MET); liczone ponad spoczynek, czyli (MET − 1) × kg × godziny,
 - 1 kg masy ciała ≈ 7700 kcal (jak w `core/energy.py`),
 - białko: ISSN Position Stand 2017 (1,4–2,0 g/kg; przy deficycie u trenujących siłowo
   więcej, do 2,3–3,1 g/kg),
@@ -14,23 +19,38 @@ będzie korygowane trendem wagi i spożyciem (`core/energy.py`, dokumentacja 6.4
 - błonnik: 14 g na 1000 kcal (Dietary Guidelines for Americans), nie mniej niż 25 g (WHO).
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import date
 from typing import Literal
 
 Sex = Literal["male", "female"]
-Activity = Literal["sedentary", "light", "moderate", "active", "very_active"]
+Lifestyle = Literal["sitting", "mixed", "standing", "physical"]
 Goal = Literal["lose", "maintain", "gain"]
 
 KCAL_PER_KG = 7700.0
 
-ACTIVITY_FACTORS: dict[str, float] = {
-    "sedentary": 1.2,  # praca siedząca, bez treningów
-    "light": 1.375,  # 1–3 treningi w tygodniu
-    "moderate": 1.55,  # 3–5 treningów w tygodniu
-    "active": 1.725,  # 6–7 treningów w tygodniu
-    "very_active": 1.9,  # praca fizyczna i codzienne treningi
+# Tryb życia BEZ chodzenia i treningów: siedzenie, stanie, drobne czynności, praca.
+# Chodzenie liczą kroki, treningi osobne pola, więc nic nie jest liczone dwa razy.
+# Dodatek jako ułamek BMR. [ZAŁOŻENIE] Dobrane tak, żeby całość (z krokami i treningami)
+# mieściła się w zakresach PAL FAO/WHO/UNU 2004: siedzący 1,40–1,69, aktywny 1,70–1,99,
+# bardzo aktywny 2,00–2,40.
+LIFESTYLES: dict[str, float] = {
+    "sitting": 0.15,  # nauka, biuro, dojazd autem: większość dnia siedząc
+    "mixed": 0.25,  # część dnia na nogach: nauczyciel, laborant, praca w domu i ogrodzie
+    "standing": 0.40,  # praca na stojąco: sklep, kuchnia, fryzjer, magazyn bez dźwigania
+    "physical": 0.70,  # ciężka praca fizyczna: budowa, przeprowadzki, rolnictwo
 }
+LIFESTYLE_LABELS: dict[str, str] = {
+    "sitting": "siedzący (nauka, biuro, dojazd autem)",
+    "mixed": "mieszany (część dnia na nogach)",
+    "standing": "praca na stojąco",
+    "physical": "ciężka praca fizyczna",
+}
+TEF_SHARE = 0.10  # trawienie: ok. 10% całkowitego zapotrzebowania
+STRIDE_PER_CM = {"male": 0.415, "female": 0.413}  # długość kroku jako ułamek wzrostu
+WALK_NET_KCAL_PER_KG_KM = 0.5  # ACSM: 0,1 ml O₂/kg/m × ok. 5 kcal na litr O₂
+STRENGTH_MET = 5.0  # przysiad, martwy ciąg, wyciskanie z przerwami między seriami
+CARDIO_MET = 7.0  # rower, trucht, orbitrek w umiarkowanym tempie
 
 # Dozwolone tempo zmiany masy ciała (kg na tydzień), osobno dla redukcji i masy.
 PACES: dict[str, tuple[float, ...]] = {
@@ -60,17 +80,32 @@ class Profile:
     birth_date: date
     height_cm: float
     weight_kg: float
-    activity: Activity
+    lifestyle: Lifestyle
+    steps_per_day: int  # średnia; w etapie 3 z Apple Zdrowie
+    strength_sessions_week: int
+    strength_minutes: int  # długość jednej sesji
+    cardio_minutes_week: int
     goal: Goal
     pace_kg_week: float
     protein_g_per_kg: float | None = None  # None = domyślne dla celu
 
 
 @dataclass(frozen=True)
+class EnergyPart:
+    """Jeden składnik zapotrzebowania, do tabeli „Na co idą kalorie"."""
+
+    key: str  # bmr | lifestyle | steps | strength | cardio | tef
+    label: str
+    kcal: float
+    detail: str
+
+
+@dataclass(frozen=True)
 class Plan:
     age: int
     bmr: float  # przemiana materii w spoczynku
-    tdee: float  # całkowite zapotrzebowanie przy podanej aktywności
+    tdee: float  # całkowite zapotrzebowanie: suma składników
+    parts: list[EnergyPart]  # z czego składa się zapotrzebowanie
     kcal: float  # cel kaloryczny dnia
     adjustment: float  # różnica względem TDEE: ujemna = deficyt, dodatnia = nadwyżka
     pace_kg_week: float  # tempo po ograniczeniach (może być wolniejsze niż wybrane)
@@ -96,6 +131,14 @@ def profile_errors(profile: Profile, today: date) -> list[str]:
         errors.append("Wzrost musi wynosić od 120 do 230 cm.")
     if not 30 <= profile.weight_kg <= 300:
         errors.append("Masa ciała musi wynosić od 30 do 300 kg.")
+    if not 0 <= profile.steps_per_day <= 40_000:
+        errors.append("Średnia kroków musi wynosić od 0 do 40 000 dziennie.")
+    if not 0 <= profile.strength_sessions_week <= 14:
+        errors.append("Treningów siłowych może być od 0 do 14 w tygodniu.")
+    if profile.strength_sessions_week and not 15 <= profile.strength_minutes <= 240:
+        errors.append("Trening siłowy musi trwać od 15 do 240 minut.")
+    if not 0 <= profile.cardio_minutes_week <= 1500:
+        errors.append("Cardio: od 0 do 1500 minut w tygodniu.")
     if profile.pace_kg_week not in PACES[profile.goal]:
         allowed = ", ".join(_pl(p) for p in PACES[profile.goal])
         errors.append(f"Tempo dla tego celu: {allowed} kg na tydzień.")
@@ -116,8 +159,70 @@ def _pl(value: float) -> str:
     return f"{value:g}".replace(".", ",")
 
 
+def _thousands(value: int) -> str:
+    """5000 -> „5 000" (spacja jako separator tysięcy, jak po polsku)."""
+    return f"{value:,}".replace(",", " ")
+
+
 def _round(value: float, step: float) -> float:
     return round(value / step) * step
+
+
+def steps_kcal(steps: float, sex: Sex, height_cm: float, weight_kg: float) -> tuple[float, float]:
+    """Kalorie z chodzenia ponad spoczynek i przebyty dystans w km."""
+    km = steps * STRIDE_PER_CM[sex] * height_cm / 100_000
+    return km * weight_kg * WALK_NET_KCAL_PER_KG_KM, km
+
+
+def exercise_kcal_per_day(met: float, minutes_per_week: float, weight_kg: float) -> float:
+    """Średnio na dzień, ponad spoczynek: (MET − 1) × kg × godziny ÷ 7."""
+    return (met - 1) * weight_kg * minutes_per_week / 60 / 7
+
+
+def energy_parts(profile: Profile, bmr: float) -> list[EnergyPart]:
+    """Zapotrzebowanie metodą składników. Trawienie to 10% sumy, więc dzielimy przez 0,9."""
+    w = profile.weight_kg
+    lifestyle = bmr * LIFESTYLES[profile.lifestyle]
+    walk, km = steps_kcal(profile.steps_per_day, profile.sex, profile.height_cm, w)
+    strength_minutes = profile.strength_sessions_week * profile.strength_minutes
+    strength = exercise_kcal_per_day(STRENGTH_MET, strength_minutes, w)
+    cardio = exercise_kcal_per_day(CARDIO_MET, profile.cardio_minutes_week, w)
+    subtotal = bmr + lifestyle + walk + strength + cardio
+    tef = subtotal / (1 - TEF_SHARE) - subtotal
+    return [
+        EnergyPart("bmr", "Przemiana spoczynkowa", bmr, "oddychanie, serce, mózg, temperatura"),
+        EnergyPart(
+            "lifestyle",
+            "Tryb życia",
+            lifestyle,
+            f"{LIFESTYLE_LABELS[profile.lifestyle]}: +{LIFESTYLES[profile.lifestyle]:.0%} "
+            "przemiany spoczynkowej (bez chodzenia)",
+        ),
+        EnergyPart(
+            "steps",
+            "Kroki",
+            walk,
+            f"{_thousands(profile.steps_per_day)} kroków ≈ {_pl(round(km, 1))} km",
+        ),
+        EnergyPart(
+            "strength",
+            "Trening siłowy",
+            strength,
+            f"{profile.strength_sessions_week} × {profile.strength_minutes} min w tygodniu, "
+            "średnio na dzień"
+            if profile.strength_sessions_week
+            else "brak",
+        ),
+        EnergyPart(
+            "cardio",
+            "Cardio",
+            cardio,
+            f"{profile.cardio_minutes_week} min w tygodniu, średnio na dzień"
+            if profile.cardio_minutes_week
+            else "brak",
+        ),
+        EnergyPart("tef", "Trawienie", tef, "ok. 10% całego zapotrzebowania"),
+    ]
 
 
 def plan_for(profile: Profile, today: date) -> Plan:
@@ -125,12 +230,18 @@ def plan_for(profile: Profile, today: date) -> Plan:
     age = age_on(profile.birth_date, today)
     w = profile.weight_kg
     bmr = bmr_mifflin(profile.sex, w, profile.height_cm, age)
-    factor = ACTIVITY_FACTORS[profile.activity]
-    tdee = bmr * factor
+    parts = energy_parts(profile, bmr)
+    tdee = sum(part.kcal for part in parts)
+    walk = next(part for part in parts if part.key == "steps")
     notes = [
         f"Przemiana materii w spoczynku: {bmr:.0f} kcal (wzór Mifflin-St Jeor: płeć, wiek {age}, "
         f"{_pl(profile.height_cm)} cm, {_pl(w)} kg).",
-        f"Zapotrzebowanie przy Twojej aktywności: {bmr:.0f} × {_pl(factor)} = {tdee:.0f} kcal.",
+        f"Kroki: {walk.detail}; chodzenie kosztuje ok. {_pl(WALK_NET_KCAL_PER_KG_KM)} kcal "
+        f"na kg na km ponad spoczynek (równanie ACSM) = {walk.kcal:.0f} kcal.",
+        f"Trening siłowy liczony jako {_pl(STRENGTH_MET)} MET, cardio jako {_pl(CARDIO_MET)} MET "
+        "(Compendium of Physical Activities 2024), tylko ponad spoczynek.",
+        f"Zapotrzebowanie: suma składników = {tdee:.0f} kcal "
+        f"(to {_pl(round(tdee / bmr, 2))} × przemiana spoczynkowa).",
     ]
     warnings: list[str] = []
 
@@ -206,6 +317,7 @@ def plan_for(profile: Profile, today: date) -> Plan:
         age=age,
         bmr=round(bmr),
         tdee=round(tdee),
+        parts=[replace(part, kcal=round(part.kcal)) for part in parts],
         kcal=kcal,
         adjustment=round(adjustment),
         pace_kg_week=round(pace, 2),

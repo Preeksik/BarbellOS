@@ -40,7 +40,8 @@ const IDB_KEY = "barbellos-query-client";
 // Zwiększ po zmianie kształtu odpowiedzi API: stara kopia w telefonie zostanie odrzucona
 // (razem z kolejką niewysłanych zapisów, więc nie zmieniaj bez potrzeby).
 // 3: produkt ma pole `favorite` (etap 1, krok 5).
-const CACHE_VERSION = "3";
+// 4: profil ma tryb życia, kroki i treningi zamiast jednej „aktywności”.
+const CACHE_VERSION = "4";
 const DAY_MS = 1000 * 60 * 60 * 24;
 const THIRTY_DAYS_MS = 30 * DAY_MS;
 // Czas trzymania nieużywanych danych w pamięci. Przeglądarka liczy opóźnienia na 32 bitach:

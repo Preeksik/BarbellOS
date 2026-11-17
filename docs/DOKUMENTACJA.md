@@ -298,12 +298,12 @@ Zestaw produktów z ilościami, np. „Śniadanie standard", dodawany do dnia je
 
 ### 4.10 Profil i plan żywieniowy
 
-Zakładka „Profil": płeć, data urodzenia, wzrost, masa ciała, aktywność, cel (schudnąć, utrzymać, przytyć), tempo i opcjonalnie białko na kg. Z tego serwer liczy plan (`backend/app/core/profile.py`); to szacunek z ogólnych wzorów, punkt startowy.
+Zakładka „Profil": płeć, data urodzenia, wzrost, masa ciała, tryb życia, średnia kroków, treningi siłowe i cardio, cel (schudnąć, utrzymać, przytyć), tempo i opcjonalnie białko na kg. Z tego serwer liczy plan (`backend/app/core/profile.py`); to szacunek z ogólnych wzorów, punkt startowy.
 
 | Liczba | Jak liczona | Źródło |
 |---|---|---|
 | Przemiana spoczynkowa (BMR) | 10 × kg + 6,25 × cm − 5 × wiek, +5 (mężczyzna) albo −161 (kobieta) | Mifflin-St Jeor, 1990 |
-| Zapotrzebowanie (TDEE) | BMR × 1,2 / 1,375 / 1,55 / 1,725 / 1,9 według aktywności | standardowe współczynniki PAL |
+| Zapotrzebowanie (TDEE) | suma składników z tabeli niżej, podzielona przez 0,9 (trawienie ≈ 10% całości) | metoda czynnikowa |
 | Deficyt / nadwyżka | tempo (kg/tydz.) × 7700 kcal ÷ 7 | 1 kg tkanki ≈ 7700 kcal |
 | Białko (co najmniej) | domyślnie 2,2 g/kg na redukcji, 1,8 g/kg w pozostałych celach; do zmiany 1,2–3,1 | ISSN 2017 |
 | Tłuszcz | 25% kalorii (20%, gdy białko zajmuje dużo kalorii) | National Academies, 20–35% |
@@ -312,6 +312,19 @@ Zakładka „Profil": płeć, data urodzenia, wzrost, masa ciała, aktywność, 
 | Nasycone (najwyżej) | 10% kalorii | WHO |
 | Sól (najwyżej) | 5 g | WHO |
 | Cukry | bez limitu: zalecenie WHO dotyczy cukrów dodanych, a etykieta podaje wszystkie cukry | — |
+
+**Zapotrzebowanie ze składników.** Jeden współczynnik „aktywności" mieszał pracę, chodzenie i treningi, a student dojeżdżający autem z 5000 kroków i czterema treningami nie pasował do żadnej kategorii. Każdy składnik jest więc liczony osobno i pokazany w tabeli „Na co idą kalorie":
+
+| Składnik | Jak liczony |
+|---|---|
+| Przemiana spoczynkowa | Mifflin-St Jeor |
+| Tryb życia (bez chodzenia i treningów) | siedzący +15% BMR (nauka, biuro, dojazd autem), mieszany +25%, praca na stojąco +40%, ciężka praca fizyczna +70% **[ZAŁOŻENIE]** |
+| Kroki | średnia kroków × długość kroku (0,415 × wzrost u mężczyzn, 0,413 u kobiet) × 0,5 kcal na kg na km ponad spoczynek (równanie ACSM: 0,1 ml O₂ na kg na metr) |
+| Trening siłowy | treningi w tygodniu × minuty × (5 MET − 1) × kg ÷ 7 dni; 5 MET to przysiad i martwy ciąg w Compendium of Physical Activities 2024 (trójbój „intensywnie": 6 MET), niżej ze względu na przerwy między seriami |
+| Cardio | minuty w tygodniu × (7 MET − 1) × kg ÷ 7 dni |
+| Trawienie | 10% całości |
+
+Przykład: 80 kg, 180 cm, 28 lat, tryb siedzący, 5000 kroków (≈ 3,7 km ≈ 150 kcal), 4 treningi po 75 min (≈ 230 kcal dziennie) daje 2707 kcal, czyli 1,51 × BMR. Procenty trybu życia są dobrane tak, żeby całość mieściła się w zakresach PAL FAO/WHO/UNU 2004 (siedzący 1,40–1,69, aktywny 1,70–1,99, bardzo aktywny 2,00–2,40); test `test_whole_expenditure_stays_in_who_pal_ranges` tego pilnuje. Średnią kroków wpisuje się ręcznie (Zdrowie → Kroki → widok roczny); w etapie 3 przyjdzie z Apple Zdrowie, a trening z sesji w module treningowym.
 
 Bezpieczniki w kodzie:
 
@@ -509,8 +522,9 @@ meal_entry(id UUID PK,            -- nadawany na telefonie (idempotentny zapis o
            source,                -- 'scan' | 'search' | 'photo' | 'text' | 'manual' | 'meal'
            ai_run_id NULL, created_at)
 daily_target(date_from, nutrient_id, min, max)  -- wersja celów od date_from; min i max puste = bez celu
-user_profile(id PK = 1, sex, birth_date, height_cm, weight_kg, activity, goal,   -- 4.10
-             pace_kg_week, protein_g_per_kg NULL, updated_at)
+user_profile(id PK = 1, sex, birth_date, height_cm, weight_kg,              -- 4.10
+             lifestyle, steps_per_day, strength_sessions_week, strength_minutes,
+             cardio_minutes_week, goal, pace_kg_week, protein_g_per_kg NULL, updated_at)
 meal_template(id UUID PK, name, created_at, updated_at)   -- zapisany posiłek (4.9)
 meal_template_item(meal_id, position, food_id, amount,   -- skład: produkty i ilości, bez wartości
                    PRIMARY KEY(meal_id, position))

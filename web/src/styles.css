@@ -741,3 +741,64 @@ details > summary {
   border: 0;
   background: transparent;
 }
+
+/* Tabelka wyboru trybu życia: opcja z opisem. */
+.choices {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.choices legend {
+  margin-bottom: 6px;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.choice {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.choice.active {
+  border-color: var(--text);
+}
+
+.choice input {
+  min-height: 0;
+  margin-top: 4px;
+  accent-color: var(--accent);
+}
+
+.choice > span,
+.parts th {
+  display: flex;
+  flex-direction: column;
+}
+
+.choice > span .muted,
+.parts th .muted {
+  font-size: 0.85rem;
+}
+
+.parts .sum th,
+.parts .sum td {
+  font-weight: 600;
+}
+
+caption {
+  text-align: left;
+}
+
+.parts td {
+  white-space: nowrap;
+}

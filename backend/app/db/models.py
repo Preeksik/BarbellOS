@@ -182,7 +182,11 @@ class UserProfile(Base):
     birth_date: Mapped[date] = mapped_column(Date)
     height_cm: Mapped[float]
     weight_kg: Mapped[float]
-    activity: Mapped[str] = mapped_column(String(16))  # klucz z core.profile.ACTIVITY_FACTORS
+    lifestyle: Mapped[str] = mapped_column(String(16))  # klucz z core.profile.LIFESTYLES
+    steps_per_day: Mapped[int]  # średnia; w etapie 3 z Apple Zdrowie
+    strength_sessions_week: Mapped[int]
+    strength_minutes: Mapped[int]  # długość jednej sesji
+    cardio_minutes_week: Mapped[int]
     goal: Mapped[str] = mapped_column(String(8))  # lose | maintain | gain
     pace_kg_week: Mapped[float]
     protein_g_per_kg: Mapped[float | None]  # None = domyślne dla celu

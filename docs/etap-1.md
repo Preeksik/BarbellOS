@@ -114,9 +114,10 @@ Zakładka **„Start" nazywa się teraz „Profil"**. Na górze profil i plan, n
 
 Co sprawdzić:
 
-1. „Profil" → wypełnij dane, cel „Schudnąć", tempo 0,5 kg → „Zapisz i policz plan". Plan pokazuje kalorie, deficyt i osiem celów.
+1. „Profil" → wypełnij dane, tryb życia, średnią kroków (Zdrowie → Kroki → widok roczny), treningi, cel „Schudnąć", tempo 0,5 kg → „Zapisz i policz plan". Plan pokazuje kalorie, deficyt, tabelę „Na co idą kalorie" i osiem celów.
 2. „Skąd te liczby": każda liczba ma opis i wzór.
 3. Wybierz tempo 1 kg na tydzień przy masie poniżej 100 kg: pojawia się ostrzeżenie, że plan liczy wolniej (najwyżej 1% masy ciała na tydzień).
 4. „Ustaw jako cele dzienne od dziś" → Dziennik: paski mają wartości z planu. Wczorajszy dzień zachowuje stare cele.
 5. „Zmień profil" → zmień masę ciała → plan się przelicza, ale cele w dzienniku zostają, dopóki nie stukniesz „Ustaw jako cele…" ponownie.
 6. Na telefonie: tryb samolotowy → zmień profil → „Profil czeka na wysłanie". Po powrocie sieci pojawia się nowy plan.
+7. Zmień tylko kroki (np. 5000 → 10 000): w tabeli „Na co idą kalorie" zmienia się tylko wiersz „Kroki" (i trawienie o 10% różnicy).

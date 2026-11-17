@@ -8,13 +8,13 @@ import datetime as dt
 from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.api.deps import require_user
 from app.api.diet import Per100 as Goals
 from app.config import Settings, get_settings
-from app.core.profile import Activity, Goal, Profile, Sex, plan_for, profile_errors
+from app.core.profile import Goal, Lifestyle, Profile, Sex, plan_for, profile_errors
 from app.db.models import UserProfile, utcnow
 from app.db.session import get_db
 
@@ -28,16 +28,28 @@ class ProfileBody(BaseModel):
     birth_date: dt.date
     height_cm: float
     weight_kg: float
-    activity: Activity
+    lifestyle: Lifestyle
+    steps_per_day: int = Field(ge=0, le=40_000)
+    strength_sessions_week: int = Field(ge=0, le=14)
+    strength_minutes: int = Field(default=60, ge=0, le=240)
+    cardio_minutes_week: int = Field(default=0, ge=0, le=1500)
     goal: Goal
     pace_kg_week: float
     protein_g_per_kg: float | None = None
+
+
+class EnergyPartOut(BaseModel):
+    key: str
+    label: str
+    kcal: float
+    detail: str
 
 
 class PlanOut(BaseModel):
     age: int
     bmr: float
     tdee: float
+    parts: list[EnergyPartOut]
     kcal: float
     adjustment: float
     pace_kg_week: float
@@ -65,7 +77,11 @@ def _out(row: UserProfile | None, today: dt.date) -> ProfileOut:
         birth_date=row.birth_date,
         height_cm=row.height_cm,
         weight_kg=row.weight_kg,
-        activity=row.activity,
+        lifestyle=row.lifestyle,
+        steps_per_day=row.steps_per_day,
+        strength_sessions_week=row.strength_sessions_week,
+        strength_minutes=row.strength_minutes,
+        cardio_minutes_week=row.cardio_minutes_week,
         goal=row.goal,
         pace_kg_week=row.pace_kg_week,
         protein_g_per_kg=row.protein_g_per_kg,
@@ -73,7 +89,13 @@ def _out(row: UserProfile | None, today: dt.date) -> ProfileOut:
     plan = plan_for(Profile(**body.model_dump()), today)
     return ProfileOut(
         profile=body,
-        plan=PlanOut(**{**vars(plan), "goals": Goals(**plan.goals)}),
+        plan=PlanOut(
+            **{
+                **vars(plan),
+                "goals": Goals(**plan.goals),
+                "parts": [EnergyPartOut(**vars(part)) for part in plan.parts],
+            }
+        ),
     )
 
 

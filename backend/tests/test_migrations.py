@@ -89,3 +89,34 @@ def test_writes_work_on_a_migrated_sqlite_database(migrated):
     assert entry.json()["unit"] == "ml"
     assert entry.json()["created_at"] is not None
     assert client.get("/api/diary/2026-11-16").json()["totals"]["kcal"] == pytest.approx(69.3)
+
+
+def test_old_activity_is_converted_to_lifestyle_and_training(tmp_path):
+    """Migracja 0006: profil zapisany ze starym polem `activity` dostaje nowe pola."""
+    from sqlalchemy import text
+
+    url = f"sqlite:///{tmp_path / 'old_profile.db'}"
+    config = Config(str(BACKEND / "alembic.ini"))
+    config.set_main_option("script_location", str(BACKEND / "app" / "db" / "migrations"))
+    config.set_main_option("sqlalchemy.url", url)
+    config.attributes["configure_logging"] = False
+    command.upgrade(config, "0005")
+    engine = create_engine(url)
+    with engine.begin() as connection:
+        connection.execute(
+            text(
+                "INSERT INTO user_profile (id, sex, birth_date, height_cm, weight_kg, activity, "
+                "goal, pace_kg_week, updated_at) VALUES (1, 'male', '1998-05-10', 180, 80, "
+                "'very_active', 'lose', 0.5, '2026-11-17 10:00:00')"
+            )
+        )
+    command.upgrade(config, "head")
+    with engine.connect() as connection:
+        row = connection.execute(
+            text(
+                "SELECT lifestyle, steps_per_day, strength_sessions_week, strength_minutes, "
+                "cardio_minutes_week FROM user_profile"
+            )
+        ).one()
+    engine.dispose()
+    assert tuple(row) == ("physical", 5000, 6, 60, 0)
