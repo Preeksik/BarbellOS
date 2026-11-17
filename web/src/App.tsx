@@ -50,7 +50,12 @@ export function App() {
         ) : (
           <>
             {tab === "diary" && (
-              <DiaryPage day={day} onDayChange={setDay} onAdd={() => setTab("add")} />
+              <DiaryPage
+                day={day}
+                onDayChange={setDay}
+                onAdd={() => setTab("add")}
+                onOpenProfile={() => setTab("profile")}
+              />
             )}
             {tab === "add" && <AddPage day={day} onShowDiary={() => setTab("diary")} />}
             {tab === "health" && <HealthPage />}

@@ -8,6 +8,8 @@ import {
   type Meal,
   type MealSlot,
   type Per100,
+  type Plan,
+  type ProfileResponse,
   type Targets,
   api,
 } from "../../lib/api";
@@ -29,13 +31,20 @@ import {
   type DiaryDeleteInput,
   type DiaryPutInput,
   type MealPutInput,
+  PROFILE_QUERY_KEY,
   type TargetsPutInput,
   diaryQueryKey,
   dismissDiaryErrors,
   mutationKeys,
   targetsQueryKey,
 } from "../../lib/offline";
-import { GOAL_ROWS, KIND_HINT, progress, progressText } from "../../lib/targets";
+import {
+  GOAL_ROWS,
+  KIND_HINT,
+  missingMacroGoals,
+  progress,
+  progressText,
+} from "../../lib/targets";
 import { formatGrams, formatKcal } from "../diet/macros";
 
 const MAX_AMOUNT = 5000; // ta sama granica co na serwerze
@@ -45,10 +54,12 @@ export function DiaryPage({
   day,
   onDayChange,
   onAdd,
+  onOpenProfile,
 }: {
   day: string;
   onDayChange: (day: string) => void;
   onAdd: () => void;
+  onOpenProfile: () => void;
 }) {
   const today = toIsoDay(new Date());
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -62,6 +73,12 @@ export function DiaryPage({
     queryKey: targetsQueryKey(day),
     queryFn: () => api.get<Targets>(`/api/targets/${day}`),
   });
+  // Plan z profilu: źródło celów, gdy białko, tłuszcz albo węglowodany nie mają celu.
+  const profile = useQuery({
+    queryKey: PROFILE_QUERY_KEY,
+    queryFn: () => api.get<ProfileResponse>("/api/profile"),
+  });
+  const plan = profile.data?.plan ?? null;
   // Wpisy, których zapis jeszcze nie dotarł do serwera (np. dodane bez sieci).
   const waiting = new Set(
     useMutationState({
@@ -72,6 +89,10 @@ export function DiaryPage({
   const rejected = useMutationState({
     filters: { mutationKey: DIARY_MUTATIONS, status: "error" },
     select: (mutation) => mutation.state.error?.message ?? "nieznany błąd",
+  });
+
+  const applyPlan = useMutation<Targets, Error, TargetsPutInput>({
+    mutationKey: mutationKeys.targetsPut,
   });
 
   function goTo(next: string) {
@@ -120,12 +141,16 @@ export function DiaryPage({
               day={day}
               today={today}
               current={targets.data ?? null}
+              plan={plan}
               onDone={() => setEditingGoals(false)}
             />
           ) : (
             <Totals
               day={diary.data}
               targets={targets.data ?? null}
+              plan={plan}
+              onApplyPlan={() => plan && applyPlan.mutate({ dateFrom: day, goals: plan.goals })}
+              onOpenProfile={onOpenProfile}
               onEditGoals={() => setEditingGoals(true)}
             />
           )}
@@ -213,10 +238,16 @@ export function DiaryPage({
 function Totals({
   day,
   targets,
+  plan,
+  onApplyPlan,
+  onOpenProfile,
   onEditGoals,
 }: {
   day: DiaryDay;
   targets: Targets | null;
+  plan: Plan | null;
+  onApplyPlan: () => void;
+  onOpenProfile: () => void;
   onEditGoals: () => void;
 }) {
   const t = day.totals;
@@ -270,6 +301,32 @@ function Totals({
           * część wpisów nie ma tej wartości (brak na etykiecie albo w szacunku): suma jest
           zaniżona.
         </p>
+      )}
+      {missingMacroGoals(targets?.goals ?? null) && (
+        <div className="notice">
+          {plan ? (
+            <>
+              <p>
+                Białko, tłuszcz i węglowodany nie mają celu, więc nie widać „ile na ile". Twój
+                plan z profilu: {formatKcal(plan.kcal)} kcal · B {formatGrams(plan.goals.protein_g)} ·
+                T {formatGrams(plan.goals.fat_g)} · W {formatGrams(plan.goals.carbs_g)}.
+              </p>
+              <button type="button" className="primary" onClick={onApplyPlan}>
+                Ustaw cele z planu
+              </button>
+            </>
+          ) : (
+            <>
+              <p>
+                Białko, tłuszcz i węglowodany nie mają celu. Wypełnij profil, a aplikacja je
+                policzy.
+              </p>
+              <button type="button" onClick={onOpenProfile}>
+                Przejdź do profilu
+              </button>
+            </>
+          )}
+        </div>
       )}
       <button type="button" className="link" onClick={onEditGoals}>
         {targets?.date_from ? "Zmień cele" : "Ustaw cele dzienne"}
@@ -340,11 +397,13 @@ function GoalsForm({
   day,
   today,
   current,
+  plan,
   onDone,
 }: {
   day: string;
   today: string;
   current: Targets | null;
+  plan: Plan | null;
   onDone: () => void;
 }) {
   const [texts, setTexts] = useState<Record<MacroKey, string>>(
@@ -378,6 +437,20 @@ function GoalsForm({
         Obowiązują od {day === today ? "dziś" : dayLabel(day, today)} do następnej zmiany. Dni
         wcześniejsze zachowują poprzednie cele. Puste pole: bez celu.
       </p>
+      {plan && (
+        <button
+          type="button"
+          onClick={() =>
+            setTexts(
+              Object.fromEntries(
+                GOAL_ROWS.map(({ key }) => [key, formatDecimal(plan.goals[key])]),
+              ) as Record<MacroKey, string>,
+            )
+          }
+        >
+          Wypełnij z planu ({formatKcal(plan.kcal)} kcal)
+        </button>
+      )}
       <div className="fields">
         {GOAL_ROWS.map(({ key, label, unit, kind }) => (
           <label key={key} className="field">

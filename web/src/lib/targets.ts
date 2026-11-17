@@ -63,3 +63,11 @@ export function progressText(p: Progress, kind: GoalKind, unit: string): string 
   if (kind === "max") return `zostało ${shown} ${unit} do limitu`;
   return p.state === "done" ? "cel osiągnięty" : `zostało ${shown} ${unit}`;
 }
+
+/** Białko, tłuszcz i węglowodany: bez celu dla nich dziennik nie pokaże „ile na ile". */
+export const MACRO_GOAL_KEYS: MacroKey[] = ["protein_g", "fat_g", "carbs_g"];
+
+/** Czy któryś z głównych makroskładników nie ma celu. */
+export function missingMacroGoals(goals: Record<MacroKey, number | null> | null): boolean {
+  return MACRO_GOAL_KEYS.some((key) => goals?.[key] == null);
+}

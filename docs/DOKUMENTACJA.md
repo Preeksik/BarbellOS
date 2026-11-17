@@ -276,6 +276,7 @@ Cele dotyczą ośmiu wartości z etykiety. Każda ma stały rodzaj celu (`backen
 - `GET /api/targets/{dzień}` zwraca cele obowiązujące w danym dniu: wersję z najpóźniejszą datą nie późniejszą niż ten dzień.
 - Cel musi być większy od zera; górne granice chronią przed literówką (np. 10 000 kcal).
 - Pasek pokazuje sumę dnia (także podgląd z kolejki offline) względem celu. Wartości bez celu są pokazane drobno pod paskami.
+- Gdy białko, tłuszcz albo węglowodany nie mają celu (np. ustawiono ręcznie tylko kalorie), dziennik pokazuje plan z profilu (4.10) i przycisk „Ustaw cele z planu"; bez profilu odsyła do zakładki „Profil". Formularz celów ma przycisk „Wypełnij z planu".
 - **[ZAŁOŻENIE]** Kalorie przekroczone choćby o 1 kcal są oznaczone jako „ponad cel". Tolerancję dodamy, jeśli będzie przeszkadzać.
 
 ### 4.8 Wyszukiwarka, ostatnie, ulubione, produkt bez kodu

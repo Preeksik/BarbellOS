@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { GOAL_ROWS, progress, progressText } from "./targets";
+import { GOAL_ROWS, missingMacroGoals, progress, progressText } from "./targets";
 
 describe("progress", () => {
   it("cel (kalorie): poniżej, osiągnięty, przekroczony", () => {
@@ -43,5 +43,16 @@ describe("progressText", () => {
 describe("GOAL_ROWS", () => {
   it("obejmuje osiem wartości z etykiety, każdą raz", () => {
     expect(new Set(GOAL_ROWS.map((row) => row.key)).size).toBe(8);
+  });
+});
+
+describe("missingMacroGoals", () => {
+  const none = { kcal: null, protein_g: null, fat_g: null, sat_fat_g: null, carbs_g: null, sugars_g: null, fiber_g: null, salt_g: null };
+  it("wykrywa cel tylko dla kalorii", () => {
+    expect(missingMacroGoals({ ...none, kcal: 2400 })).toBe(true);
+    expect(missingMacroGoals(null)).toBe(true);
+  });
+  it("komplet B, T, W wystarczy, reszta nie jest wymagana", () => {
+    expect(missingMacroGoals({ ...none, protein_g: 170, fat_g: 60, carbs_g: 230 })).toBe(false);
   });
 });
