@@ -13,7 +13,7 @@ from app.api.diet import Per100 as MacroValues
 from app.core.diary import MEAL_SLOTS, day_totals, freeze_portion, scale_portion
 from app.core.micros import clean_micros
 from app.core.nutrients import MACRO_KEYS, macro_errors
-from app.core.week import average, micro_week
+from app.core.week import MIN_MICROS, average, micro_gaps, micro_week
 from app.core.week import day_totals as day_totals_range
 from app.db import repo
 from app.db.models import AiRun, Food, MealEntry
@@ -196,6 +196,49 @@ class WeekOut(BaseModel):
 
 
 WEEK_DAYS = 7
+
+
+class GapOut(BaseModel):
+    food_id: int
+    name: str
+    brand: str | None
+    kcal: float
+    share: float  # udział w kaloriach tygodnia
+    entries: int
+    # Produkt ma już mikroskładniki (np. dopasowany do tabeli): wystarczy uzupełnić wpisy.
+    has_micros: bool
+
+
+class GapsOut(BaseModel):
+    foods: list[GapOut]
+    share_without_food: float  # wpisy bez produktu (szacunki AI sprzed 18.11.2026)
+
+
+@router.get("/week/{end}/gaps", response_model=GapsOut)
+def get_week_gaps(end: dt.date, db: Session = Depends(get_db)) -> GapsOut:
+    """Produkty z tygodnia bez danych o witaminach: lista do uzupełnienia z tabeli USDA."""
+    start = end - dt.timedelta(days=WEEK_DAYS - 1)
+    entries = repo.meal_entries_between(db, start, end)
+    gaps, orphan = micro_gaps(
+        {"food_id": e.food_id, "kcal": e.kcal, "micros": e.micros} for e in entries
+    )
+    foods = {f.id: f for f in repo.foods_by_ids(db, [g.food_id for g in gaps])}
+    return GapsOut(
+        foods=[
+            GapOut(
+                food_id=g.food_id,
+                name=foods[g.food_id].name,
+                brand=foods[g.food_id].brand,
+                kcal=g.kcal,
+                share=g.share,
+                entries=g.entries,
+                has_micros=len(repo.food_micros(db, g.food_id)) >= MIN_MICROS,
+            )
+            for g in gaps
+            if g.food_id in foods
+        ],
+        share_without_food=orphan,
+    )
 
 
 @router.get("/week/{end}", response_model=WeekOut)

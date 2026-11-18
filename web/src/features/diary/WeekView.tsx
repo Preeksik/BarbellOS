@@ -3,6 +3,7 @@ import { type Targets, type Week, api } from "../../lib/api";
 import { dayLabel, toIsoDay } from "../../lib/diary";
 import { coverageState, formatAmount, trustText } from "../../lib/micros";
 import { formatGrams, formatKcal } from "../diet/macros";
+import { MicroGaps } from "./MicroGaps";
 
 /**
  * Ostatnie 7 dni (etap 6): średnie dzienne, kalorie dzień po dniu i pokrycie norm
@@ -64,11 +65,15 @@ export function WeekView({ day, targets }: { day: string; targets: Targets | nul
         </ul>
       </section>
 
+      <MicroGaps day={day} />
+
       <section className="card">
         <h2>Witaminy i minerały</h2>
         <p className="muted">
           Średnio na dzień względem referencyjnego spożycia z etykiet UE (to nie indywidualna
-          norma). Pod każdą wartością: skąd pochodzą dane w kaloriach tygodnia.
+          norma). Pod każdą wartością: jaka część kalorii tygodnia ma dane. Dokładne: etykieta
+          albo tabela USDA dla tego samego produktu. Przybliżone: podobny produkt z tabeli
+          (produkty z kodem kreskowym) albo szacunek AI.
         </p>
         <ul className="goals microweek">
           {w.micros.map((m) => {

@@ -9,7 +9,7 @@ export const SOURCE_LABELS: Record<string, string> = {
   label: "etykieta",
   user: "Twoje",
   reference: "tabela USDA",
-  estimated: "szacunek",
+  estimated: "przybliżone",
 };
 
 /** Liczba w polskim zapisie z sensowną dokładnością (µg potrafi być ułamkiem). */
@@ -32,10 +32,14 @@ export function coverageState(m: MicroWeek): "low-data" | "low" | "ok" {
   return "ok";
 }
 
-/** Opis pochodzenia danych, np. „z tabel 70% · szacunek 15% · brak 15%". */
+/**
+ * Opis pochodzenia danych, np. „dokładne 70% · przybliżone 15% · brak 15%".
+ * Dokładne: etykieta albo tabela dla tego samego produktu. Przybliżone: podobny produkt
+ * z tabeli (produkty z kodem) albo szacunek AI.
+ */
 export function trustText(m: MicroWeek): string {
-  const parts = [`z tabel/etykiet ${percent(m.share_trusted)}`];
-  if (m.share_estimated > 0.005) parts.push(`szacunek ${percent(m.share_estimated)}`);
+  const parts = [`dokładne ${percent(m.share_trusted)}`];
+  if (m.share_estimated > 0.005) parts.push(`przybliżone ${percent(m.share_estimated)}`);
   if (m.share_missing > 0.005) parts.push(`brak ${percent(m.share_missing)}`);
   return parts.join(" · ");
 }

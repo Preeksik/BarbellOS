@@ -225,7 +225,9 @@ Dziennik ma przełącznik „Dzień / Tydzień (7 dni)". `GET /api/diary/week/{d
 - sumę każdego dnia i średnią dzienną **z dni z wpisami** (dzień bez wpisów to zwykle dzień niezalogowany, a nie głodówka), zestawioną z celami,
 - dla każdego z 20 mikroskładników: średnią dzienną, procent referencyjnego spożycia z etykiet UE (RWS, nie indywidualna norma; dla sodu to górna granica) oraz udział kalorii tygodnia z wpisów z danymi z tabel lub etykiet, z szacunku i bez danych.
 
-Gdy ponad połowa kalorii nie ma danych o składniku, pasek jest szary z dopiskiem „za mało danych": niski procent znaczy wtedy brak danych, a nie niedobór. Poniżej 50% normy przy wystarczających danych pasek jest żółty.
+Nad listą jest karta „Uzupełnij dane o witaminach" (`GET /api/diary/week/{dzień}/gaps`): do 8 produktów z tygodnia, których wpisy mają mniej niż 5 mikroskładników (sam sód z etykiety nie mówi nic o witaminach), od największych kalorii. Przy każdym od razu jest podpowiedź z tabeli USDA (jak przy ręcznym dopasowaniu) i przyciski „Zatwierdź" / „Pomiń"; jest też „Zatwierdź wszystkie podpowiedzi". Zatwierdzenie dopasowuje produkt i uzupełnia jego wpisy (backfill z 4.2): to świadoma decyzja użytkownika, kalorie i makro wpisów się nie zmieniają. Wpisy z AI bez produktu sprzed 18.11.2026 są podane jako udział, którego nie da się uzupełnić.
+
+Podpisy źródeł: „dokładne" (etykieta albo tabela dla tego samego produktu: `label`, `reference`, `user`) i „przybliżone" (`estimated`: podobny produkt z tabeli albo szacunek AI). Gdy ponad połowa kalorii nie ma danych o składniku, pasek jest szary z dopiskiem „za mało danych": niski procent znaczy wtedy brak danych, a nie niedobór. Poniżej 50% normy przy wystarczających danych pasek jest żółty.
 
 ### 4.3 Przepływy
 

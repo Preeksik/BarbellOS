@@ -90,3 +90,41 @@ def micro_week(
             )
         )
     return out
+
+
+# Wpis z mniej niż tyloma mikroskładnikami traktujemy jako „bez danych o witaminach":
+# etykiety podają zwykle tylko sód, a to nie mówi nic o witaminach.
+MIN_MICROS = 5
+
+
+@dataclass(frozen=True)
+class Gap:
+    food_id: int
+    kcal: float  # kalorie tygodnia z wpisów tego produktu bez danych
+    share: float  # ich udział w kaloriach tygodnia
+    entries: int
+
+
+def micro_gaps(entries: Iterable[Mapping], limit: int = 8) -> tuple[list[Gap], float]:
+    """Produkty, których wpisy w tygodniu nie mają danych o witaminach, od największych kalorii.
+
+    Drugi wynik to udział kalorii z wpisów bez produktu (szacunki AI sprzed etapu 6),
+    których nie da się uzupełnić z tabeli. Wpis ma `food_id`, `kcal` i `micros`.
+    """
+    entries = list(entries)
+    total = sum(e.get("kcal") or 0.0 for e in entries)
+    by_food: dict[int, list[float]] = {}
+    orphan = 0.0
+    for e in entries:
+        if len(e.get("micros") or {}) >= MIN_MICROS:
+            continue
+        if e.get("food_id") is None:
+            orphan += e.get("kcal") or 0.0
+        else:
+            by_food.setdefault(e["food_id"], []).append(e.get("kcal") or 0.0)
+    gaps = [
+        Gap(food_id, sum(kcals), _share(sum(kcals), total), len(kcals))
+        for food_id, kcals in by_food.items()
+    ]
+    gaps.sort(key=lambda g: (-g.kcal, g.food_id))
+    return gaps[:limit], _share(orphan, total)

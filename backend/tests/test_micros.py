@@ -15,7 +15,7 @@ from app.core.micros import (
     rank_fdc,
     table_source,
 )
-from app.core.week import average, day_totals, micro_week
+from app.core.week import average, day_totals, micro_gaps, micro_week
 from app.fdc.client import FdcClient, FdcFood, FdcRateLimited, parse_food
 
 EAN = "5900000000015"  # serek z conftest: wapń 80 mg z etykiety
@@ -372,3 +372,53 @@ def test_backfill_fills_old_entries_without_touching_values(logged_in, fake_fdc)
     assert calcium["avg_amount"] == pytest.approx(26)  # 52 mg/100 g × 50 g
     day = logged_in.get("/api/diary/2026-11-16").json()
     assert day["entries"][0]["values"] == before["values"]  # kalorie i makro zamrożone
+
+
+def test_micro_gaps_rank_products_without_vitamins():
+    full = {nid: {"amount": 1.0, "source": "reference"} for nid in ("a", "b", "c", "d", "e")}
+    entries = [
+        {"food_id": 1, "kcal": 670, "micros": {"sodium": {"amount": 1, "source": "label"}}},
+        {"food_id": 2, "kcal": 210, "micros": None},
+        {"food_id": 2, "kcal": 100, "micros": {}},
+        {"food_id": 3, "kcal": 500, "micros": full},  # ma dane: nie jest brakiem
+        {"food_id": None, "kcal": 400, "micros": None},  # stary szacunek AI
+    ]
+    gaps, orphan = micro_gaps(entries)
+    assert [(g.food_id, g.kcal, g.entries) for g in gaps] == [(1, 670, 1), (2, 310, 2)]
+    assert gaps[0].share == pytest.approx(670 / 1880)
+    assert orphan == pytest.approx(400 / 1880)
+    assert micro_gaps(entries, limit=1)[0][0].food_id == 1
+    assert micro_gaps([]) == ([], 0)
+
+
+def test_week_gaps_endpoint_lists_products_and_clears_after_match(logged_in, fake_fdc):
+    oats = _own(logged_in)
+    serek = logged_in.get(f"/api/foods/barcode/{EAN}").json()
+    for food_id, amount in ((oats["id"], 100), (serek["id"], 200)):
+        body = {"date": "2026-11-18", "meal_slot": "lunch", "food_id": food_id, "amount": amount}
+        logged_in.put(f"/api/diary/entries/{uuid.uuid4()}", json=body)
+    est = {"name": "kawa", "per_100": {"kcal": 39}}
+    logged_in.put(
+        f"/api/diary/entries/{uuid.uuid4()}",
+        json={"date": "2026-11-18", "meal_slot": "lunch", "amount": 100, "estimate": est,
+              "source": "text"},
+    )  # fmt: skip
+
+    gaps = logged_in.get("/api/diary/week/2026-11-18/gaps").json()
+    assert [(g["name"], g["has_micros"]) for g in gaps["foods"]] == [
+        ("Płatki owsiane", False),  # 372 kcal
+        ("Serek wiejski", False),  # 194 kcal, wapń z etykiety to za mało
+    ]
+    assert gaps["share_without_food"] == pytest.approx(39 / (372 + 194 + 39))
+
+    # Słownik testowy ma tylko 2 składniki, więc „pełne dane" udajemy niższym progiem.
+    import app.api.diary as diary_api
+
+    diary_api.MIN_MICROS = 1
+    try:
+        logged_in.put(f"/api/foods/{oats['id']}/fdc", json={"fdc_id": 2346396})
+        gaps = logged_in.get("/api/diary/week/2026-11-18/gaps").json()
+        oats_gap = next(g for g in gaps["foods"] if g["food_id"] == oats["id"])
+        assert oats_gap["has_micros"] is True  # dopasowany: wystarczy uzupełnić wpisy
+    finally:
+        diary_api.MIN_MICROS = 5

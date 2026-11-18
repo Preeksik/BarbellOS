@@ -20,7 +20,8 @@ Zrobione przed etapem 3 (Apple Zdrowie), na życzenie. Specyfikacja: `docs/DOKUM
 2. W polu jest zapytanie po angielsku (np. „Oats, rolled"), a pod nim kandydaci z kaloriami. Podpowiedź jest zaznaczona; porównaj kalorie z produktem. Jeśli żaden nie pasuje, popraw zapytanie i „Szukaj".
 3. „Użyj wybranego": karta pokazuje mikroskładniki ze źródłem „tabela USDA" (produkt bez kodu) albo „szacunek" (produkt paczkowany: wartości z podobnego produktu podstawowego). Wartości z etykiety zostają.
 4. „Uzupełnij witaminy we wcześniejszych wpisach tego produktu": komunikat „Uzupełniono wpisy: N". Kalorie w dzienniku się nie zmieniają.
-5. Dziennik → „Tydzień (7 dni)": średnio dziennie (z dni z wpisami), kalorie dzień po dniu, witaminy i minerały z procentem normy i opisem „z tabel/etykiet … · szacunek … · brak …".
+5. Dziennik → „Tydzień (7 dni)": średnio dziennie (z dni z wpisami), kalorie dzień po dniu, witaminy i minerały z procentem normy i opisem „dokładne … · przybliżone … · brak …".
+5a. Karta „Uzupełnij dane o witaminach": produkty z tygodnia bez witamin z podpowiedzią z tabeli USDA. „Zatwierdź" (albo „Zatwierdź wszystkie podpowiedzi") dopasowuje produkt i uzupełnia wpisy; karta znika, a w witaminach rośnie udział danych. Sprawdzone 18.11.2026 na kopii Twojej bazy: Coca-Cola, filet z kurczaka i Gouda dostały trafne rekordy.
 6. Dodaj posiłek przez AI (opis albo zdjęcie): składniki spoza bazy mają szacunek witamin, a w tygodniu rośnie udział „szacunek".
 7. Gdy większość kalorii tygodnia nie ma danych o składniku, pasek jest szary z dopiskiem „za mało danych". Dopasuj do tabeli produkty, które jesz najczęściej; to najszybciej podnosi udział danych z tabel.
 

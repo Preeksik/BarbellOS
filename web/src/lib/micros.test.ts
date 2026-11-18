@@ -20,9 +20,9 @@ function micro(extra: Partial<MicroWeek>): MicroWeek {
 
 describe("pokrycie normy", () => {
   it("opisuje pochodzenie danych", () => {
-    expect(trustText(micro({}))).toBe("z tabel/etykiet 70% · szacunek 15% · brak 15%");
+    expect(trustText(micro({}))).toBe("dokładne 70% · przybliżone 15% · brak 15%");
     expect(trustText(micro({ share_trusted: 1, share_estimated: 0, share_missing: 0 }))).toBe(
-      "z tabel/etykiet 100%",
+      "dokładne 100%",
     );
   });
 

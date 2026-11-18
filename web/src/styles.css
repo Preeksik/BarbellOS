@@ -984,3 +984,16 @@ details.micros th .muted {
 .microweek .goal.low-data > .muted {
   color: var(--warn);
 }
+
+.gaplist li.gap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 0;
+  border-top: 1px solid var(--border);
+}
+
+.gaplist li.gap p {
+  margin: 0;
+  font-size: 0.85rem;
+}
