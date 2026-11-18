@@ -1,5 +1,7 @@
 # Wdrożenie na serwer (Render + Neon)
 
+**Stan: wdrożone 18.11.2026** pod adresem https://barbellos.onrender.com (dane z PC przeniesione, budzik ustawiony).
+
 Po tym przewodniku aplikacja działa pod adresem `https://barbellos-….onrender.com`, na iPhonie
 jako ikona na ekranie głównym, a dane są w bazie w internecie, a nie na Twoim PC.
 
@@ -22,6 +24,7 @@ Repo jest gotowe: `Dockerfile` buduje jeden obraz, `render.yaml` opisuje usług�
    - **Project name:** `barbellos`
    - **Postgres version:** najnowsza (17)
    - **Region:** **AWS Europe Central 1 (Frankfurt)**: ten sam region co serwer, krótsze opóźnienia.
+   - **Services:** zostaw włączony tylko „Postgres database”. Podpowiedzi „Set up Neon with your coding agent” nie używaj: wpisałaby adres bazy z serwera do lokalnego `.env`.
 3. Na stronie projektu kliknij **Connect**.
 4. **Wyłącz „Connection pooling”** (przełącznik w oknie Connect). Aplikacja ma jeden serwer i sama trzyma połączenia, a pośrednik Neon bywa kłopotliwy z biblioteką `psycopg`.
 5. Skopiuj **connection string**. Wygląda tak:
@@ -86,13 +89,12 @@ Twój lokalny `.env` zostaje bez zmian (lokalna baza do testów). Adresu Neon ni
 
 Darmowy Render usypia po 15 minutach bez ruchu, a obudzenie trwa ok. minuty. Żeby w dzień aplikacja odpowiadała od razu:
 
-1. https://cron-job.org → załóż konto.
-2. **Create cronjob**:
-   - **URL:** `https://TWOJ-ADRES.onrender.com/api/healthz`
-   - **Schedule:** co **14 minut**, w godzinach **6–23**, strefa **Europe/Warsaw**.
-3. Zapisz. W historii zadania powinny pojawiać się odpowiedzi `200`.
-
-Jeden serwer z budzikiem mieści się w darmowym limicie Render (750 godzin miesięcznie). Nocą serwer śpi; pierwsze otwarcie po 23:00 potrwa minutę.
+1. https://cron-job.org → załóż konto (strona jest po polsku).
+2. **Utwórz zadanie cron**:
+   - **Tytuł:** `BarbellOS budzik`
+   - **Adres URL:** `https://barbellos.onrender.com/api/healthz` (adres bez logowania i bez dotykania bazy, zrobiony do sprawdzania, czy serwer żyje)
+   - **Harmonogram:** najprościej gotowe **„Co 10 minut”**. Serwer nie zaśnie wtedy nigdy, a cały miesiąc pracy (744 godziny) mieści się w darmowym limicie Render (750). Z nocną przerwą: „Zdefiniowany przez użytkownika”, minuty `0, 14, 28, 42, 56`, godziny 6–23, strefa Europe/Warsaw.
+3. Zapisz. W **Historii** zadania powinny pojawiać się odpowiedzi `200 OK`.
 
 ## Kolejne wersje
 
@@ -104,7 +106,8 @@ Ja (albo Ty) robię `git push` na `main` → GitHub Actions uruchamia testy → 
 |---|---|
 | Logi: `Brak wymaganych zmiennych w trybie prod: …` | Brakuje zmiennej w Render → Environment. Uzupełnij i kliknij „Save, rebuild and deploy”. |
 | Logi: błąd połączenia z bazą, `password authentication failed` | Zły `DATABASE_URL`. Skopiuj ponownie z Neon (Connect, bez poolingu). |
-| Logowanie nie działa | Hash wklejony z apostrofami albo z `APP_PASSWORD_HASH=` na początku. W polu ma być samo `scrypt$...`. |
+| Logowanie nie działa | Aplikacja sama zdejmuje apostrofy, `APP_PASSWORD_HASH=` i spacje. Jeśli nadal nie działa, wartość jest od innego hasła albo ucięta: wygeneruj nową (`python -m app.tools.hash_password`) i wklej w Environment. |
+| Wdrożenie „Failed”, w logach `APP_PASSWORD_HASH ma złą postać` | W polu nie ma pełnego hasha (od `scrypt$`, dokładnie 5 znaków `$`). Wklej ponownie i „Save, rebuild and deploy”. Poprzednia wersja działa w tym czasie dalej. |
 | Strona długo się ładuje | Serwer się budzi (do minuty). Ustaw budzik z kroku 6. |
 | `copy_db`: „Różne wersje migracji” | Uruchom lokalnie `alembic upgrade head` (krok 4) albo poczekaj, aż serwer skończy start. |
 | `copy_db`: „Baza docelowa ma już dane…” | Na serwerze dodano już dane. Napisz do mnie, ustalimy, co zrobić. |
