@@ -1,5 +1,5 @@
 import { useIsRestoring, useMutationState, useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 import { DiaryPage } from "./features/diary/DiaryPage";
 import { AddPage } from "./features/diet/AddPage";
 import { HealthPage } from "./features/health/HealthPage";
@@ -18,6 +18,24 @@ const TABS = [
   { id: "profile", label: "Profil" },
 ] as const;
 type TabId = (typeof TABS)[number]["id"];
+
+// Ikony obrysowe 24×24; kolor bierze z tekstu przycisku.
+const TAB_ICONS: Record<TabId, ReactNode> = {
+  diary: (
+    <>
+      <path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z" />
+      <path d="M5 17a3 3 0 0 1 3-3h11" />
+    </>
+  ),
+  add: <path d="M12 5v14M5 12h14" />,
+  health: <path d="M3 12h4l2-5 4 10 2-5h6" />,
+  profile: (
+    <>
+      <circle cx="12" cy="8" r="4" />
+      <path d="M4 20c1.5-4 4.5-6 8-6s6.5 2 8 6" />
+    </>
+  ),
+};
 
 export function App() {
   const [tab, setTab] = useState<TabId>("diary");
@@ -69,10 +87,21 @@ export function App() {
           <button
             key={t.id}
             type="button"
-            className={t.id === tab ? "active" : ""}
+            className={[t.id === "add" ? "add" : "", t.id === tab ? "active" : ""].join(" ").trim()}
             aria-current={t.id === tab ? "page" : undefined}
             onClick={() => setTab(t.id)}
           >
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={t.id === "add" ? 2.4 : 2}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              {TAB_ICONS[t.id]}
+            </svg>
             {t.label}
           </button>
         ))}

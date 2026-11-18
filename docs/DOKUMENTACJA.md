@@ -1,6 +1,8 @@
-# BarbellOS — dokumentacja techniczna v0.13
+# BarbellOS — dokumentacja techniczna v0.14
 
-Stan: 18.11.2026.
+Stan: 19.11.2026.
+
+Zmiany w v0.14: wygląd aplikacji w kierunku „Kreda” (2.1): grafitowe tło, kredowobiałe przyciski, makroskładniki w kolorach talerzy, fonty Barlow w paczce aplikacji; motyw ciemny, jasny albo automatyczny do wyboru w Profilu.
 
 Zmiany w v0.13: wdrożenie przygotowane (`docs/wdrozenie.md`): testy na Postgresie w GitHub Actions, Render wdraża tylko po zielonych testach, narzędzie `copy_db` do przeniesienia danych z lokalnej bazy (3.4); kolejność etapów: regeneracja (Apple Zdrowie) przeniesiona na koniec (10).
 
@@ -67,6 +69,17 @@ Poza zakresem v1: wielu użytkowników, Android, App Store, monetyzacja.
 4. **AI proponuje, Ty zatwierdzasz.** Wynik ze zdjęcia to edytowalny szkic. Plan treningowy nie zmienia się sam. Wyjątek (decyzja z 18.11.2026): dopasowanie produktu do tabeli witamin USDA dzieje się samo, bo zatwierdzanie każdego produktu było zbyt uciążliwe; dopasowanie można zmienić w karcie produktu (4.2).
 5. **Dostawcy i modele w konfiguracji**, nie w kodzie.
 6. **Logika w Pythonie, nie w przeglądarce.** Wszystko, co da się policzyć na serwerze, liczy serwer — bo ten kod umiesz przeczytać i sprawdzić. Frontend wyświetla i zbiera dane.
+
+### 2.1 Wygląd: kierunek „Kreda” (decyzja z 19.11.2026)
+
+Wybrany z trzech makiet (Kreda, Atrament, Rozmowa). Źródłem prawdy są tokeny na początku `web/src/styles.css`; nowe ekrany, w tym trening, używają tych samych tokenów zamiast własnych kolorów.
+
+- **Kolory.** Ciemny: tło `#202322` (gumowa podłoga), karty `#2b2f2d`, tekst `#eeede6` (magnezja), opisy `#a3a8a3`. Główny przycisk jest kredowobiały z grafitowym tekstem, a nie kolorowy. Jasny motyw odwraca to samo (tło `#f1f1ec`, przycisk grafitowy).
+- **Talerze.** Kolory makroskładników pochodzą z talerzy trójbojowych: białko czerwony (25 kg), węglowodany niebieski (20 kg), tłuszcz żółty (15 kg). Kolor nigdy nie jest jedyną informacją: obok paska zawsze stoi liczba.
+- **Typografia.** Barlow Condensed do liczb i nagłówków, Barlow do tekstu. Fonty są w paczce aplikacji (`@fontsource`), więc działają bez sieci i nie odpytują Google.
+- **Dziennik.** Na górze wielka liczba kcal do celu, pod nią grube paski B/W/T, niżej drobne cele w dwóch kolumnach.
+- **Motyw.** Ciemny, jasny albo automatyczny (jak w telefonie), do wyboru w Profilu. Wybór żyje w pamięci telefonu (`localStorage`), nie na serwerze. Górny i dolny pasek są grafitowe w obu motywach, bo na iOS tekst paska stanu nad zainstalowaną aplikacją jest biały.
+- **Dostępność.** Kontrast tekstu co najmniej 4,5:1 w obu motywach (sprawdzony przy wyborze kolorów), cele dotyku co najmniej 44 px.
 
 ## 3. Architektura
 

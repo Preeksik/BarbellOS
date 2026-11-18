@@ -21,8 +21,8 @@ export default defineConfig({
         display: "standalone",
         start_url: "/",
         scope: "/",
-        background_color: "#0f1115",
-        theme_color: "#0f1115",
+        background_color: "#202322",
+        theme_color: "#1a1c1b",
         icons: [
           { src: "/icon-192.png", sizes: "192x192", type: "image/png" },
           { src: "/icon-512.png", sizes: "512x512", type: "image/png" },
@@ -31,7 +31,10 @@ export default defineConfig({
       },
       workbox: {
         // Plik .wasm czytnika kodów też trafia do pamięci podręcznej, żeby skaner działał offline.
-        globPatterns: ["**/*.{js,css,html,svg,png,wasm,webmanifest}"],
+        // Fonty .woff2 tak samo (starsze .woff z paczki pomijamy: iOS czyta .woff2).
+        globPatterns: ["**/*.{js,css,html,svg,png,wasm,webmanifest,woff2}"],
+        // Znaki wietnamskie nie występują w polskich tekstach: tych fontów telefon nie pobiera.
+        globIgnores: ["**/*vietnamese*"],
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
         navigateFallback: "/index.html",
         navigateFallbackDenylist: [/^\/api\//],

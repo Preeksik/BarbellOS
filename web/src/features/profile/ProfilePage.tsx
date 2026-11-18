@@ -20,6 +20,7 @@ import {
   mutationKeys,
 } from "../../lib/offline";
 import { GOAL_ROWS, KIND_HINT } from "../../lib/targets";
+import { THEME_CHOICES, setTheme, useTheme } from "../../lib/theme";
 import { formatKcal } from "../diet/macros";
 import { HomePage } from "../home/HomePage";
 
@@ -113,11 +114,37 @@ export function ProfilePage() {
 
       <AiUsageCard />
 
+      <ThemeCard />
+
       <details className="card diagnostics">
         <summary>Diagnostyka: serwer, instalacja, próba offline</summary>
         <HomePage />
       </details>
     </>
+  );
+}
+
+/** Motyw kolorów tego telefonu. Nie trafia na serwer. */
+function ThemeCard() {
+  const theme = useTheme();
+  return (
+    <section className="card">
+      <h2>Wygląd</h2>
+      <fieldset className="segmented">
+        <legend className="visually-hidden">Motyw</legend>
+        {THEME_CHOICES.map(({ id, label }) => (
+          <label key={id} className={theme === id ? "active" : ""}>
+            <input
+              type="radio"
+              name="theme"
+              checked={theme === id}
+              onChange={() => setTheme(id)}
+            />
+            {label}
+          </label>
+        ))}
+      </fieldset>
+    </section>
   );
 }
 

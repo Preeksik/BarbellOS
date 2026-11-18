@@ -178,17 +178,6 @@ export function DiaryPage({
                 <h2>{slot.label}</h2>
                 <span>{formatKcal(diary.data.by_slot[slot.id]!.kcal)} kcal</span>
               </div>
-              {savingSlot === slot.id ? (
-                <SaveMealForm
-                  defaultName={slot.label}
-                  entries={diary.data.entries.filter((entry) => entry.meal_slot === slot.id)}
-                  onDone={() => setSavingSlot(null)}
-                />
-              ) : (
-                <button type="button" className="link" onClick={() => setSavingSlot(slot.id)}>
-                  Zapisz jako posiłek
-                </button>
-              )}
               <ul className="entries">
                 {diary.data.entries
                   .filter((entry) => entry.meal_slot === slot.id)
@@ -216,13 +205,25 @@ export function DiaryPage({
                             {formatDecimal(entry.amount)} {entry.unit}
                           </span>
                           <span className="kcal">
-                            {entry.values.kcal == null ? "–" : formatKcal(entry.values.kcal)} kcal
+                            {entry.values.kcal == null ? "–" : formatKcal(entry.values.kcal)}{" "}
+                            <small>kcal</small>
                           </span>
                         </button>
                       )}
                     </li>
                   ))}
               </ul>
+              {savingSlot === slot.id ? (
+                <SaveMealForm
+                  defaultName={slot.label}
+                  entries={diary.data.entries.filter((entry) => entry.meal_slot === slot.id)}
+                  onDone={() => setSavingSlot(null)}
+                />
+              ) : (
+                <button type="button" className="link" onClick={() => setSavingSlot(slot.id)}>
+                  Zapisz jako posiłek
+                </button>
+              )}
             </section>
           ))}
           {diary.data.entries.length === 0 && (
@@ -271,24 +272,69 @@ function Totals({
   const t = day.totals;
   const missing = missingCounts(day.entries);
   const total = day.entries.length;
-  const withGoals = GOAL_ROWS.filter(({ key }) => targets?.goals[key] != null);
-  // Wartości bez celu: główne (B, T, W) większe, pozostałe drobno.
+  const kcalGoal = targets?.goals.kcal ?? null;
+  const kcal = kcalGoal != null ? progress(t.kcal, kcalGoal, "target") : null;
+  // B, W, T z celem: grube paski w kolorach talerzy. Reszta celów (błonnik, sól…) drobniej.
+  const plateGoals = PLATE_KEYS.flatMap((key) => {
+    const row = GOAL_ROWS.find((r) => r.key === key)!;
+    return targets?.goals[key] != null ? [row] : [];
+  });
+  const otherGoals = GOAL_ROWS.filter(
+    ({ key }) => key !== "kcal" && !PLATE_KEYS.includes(key) && targets?.goals[key] != null,
+  );
+  // Wartości bez celu: główne (B, W, T) większe, pozostałe drobno.
   const mainWithout = MAIN_ROWS.filter(({ key }) => targets?.goals[key] == null);
   const minorWithout = MINOR_ROWS.filter(({ key }) => targets?.goals[key] == null);
   const partial = MACRO_KEYS.some((key) => key !== "kcal" && missing[key] > 0 && missing[key] < total);
   return (
-    <section className="card totals">
-      <p className="kcal">
-        <strong>{formatKcal(t.kcal)}</strong> kcal
-        {targets?.goals.kcal != null && (
-          <span className="muted"> / {formatKcal(targets.goals.kcal)}</span>
-        )}
-      </p>
-      {withGoals.length > 0 && (
-        <ul className="goals">
-          {withGoals.map(({ key, label, unit, kind }) => (
+    <section className="totals" aria-label="Suma dnia">
+      {kcal && kcalGoal != null ? (
+        <>
+          <p className="hero">{formatKcal(Math.abs(kcal.left))}</p>
+          <p className={kcal.state === "over" ? "hero-sub over" : "hero-sub"}>
+            {kcal.state === "over" ? "kcal ponad cel." : "kcal do celu."} Zjedzone{" "}
+            {formatKcal(t.kcal)} z {formatKcal(kcalGoal)}.
+          </p>
+          <div
+            className="bar kcalbar"
+            role="progressbar"
+            aria-label="Kalorie"
+            aria-valuemin={0}
+            aria-valuemax={kcalGoal}
+            aria-valuenow={Math.round(t.kcal)}
+          >
+            <div style={{ width: `${kcal.fill * 100}%` }} />
+          </div>
+        </>
+      ) : (
+        <>
+          <p className="hero">{formatKcal(t.kcal)}</p>
+          <p className="hero-sub">kcal zjedzone. Kalorie nie mają celu.</p>
+        </>
+      )}
+      {plateGoals.length > 0 && (
+        <ul className="goals plates">
+          {plateGoals.map(({ key, label, unit, kind }) => (
             <GoalBar
               key={key}
+              plate={key}
+              label={label}
+              unit={unit}
+              kind={kind}
+              value={t[key]}
+              goal={targets!.goals[key]!}
+              missing={missing[key]}
+              total={total}
+            />
+          ))}
+        </ul>
+      )}
+      {otherGoals.length > 0 && (
+        <ul className="goals compact">
+          {otherGoals.map(({ key, label, unit, kind }) => (
+            <GoalBar
+              key={key}
+              compact
               label={label}
               unit={unit}
               kind={kind}
@@ -353,11 +399,14 @@ function Totals({
   );
 }
 
+// Kolejność jak talerze na sztandze: białko (czerwony), węglowodany (niebieski), tłuszcz (żółty).
+const PLATE_KEYS: MacroKey[] = ["protein_g", "carbs_g", "fat_g"];
+
 // Wartości pokazywane bez paska, gdy nie mają celu.
 const MAIN_ROWS: { key: MacroKey; short: string }[] = [
   { key: "protein_g", short: "Białko" },
-  { key: "fat_g", short: "Tłuszcz" },
   { key: "carbs_g", short: "Węglowodany" },
+  { key: "fat_g", short: "Tłuszcz" },
 ];
 const MINOR_ROWS: { key: MacroKey; short: string }[] = [
   { key: "sat_fat_g", short: "nasycone" },
@@ -367,6 +416,8 @@ const MINOR_ROWS: { key: MacroKey; short: string }[] = [
 ];
 
 function GoalBar({
+  plate,
+  compact = false,
   label,
   unit,
   kind,
@@ -375,6 +426,10 @@ function GoalBar({
   missing,
   total,
 }: {
+  /** B, W albo T: pasek w kolorze talerza (styles.css, `.goal.plate`). */
+  plate?: MacroKey;
+  /** Bez podpisu pod paskiem; stan „ponad limit" pokazuje kolor wartości. */
+  compact?: boolean;
   label: string;
   unit: string;
   kind: GoalKind;
@@ -387,12 +442,15 @@ function GoalBar({
   const shown = (x: number) =>
     unit === "kcal" ? formatKcal(x) : x.toLocaleString("pl-PL", { maximumFractionDigits: 1 });
   return (
-    <li className={`goal ${p.state}`}>
+    <li className={plate ? `goal plate ${plate} ${p.state}` : `goal ${p.state}`}>
       <div className="goalhead">
         <span>{label}</span>
         <span>
           {total > 0 && missing === total ? "brak danych" : shown(value)}
-          {missing > 0 && missing < total && "*"} / {shown(goal)} {unit}
+          {missing > 0 && missing < total && "*"}{" "}
+          <span className="of">
+            / {shown(goal)} {unit}
+          </span>
         </span>
       </div>
       <div
@@ -405,7 +463,11 @@ function GoalBar({
       >
         <div style={{ width: `${p.fill * 100}%` }} />
       </div>
-      <span className="muted">{progressText(p, kind, unit)}</span>
+      {compact ? (
+        <span className="visually-hidden">{progressText(p, kind, unit)}</span>
+      ) : (
+        <span className="muted">{progressText(p, kind, unit)}</span>
+      )}
     </li>
   );
 }
