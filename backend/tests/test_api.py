@@ -200,3 +200,34 @@ def test_verify_keeps_values_and_source(logged_in):
 def test_unknown_food_id(logged_in):
     assert _update(logged_in, 999).status_code == 404
     assert logged_in.post("/api/foods/999/verify").status_code == 404
+
+
+@pytest.mark.parametrize(
+    "pasted",
+    [
+        "'{h}'",  # z apostrofami, jak w .env
+        '"{h}"',
+        "APP_PASSWORD_HASH='{h}'",  # cała linia z .env
+        "{h}" + chr(10),  # Enter na końcu (pole w panelu Render jest wielowierszowe)
+        "  {h}  ",
+    ],
+)
+def test_password_hash_pasted_in_hosting_panel_still_works(pasted):
+    """Logowanie na serwerze nie działało, bo hash w panelu Render miał apostrofy (18.11.2026)."""
+    stored = hash_password("haslo-do-serwera")
+    settings = Settings(_env_file=None, app_password_hash=pasted.format(h=stored))
+    assert settings.app_password_hash == stored
+    assert verify_password("haslo-do-serwera", settings.app_password_hash)
+
+
+def test_prod_refuses_to_start_with_malformed_hash():
+    with pytest.raises(RuntimeError, match="APP_PASSWORD_HASH ma złą postać"):
+        create_app(
+            Settings(
+                _env_file=None,
+                environment="prod",
+                secret_key="sekret",
+                app_password_hash="scrypt$ucięty",
+                ingest_token="token",
+            )
+        )

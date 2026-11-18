@@ -6,6 +6,7 @@ nie wystartuje bez SECRET_KEY, APP_PASSWORD_HASH i INGEST_TOKEN.
 
 from functools import lru_cache
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 DEV_SECRET = "dev-only-change-me"
@@ -47,6 +48,30 @@ class Settings(BaseSettings):
     claude_model_mid: str = "claude-sonnet-5-5"
     claude_model_strong: str = "claude-opus-5-5"
 
+    @field_validator("app_password_hash", "secret_key", "ingest_token", mode="before")
+    @classmethod
+    def _clean_secret(cls, value):
+        """Wartość wklejona w panelu hostingu bywa z apostrofami, nazwą zmiennej albo Enterem.
+
+        Lokalny `.env` zdejmuje cudzysłowy sam, panel Render nie: `'scrypt$...'` z apostrofami
+        nie pasowało do hasła i logowanie na serwerze nie działało (18.11.2026).
+        """
+        if not isinstance(value, str):
+            return value
+        cleaned = value.strip()
+        for prefix in ("APP_PASSWORD_HASH=", "SECRET_KEY=", "INGEST_TOKEN="):
+            if cleaned.startswith(prefix):
+                cleaned = cleaned[len(prefix) :].strip()
+        if len(cleaned) >= 2 and cleaned[0] == cleaned[-1] and cleaned[0] in "'\"":
+            cleaned = cleaned[1:-1].strip()
+        return cleaned
+
+    @property
+    def password_hash_looks_valid(self) -> bool:
+        """Czy hash ma postać z `app.tools.hash_password` (bez ujawniania samej wartości)."""
+        parts = self.app_password_hash.split("$")
+        return len(parts) == 6 and parts[0] == "scrypt"
+
     @property
     def is_prod(self) -> bool:
         return self.environment == "prod"
@@ -77,6 +102,11 @@ class Settings(BaseSettings):
             missing.append("INGEST_TOKEN")
         if missing:
             raise RuntimeError("Brak wymaganych zmiennych w trybie prod: " + ", ".join(missing))
+        if not self.password_hash_looks_valid:
+            raise RuntimeError(
+                "APP_PASSWORD_HASH ma złą postać: powinna zaczynać się od scrypt$ "
+                "i mieć 5 znaków $. Wygeneruj ją: python -m app.tools.hash_password"
+            )
 
 
 @lru_cache
