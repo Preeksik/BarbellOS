@@ -86,6 +86,9 @@ export interface Food {
   warnings: string[];
   cached: boolean;
   favorite: boolean;
+  /** Rekord tabeli USDA, z którego są mikroskładniki (etap 6). */
+  fdc_id: number | null;
+  fdc_description: string | null;
 }
 
 export interface FoodUpdateBody {
@@ -265,6 +268,8 @@ export interface DraftItem {
   candidates: Food[];
   /** Szacunek modelu na 100 g (kcal, B, T, W; reszta `null`). */
   estimate_per_100: Per100;
+  /** Szacunek mikroskładników na 100 g ({id: ilość}). */
+  estimate_micros: Record<string, number>;
   values: Per100;
 }
 
@@ -289,4 +294,53 @@ export interface AiUsage {
     output_tokens: number;
     cost_usd: number;
   }[];
+}
+
+// ---------- mikroskładniki i tydzień (etap 6) ----------
+
+export interface Nutrient {
+  id: string;
+  name_pl: string;
+  unit: string;
+  group: "vitamin" | "mineral";
+  /** Referencyjne spożycie z etykiet UE (RWS); sód: górna granica. */
+  rda: number | null;
+}
+
+export interface FdcCandidate {
+  fdc_id: number;
+  description: string;
+  data_type: string;
+  kcal: number | null;
+  micros_count: number;
+  score: number;
+}
+
+export interface FdcSearch {
+  query: string;
+  candidates: FdcCandidate[];
+  suggested_id: number | null;
+}
+
+export interface MicroWeek {
+  nutrient_id: string;
+  name_pl: string;
+  unit: string;
+  group: "vitamin" | "mineral";
+  rda: number | null;
+  avg_amount: number;
+  percent_rda: number | null;
+  /** Część kalorii tygodnia z wpisów z danymi z tabel lub etykiet. */
+  share_trusted: number;
+  share_estimated: number;
+  share_missing: number;
+}
+
+export interface Week {
+  start: string;
+  end: string;
+  days: { date: string; entries: number; totals: MacroTotals }[];
+  logged_days: number;
+  average: MacroTotals | null;
+  micros: MicroWeek[];
 }

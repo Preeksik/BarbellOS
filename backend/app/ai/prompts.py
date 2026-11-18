@@ -21,3 +21,13 @@ Zasady:
 - Jeśli na zdjęciu nie ma tabeli wartości odżywczych, ustaw basis na "other",
   a pozostałe pola na null.
 """
+
+
+FOOD_QUERY_PROMPT = """\
+Przetłumacz nazwę produktu spożywczego na krótkie zapytanie po angielsku do bazy USDA
+FoodData Central, w jej stylu: rzeczownik, potem przecinki i cechy, np. „Oats, rolled",
+„Chicken, breast, roasted", „Yogurt, plain, whole milk", „Bananas, raw".
+Bez marki, bez gramatury, bez słów reklamowych. Produkt paczkowany opisz jako produkt
+podstawowy, który go najlepiej przypomina (serek wiejski -> „Cheese, cottage").
+Produkt: «{name}»
+"""

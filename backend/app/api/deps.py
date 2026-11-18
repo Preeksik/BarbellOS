@@ -1,6 +1,7 @@
 """Wspólne zależności endpointów."""
 
 from collections.abc import Callable
+from functools import lru_cache
 
 from fastapi import Depends, HTTPException, Request
 
@@ -9,6 +10,7 @@ from app.ai.gemini import GeminiProvider
 from app.ai.provider import Tier
 from app.ai.router import AiRouter
 from app.config import Settings, get_settings
+from app.fdc.client import FdcClient
 from app.off.client import FoodDraft, fetch_product, search_products
 from app.security import token_matches
 
@@ -36,6 +38,17 @@ def get_off_fetcher(settings: Settings = Depends(get_settings)) -> OffFetcher:
 
 
 OffSearcher = Callable[[str], dict]
+
+
+@lru_cache
+def _fdc_client(api_key: str, base_url: str) -> FdcClient:
+    # Jeden klient na proces: jego pamięć wyników oszczędza limit zapytań USDA.
+    return FdcClient(api_key, base_url)
+
+
+def get_fdc_client(settings: Settings = Depends(get_settings)) -> FdcClient:
+    """Pusty FDC_API_KEY w .env oznacza klucz demonstracyjny (ok. 10 zapytań na godzinę)."""
+    return _fdc_client(settings.fdc_api_key or "DEMO_KEY", settings.fdc_base_url)
 
 
 def get_off_searcher(settings: Settings = Depends(get_settings)) -> OffSearcher:

@@ -13,6 +13,7 @@ import {
 } from "../../lib/offline";
 import { AddToDay, type Added, type EntrySource } from "./AddToDay";
 import { FoodEditForm } from "./FoodEditForm";
+import { FoodMicros } from "./FoodMicros";
 import { MACRO_ROWS, formatNumber } from "./macros";
 
 /** Skąd karta bierze produkt: kod kreskowy (skan, wynik z OFF) albo produkt z listy. */
@@ -154,6 +155,8 @@ export function FoodCard({
               })}
             </tbody>
           </table>
+
+          <FoodMicros food={data} />
 
           {data.warnings.map((warning) => (
             <p key={warning} className="notice">

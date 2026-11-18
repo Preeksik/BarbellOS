@@ -114,6 +114,9 @@ class Food(MacroColumns, Base):
     favorite_at: Mapped[datetime | None] = mapped_column(TZDateTime)
     # Produkt bez kodu kreskowego: identyfikator nadany na telefonie (idempotentny zapis).
     client_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, unique=True)
+    # Rekord USDA FoodData Central, z którego pochodzą mikroskładniki (etap 6).
+    fdc_id: Mapped[int | None]
+    fdc_description: Mapped[str | None] = mapped_column(String(255))
 
 
 class FoodAlias(Base):

@@ -1,6 +1,8 @@
-# BarbellOS — dokumentacja techniczna v0.10
+# BarbellOS — dokumentacja techniczna v0.11
 
-Stan: 17.11.2026.
+Stan: 18.11.2026.
+
+Zmiany w v0.11 (etap 6, przesunięty przed etap 3): mikroskładniki z tabel USDA z dopasowaniem produktu zatwierdzanym przez użytkownika, szacunek AI jako zapas (4.2), uzupełnianie wcześniejszych wpisów jako jawna akcja, widok tygodnia z pokryciem norm (4.11), kolumny `food.fdc_id` i `food.fdc_description` (8). Tabela `generic_foods` zastąpiona dopasowaniem na żądanie.
 
 Zmiany w v0.10 (etap 2): posiłek ze zdjęcia i z opisu (7.1), dopasowanie składników do bazy w Pythonie, drugi model Gemini jako zapas i ponowienie przy przeciążeniu (7), wpis dziennika ze źródłem wartości `macro_source` (8), licznik kosztów (7.2), kontrakt `MealEstimate` z `grams_low` i `grams_high` zamiast pary.
 
@@ -197,13 +199,33 @@ Czytane pola `nutriments` (na 100 g): `energy-kcal_100g`, `proteins_100g`, `fat_
 
 **Poziom A — z etykiety.** Kcal, białko, tłuszcz, **kwasy nasycone**, węglowodany, cukry, **sól**: obowiązkowe na etykietach w UE (rozporządzenie 1169/2011). Błonnik dobrowolny, ale częsty.
 
-**Poziom B — z tabel składu.** Witaminy i minerały dla produktów podstawowych (mięso, jaja, ryż, kasze, warzywa, owoce, nabiał) z FDC. Jednorazowo budujemy tabelę `generic_foods`: 300–500 pozycji z polskimi nazwami zmapowanych na rekordy FDC. Mapowanie robi model, Ty je przeglądasz.
+**Poziom B — z tabel składu (`reference`).** Witaminy i minerały z USDA FoodData Central (zbiory Foundation i SR Legacy, domena publiczna). Zamiast budować z góry tabelę `generic_foods`, produkt dopasowuje się do rekordu USDA na żądanie, z karty produktu („Witaminy i minerały" → „Dopasuj do tabeli USDA"):
 
-**Poziom C — szacunek.** Witaminy i minerały dla produktów paczkowanych rzadko są na etykiecie, więc produkt dziedziczy profil z najbliższego produktu podstawowego (po kategorii OFF) z oznaczeniem `estimated`.
+1. AI tłumaczy nazwę na zapytanie w stylu USDA („Płatki owsiane" → „Oats, rolled", „Serek wiejski lekki" → „Cheese, cottage, low fat"). Tłumaczenie jest zapamiętywane w `food.name_en`. Zapytanie można poprawić ręcznie.
+2. Wyszukiwarka USDA zwraca kandydatów. Kod ustala kolejność (`core/micros.py`, `fdc_score`): najważniejsza jest zgodność pierwszego słowa opisu („Oats, …"), a słowa porównywane są w całości z liczbą mnogą. Powód: w teście z 18.11.2026 USDA postawiło na pierwszym miejscu „Rolls, dinner, oat bran" dla zapytania o płatki, a porównanie po początkach słów myliło „rolled" z „rolls".
+3. Podpowiedź (ocena od 0,5) jest zaznaczona, ale **wybór zatwierdzasz Ty**. Obok kandydata widać jego kalorie do porównania z produktem.
+4. Zapis kopiuje mikroskładniki rekordu do `food_nutrient`. Wartości z etykiety mają pierwszeństwo i nie są nadpisywane.
 
-W interfejsie: makro, sól i nasycone jako liczby; mikroskładniki jako pokrycie normy z informacją, jaka część kalorii z dnia miała dane (np. „magnez: 78% normy, na podstawie 85% kalorii"). To wystarcza do wykrycia stałego niedoboru, nie do liczenia miligramów.
+**Poziom C — przybliżenie (`estimated`).** Produkt paczkowany (z kodem) dopasowany do rekordu USDA dziedziczy wartości produktu podstawowego, który go przypomina, więc dostaje `estimated`, a nie `reference`. Składnik ze zdjęcia lub opisu posiłku bez produktu w bazie ma szacunek mikroskładników od modelu (7.1).
+
+**Jak dokładne są te źródła** (test z 18.11.2026: 5 produktów, 8 składników, tani Gemini pytany dwa razy): dla prostych, surowych produktów (banan, szpinak) model podawał liczby identyczne z USDA, bo nauczył się tabel. Dla potraw przygotowanych rozjeżdżał się (żelazo w pieczonym kurczaku: 0,5 i 0,8 mg przy 1,04 w USDA) i dawał różne liczby przy kolejnych pytaniach. Przewaga tabeli to stała liczba ze znanym źródłem, co liczy się przy trendach. Ryzykiem tabeli jest złe dopasowanie (proste wyszukiwanie „oats" trafiło w „Oil, oat"), stąd zatwierdzanie przez człowieka. Obie metody dają średnią, nie skład Twojego talerza, a dane USDA uwzględniają amerykańskie wzbogacanie żywności (mąka, mleko).
+
+**Limit USDA:** klucz demonstracyjny (`DEMO_KEY`, gdy `FDC_API_KEY` jest pusty) pozwala na ok. 10 zapytań na godzinę. Własny darmowy klucz (https://fdc.nal.usda.gov/api-key-signup): 1000. Jedno wyszukiwanie zwraca komplet składników kandydatów, który serwer trzyma godzinę w pamięci, więc zatwierdzenie nie zużywa kolejnego zapytania.
+
+**Wcześniejsze wpisy** mają zamrożone wartości z chwili dodania, także brak mikroskładników. Przycisk „Uzupełnij witaminy we wcześniejszych wpisach tego produktu" (`POST /api/foods/{id}/micros/backfill`) dopisuje tylko brakujące składniki; kalorie i makro wpisów się nie zmieniają. To jawna akcja z rozdziału 8, a nie efekt dopasowania.
+
+W interfejsie: makro, sól i nasycone jako liczby; mikroskładniki jako pokrycie normy z informacją, skąd pochodzą dane (4.11). To wystarcza do wykrycia stałego niedoboru, nie do liczenia miligramów.
 
 Lista **[ZAŁOŻENIE]**: witaminy A, D, E, K, C, B1, B2, B3, B6, B12, foliany; wapń, żelazo, magnez, cynk, potas, sód, fosfor, selen, jod.
+
+### 4.11 Widok tygodnia
+
+Dziennik ma przełącznik „Dzień / Tydzień (7 dni)". `GET /api/diary/week/{dzień}` zwraca 7 dni do wskazanego włącznie (`backend/app/core/week.py`):
+
+- sumę każdego dnia i średnią dzienną **z dni z wpisami** (dzień bez wpisów to zwykle dzień niezalogowany, a nie głodówka), zestawioną z celami,
+- dla każdego z 20 mikroskładników: średnią dzienną, procent referencyjnego spożycia z etykiet UE (RWS, nie indywidualna norma; dla sodu to górna granica) oraz udział kalorii tygodnia z wpisów z danymi z tabel lub etykiet, z szacunku i bez danych.
+
+Gdy ponad połowa kalorii nie ma danych o składniku, pasek jest szary z dopiskiem „za mało danych": niski procent znaczy wtedy brak danych, a nie niedobór. Poniżej 50% normy przy wystarczających danych pasek jest żółty.
 
 ### 4.3 Przepływy
 
@@ -479,7 +501,7 @@ Stan na listopad 2026 **[DO WERYFIKACJI w panelach]**: darmowy poziom Gemini obe
 1. Dopasowanie przybliżone po nazwie polskiej i angielskiej do nazwy i marki produktu (`backend/app/core/meal_draft.py`). Słowa pasują po wspólnym początku (min. 3, maks. 4 litery), więc polska odmiana nie przeszkadza („ryżu białego" → „Ryż biały"). Ocena łączy oba kierunki: ile słów składnika jest w produkcie i ile słów nazwy produktu opisuje składnik, więc „banan" nie trafia automatycznie w „Baton bananowy". Liczone w Pythonie jak wyszukiwarka (4.8); `pg_trgm` przyda się przy `generic_foods` w etapie 6.
 2. Ocena od 0,7 → składnik dostaje `food_id`, a wartości (i mikroskładniki) liczone są z produktu.
 3. Ocena od 0,3 → produkt trafia na listę „Produkt" na ekranie szkicu (do 5 pozycji). Wybór z zamkniętej listy przez tani model **[ZAŁOŻENIE: na razie nie]**: wybierasz sam.
-4. Brak dopasowania → wpis bez `food_id`, z ośmioma wartościami z `per_100g_estimate`, `macro_source = 'estimated'`, bez mikroskładników. W dzienniku ma dopisek „≈ szacunek AI". Szacunek obejmuje wszystkie osiem wartości z etykiety (od 18.11.2026; wcześniej tylko kcal, B, T, W): sól razem z solą typowo dodawaną przy przyrządzaniu. Wartość, której model nie zna, jest pusta, a nie zerem; nasycone większe od tłuszczu albo cukry większe od węglowodanów są odrzucane.
+4. Brak dopasowania → wpis bez `food_id`, z ośmioma wartościami z `per_100g_estimate` i mikroskładnikami z `micros_per_100g` (od 18.11.2026), wszystko jako `estimated`. W dzienniku ma dopisek „≈ szacunek AI". Szacunek obejmuje wszystkie osiem wartości z etykiety (od 18.11.2026; wcześniej tylko kcal, B, T, W): sól razem z solą typowo dodawaną przy przyrządzaniu. Wartość, której model nie zna, jest pusta, a nie zerem; nasycone większe od tłuszczu albo cukry większe od węglowodanów są odrzucane.
 
 Model **nie sumuje** kalorii posiłku i nie przelicza wartości na porcję (polecenia w `backend/app/ai/meal_prompts.py`). `per_100g_estimate` to wiedza o typowym składzie, nie rachunek. Gramatury i wartości sprawdza kod: ilość ponad 2000 g jest przycinana, zakres gramatury porządkowany, a wartość na 100 g spoza zakresu (np. 2500 kcal) odrzucana.
 
@@ -528,7 +550,8 @@ food(id PK, kind,                 -- 'packaged' | 'generic' | 'recipe'
      verified_at NULL,            -- kiedy użytkownik potwierdził zgodność z etykietą
      generic_parent_id NULL, fetched_at, raw JSONB,   -- raw: oryginalna odpowiedź źródła
      favorite_at NULL,            -- kiedy dodany do ulubionych
-     client_id UUID UNIQUE NULL)  -- produkt bez kodu: identyfikator z telefonu (idempotentny zapis)
+     client_id UUID UNIQUE NULL,  -- produkt bez kodu: identyfikator z telefonu (idempotentny zapis)
+     fdc_id NULL, fdc_description NULL)  -- rekord USDA, z którego są mikroskładniki (4.2)
 food_alias(food_id, alias)        -- synonimy do wyszukiwania; indeks GIN pg_trgm na name i alias
 food_nutrient(food_id, nutrient_id, amount_per_100g,   -- mikroskładniki
               source,             -- 'label' | 'reference' | 'estimated'
@@ -579,12 +602,13 @@ backend/
   app/
     api/          auth.py, health.py, diet.py, diary.py, targets.py, meals.py, profile.py, ai.py, probe.py, deps.py
     core/         training.py, nutrients.py, diary.py, label.py, targets.py, search.py, meals.py, profile.py,
-                  meal_draft.py, ai_cost.py,
+                  meal_draft.py, ai_cost.py, micros.py, week.py,
                   energy.py, readiness.py,
                   health_ingest.py, barcode.py                        ← czysta logika z testami
     ai/           provider.py, router.py, schemas.py, json_schema.py, prompts.py, meal_prompts.py,
                   gemini.py, claude.py
     off/          client.py
+    fdc/          client.py (USDA FoodData Central)
     db/           models.py, repo.py, session.py, migrations/
     tools/        seed.py, hash_password.py
     config.py, security.py, main.py
@@ -616,7 +640,7 @@ CLAUDE.md         import @AGENTS.md + rzeczy specyficzne dla Claude Code
 | **3. Regeneracja** | Pełny skrót, import, trend wagi, wskaźnik regeneracji, adaptacyjne TDEE | Rano widzisz stan regeneracji (start, gdy opaska dotrze) |
 | **4. Trening** | Przeniesienie planu i dziennika, migracja wpisów | Trenujesz z nowej aplikacji, stary plik idzie do archiwum |
 | **5. Coach** | Podsumowanie dnia i tygodnia | Podsumowanie mówi coś, czego sam byś nie zauważył |
-| **6. Mikroskładniki** | Tabela `generic_foods`, dziedziczenie, widok pokrycia | Pokrycie witamin i minerałów z oznaczeniem pewności |
+| **6. Mikroskładniki** | Dopasowanie do tabel USDA, dziedziczenie, szacunek AI jako zapas, widok tygodnia (zrobione przed etapem 3). Kroki: `docs/etap-6.md` | Pokrycie witamin i minerałów z oznaczeniem pewności |
 
 Trening jest dopiero czwarty, bo działający tracker już masz. Największą lukę wypełniają dieta i regeneracja.
 

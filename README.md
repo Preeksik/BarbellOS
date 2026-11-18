@@ -97,7 +97,7 @@ Obliczenia treningowe są porównywane z wartościami policzonymi oryginalnym pl
 | 3 | Regeneracja: import z Apple Health, trend wagi, wskaźnik regeneracji |
 | 4 | Trening: przeniesienie planu i dziennika |
 | 5 | Coach: podsumowanie dnia i tygodnia |
-| 6 | Mikroskładniki |
+| 6 | Mikroskładniki: tabele USDA, szacunek AI, widok tygodnia (kroki: `docs/etap-6.md`) |
 
 ## Praca z agentami
 

@@ -60,6 +60,7 @@ class DraftItemOut(BaseModel):
     # Inne produkty z bazy do wyboru (bez `match`), od najlepszego.
     candidates: list[FoodOut]
     estimate_per_100: Per100  # szacunek modelu, osiem wartości; pusta = model nie wiedział
+    estimate_micros: dict[str, float]  # szacunek mikroskładników na 100 g
     # Wartości porcji dla `grams` z dopasowania albo z szacunku (podgląd).
     values: Per100
 
@@ -125,6 +126,7 @@ def _draft(db: Session, result: AiResult, run_id: int, source: str) -> MealDraft
                     if food_id in foods and food_id != matching.food_id
                 ],
                 estimate_per_100=Per100(**item.estimate_per_100),
+                estimate_micros=item.micros_per_100,
                 values=Per100(**portion(per_100, item.grams)),
             )
         )

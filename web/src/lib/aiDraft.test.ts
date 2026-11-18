@@ -30,6 +30,8 @@ function food(id: number, name: string, kcal: number, extra: Partial<Food> = {})
     warnings: [],
     cached: true,
     favorite: false,
+    fdc_id: null,
+    fdc_description: null,
     ...extra,
   };
 }
@@ -45,6 +47,7 @@ function item(name: string, grams: number, match: Food | null, candidates: Food[
     match,
     candidates,
     estimate_per_100: { ...NONE, kcal: 50, protein_g: 2, fat_g: 1, carbs_g: 8 },
+    estimate_micros: { calcium: 120 },
     values: NONE,
   };
 }
@@ -111,7 +114,11 @@ describe("szkic posiłku", () => {
       amount: 200,
       macro_source: "estimated",
     });
-    expect(milk.estimate).toEqual({ name: "mleko", per_100: DRAFT.items[1].estimate_per_100 });
+    expect(milk.estimate).toEqual({
+      name: "mleko",
+      per_100: DRAFT.items[1].estimate_per_100,
+      micros_per_100: { calcium: 120 },
+    });
     expect(oats.entry.created_at < milk.entry.created_at).toBe(true);
   });
 

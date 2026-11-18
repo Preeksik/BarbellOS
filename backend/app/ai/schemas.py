@@ -53,6 +53,34 @@ class Per100gEstimate(BaseModel):
     )
 
 
+class MicroEstimate(BaseModel):
+    """Typowe mikroskładniki na 100 g (jak w tabelach składu). Zapas, gdy nie ma tabeli.
+
+    null = model nie zna wartości. Zakresy sprawdza `core/micros.py`.
+    """
+
+    vit_a: float | None = Field(description="witamina A (RAE), µg na 100 g")
+    vit_d: float | None = Field(description="witamina D, µg na 100 g")
+    vit_e: float | None = Field(description="witamina E, mg na 100 g")
+    vit_k: float | None = Field(description="witamina K, µg na 100 g")
+    vit_c: float | None = Field(description="witamina C, mg na 100 g")
+    vit_b1: float | None = Field(description="tiamina B1, mg na 100 g")
+    vit_b2: float | None = Field(description="ryboflawina B2, mg na 100 g")
+    vit_b3: float | None = Field(description="niacyna B3, mg na 100 g")
+    vit_b6: float | None = Field(description="witamina B6, mg na 100 g")
+    folate: float | None = Field(description="foliany (DFE), µg na 100 g")
+    vit_b12: float | None = Field(description="witamina B12, µg na 100 g")
+    calcium: float | None = Field(description="wapń, mg na 100 g")
+    iron: float | None = Field(description="żelazo, mg na 100 g")
+    magnesium: float | None = Field(description="magnez, mg na 100 g")
+    zinc: float | None = Field(description="cynk, mg na 100 g")
+    potassium: float | None = Field(description="potas, mg na 100 g")
+    sodium: float | None = Field(description="sód, mg na 100 g")
+    phosphorus: float | None = Field(description="fosfor, mg na 100 g")
+    selenium: float | None = Field(description="selen, µg na 100 g")
+    iodine: float | None = Field(description="jod, µg na 100 g")
+
+
 class MealItem(BaseModel):
     name_pl: str = Field(description="Nazwa składnika po polsku, np. „ryż biały gotowany”.")
     name_en: str = Field(description="Ta sama nazwa po angielsku.")
@@ -61,6 +89,7 @@ class MealItem(BaseModel):
     grams_low: float = Field(description="Dolna granica ilości w gramach.")
     grams_high: float = Field(description="Górna granica ilości w gramach.")
     per_100g_estimate: Per100gEstimate
+    micros_per_100g: MicroEstimate
     confidence: Confidence = Field(description="Pewność rozpoznania składnika i ilości.")
 
 
@@ -106,3 +135,11 @@ class LabelExtract(BaseModel):
     fiber_g: float | None = Field(description="Błonnik, g.")
     protein_g: float | None = Field(description="Białko, g.")
     salt_g: float | None = Field(description="Sól, g.")
+
+
+class FoodQuery(BaseModel):
+    """Nazwa produktu po angielsku w stylu bazy USDA, do wyszukania w tabeli."""
+
+    query_en: str = Field(
+        description="Zapytanie po angielsku w stylu USDA FoodData Central, np. 'Oats, rolled'."
+    )

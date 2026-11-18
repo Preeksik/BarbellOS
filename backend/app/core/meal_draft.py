@@ -15,6 +15,7 @@ from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 from difflib import SequenceMatcher
 
+from app.core.micros import clean_micros
 from app.core.nutrients import (
     LABELS_PL,
     MACRO_KEYS,
@@ -108,6 +109,7 @@ class DraftItem:
     grams_high: float
     confidence: str
     estimate_per_100: dict[str, float | None]  # osiem wartości z etykiety; None = brak
+    micros_per_100: dict[str, float] = field(default_factory=dict)  # szacunek AI
     warnings: list[str] = field(default_factory=list)
 
 
@@ -160,6 +162,7 @@ def clean_item(raw: Mapping) -> DraftItem | None:
         grams_high=round(high),
         confidence=str(raw.get("confidence") or "low"),
         estimate_per_100=estimate,
+        micros_per_100=clean_micros(raw.get("micros_per_100g")),
         warnings=warnings,
     )
 

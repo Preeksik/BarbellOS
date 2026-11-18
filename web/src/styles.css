@@ -895,3 +895,92 @@ div.notice {
 div.notice p {
   margin: 0;
 }
+
+/* ---------- etap 6: mikroskładniki, tabela USDA, tydzień ---------- */
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+
+.viewswitch {
+  margin-bottom: 16px;
+}
+
+details.micros {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+details.micros > table,
+details.micros > p,
+details.micros > button,
+details.micros > .fdc {
+  margin-top: 8px;
+}
+
+details.micros th,
+.choices-list .choice > span {
+  display: flex;
+  flex-direction: column;
+}
+
+details.micros th .muted {
+  font-size: 0.8rem;
+}
+
+.fdc {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.choices-list {
+  gap: 8px;
+}
+
+.choices-list .muted {
+  font-size: 0.85rem;
+}
+
+.weekdays {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.weekdays li {
+  display: grid;
+  grid-template-columns: 96px 1fr 48px;
+  align-items: center;
+  gap: 8px;
+}
+
+.weekdays li > span:last-child {
+  text-align: right;
+}
+
+.microweek .goal.low .bar > div {
+  background: var(--warn);
+}
+
+.microweek .goal.ok .bar > div {
+  background: var(--ok);
+}
+
+.microweek .goal.low-data .bar > div {
+  background: var(--border);
+}
+
+.microweek .goal.low-data > .muted {
+  color: var(--warn);
+}

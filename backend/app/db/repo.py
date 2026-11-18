@@ -114,6 +114,52 @@ def food_micros(db: Session, food_id: int) -> list[FoodNutrient]:
     return list(db.scalars(select(FoodNutrient).where(FoodNutrient.food_id == food_id)))
 
 
+def nutrient_ids(db: Session) -> set[str]:
+    return set(db.scalars(select(Nutrient.id)))
+
+
+def nutrients(db: Session) -> list[Nutrient]:
+    return list(db.scalars(select(Nutrient)))
+
+
+def set_food_micros(
+    db: Session,
+    food: Food,
+    micros: dict[str, tuple[float, str]],
+    fdc_id: int | None,
+    fdc_description: str | None,
+) -> Food:
+    """Zastępuje mikroskładniki produktu (z etykiety zostają, jeśli były pewniejsze).
+
+    `micros` to wynik `core.micros.merge_micros`: {składnik: (ilość na 100 g, źródło)}.
+    """
+    known = nutrient_ids(db)
+    db.execute(delete(FoodNutrient).where(FoodNutrient.food_id == food.id))
+    db.add_all(
+        FoodNutrient(food_id=food.id, nutrient_id=nid, amount_per_100g=amount, source=source)
+        for nid, (amount, source) in micros.items()
+        if nid in known
+    )
+    food.fdc_id, food.fdc_description = fdc_id, fdc_description
+    db.commit()
+    return food
+
+
+def entries_of_food(db: Session, food_id: int) -> list[MealEntry]:
+    return list(db.scalars(select(MealEntry).where(MealEntry.food_id == food_id)))
+
+
+def meal_entries_between(db: Session, start: date, end: date) -> list[MealEntry]:
+    """Wpisy z dni od `start` do `end` włącznie."""
+    return list(
+        db.scalars(
+            select(MealEntry)
+            .where(MealEntry.date >= start, MealEntry.date <= end)
+            .order_by(MealEntry.date, MealEntry.created_at)
+        )
+    )
+
+
 def save_food_draft(db: Session, draft: FoodDraft) -> Food:
     food = Food(
         kind="packaged",

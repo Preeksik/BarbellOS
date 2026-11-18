@@ -18,6 +18,14 @@ JPEG = b"\xff\xd8\xff\xe0" + b"\x00" * 64
 EAN = "5900000000015"  # serek wiejski z conftest: 97 kcal na 100 g
 
 
+# Szacunek mikroskładników w odpowiedzi modelu: wszystkie pola, większość nieznana.
+MICROS = dict.fromkeys(
+    ["vit_a", "vit_d", "vit_e", "vit_k", "vit_c", "vit_b1", "vit_b2", "vit_b3", "vit_b6",
+     "folate", "vit_b12", "calcium", "iron", "magnesium", "zinc", "potassium", "sodium",
+     "phosphorus", "selenium", "iodine"]
+) | {"vit_c": 14.0, "potassium": 237.0, "magnesium": 11.0}  # fmt: skip
+
+
 def item(name, name_en="", grams=150, low=None, high=None, kcal=100.0, **extra) -> dict:
     return {
         "name_pl": name,
@@ -36,6 +44,7 @@ def item(name, name_en="", grams=150, low=None, high=None, kcal=100.0, **extra) 
             "fiber_g": 1.5,
             "salt_g": 0.4,
         },
+        "micros_per_100g": dict(MICROS),
         "confidence": "medium",
         **extra,
     }

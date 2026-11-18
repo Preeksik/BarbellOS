@@ -46,6 +46,7 @@ import {
   progressText,
 } from "../../lib/targets";
 import { formatGrams, formatKcal } from "../diet/macros";
+import { WeekView } from "./WeekView";
 
 const MAX_AMOUNT = 5000; // ta sama granica co na serwerze
 
@@ -65,6 +66,7 @@ export function DiaryPage({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingGoals, setEditingGoals] = useState(false);
   const [savingSlot, setSavingSlot] = useState<MealSlot | null>(null);
+  const [view, setView] = useState<"day" | "week">("day");
   const diary = useQuery({
     queryKey: diaryQueryKey(day),
     queryFn: () => api.get<DiaryDay>(`/api/diary/${day}`),
@@ -121,6 +123,20 @@ export function DiaryPage({
           Wróć do dziś
         </button>
       )}
+      <fieldset className="segmented viewswitch">
+        <legend className="visually-hidden">Widok</legend>
+        {(
+          [
+            ["day", "Dzień"],
+            ["week", "Tydzień (7 dni)"],
+          ] as const
+        ).map(([id, label]) => (
+          <label key={id} className={view === id ? "active" : ""}>
+            <input type="radio" name="view" checked={view === id} onChange={() => setView(id)} />
+            {label}
+          </label>
+        ))}
+      </fieldset>
 
       {rejected.length > 0 && (
         <section className="card">
@@ -134,7 +150,9 @@ export function DiaryPage({
         </section>
       )}
 
-      {diary.data ? (
+      {view === "week" ? (
+        <WeekView day={day} targets={targets.data ?? null} />
+      ) : diary.data ? (
         <>
           {editingGoals ? (
             <GoalsForm

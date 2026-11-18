@@ -11,24 +11,33 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.orm import Session
 
-from app.ai.prompts import LABEL_PROMPT
+from app.ai.prompts import FOOD_QUERY_PROMPT, LABEL_PROMPT
 from app.ai.router import AiRouter, AllProvidersFailed, FailureKind, Task
-from app.ai.schemas import LabelExtract
+from app.ai.schemas import FoodQuery, LabelExtract
 from app.api.deps import (
     OffFetcher,
     OffSearcher,
     get_ai_router,
+    get_fdc_client,
     get_off_fetcher,
     get_off_searcher,
     require_user,
 )
 from app.core.barcode import is_valid_ean
 from app.core.label import image_mime, label_draft
+from app.core.micros import (
+    clean_micros,
+    fill_missing_micros,
+    merge_micros,
+    rank_fdc,
+    table_source,
+)
 from app.core.nutrients import MACRO_KEYS, macro_errors, macro_warnings
 from app.core.search import rank
 from app.db import repo
 from app.db.models import Food
 from app.db.session import get_db
+from app.fdc.client import FdcClient, FdcError, FdcRateLimited
 from app.off.client import parse_search, search_limiter
 
 router = APIRouter(prefix="/api/foods", tags=["diet"], dependencies=[Depends(require_user)])
@@ -93,6 +102,8 @@ class FoodOut(BaseModel):
     warnings: list[str]
     cached: bool
     favorite: bool
+    fdc_id: int | None  # rekord tabeli USDA, z którego są mikroskładniki
+    fdc_description: str | None
 
 
 class FoodUpdate(BaseModel):
@@ -147,6 +158,8 @@ def _food_out(db: Session, food: Food, cached: bool) -> FoodOut:
         warnings=macro_warnings(macros),
         cached=cached,
         favorite=food.favorite_at is not None,
+        fdc_id=food.fdc_id,
+        fdc_description=food.fdc_description,
     )
 
 
@@ -362,6 +375,181 @@ def favorites(db: Session = Depends(get_db)) -> list[FoodOut]:
 def put_favorite(food_id: int, body: FavoriteIn, db: Session = Depends(get_db)) -> FoodOut:
     """Dodaje do ulubionych albo usuwa z nich. Idempotentne (stan, nie przełącznik)."""
     return _food_out(db, repo.set_favorite(db, _get_food(db, food_id), body.favorite), True)
+
+
+# ---------- dopasowanie do tabeli USDA (etap 6) ----------
+
+
+class NutrientOut(BaseModel):
+    id: str
+    name_pl: str
+    unit: str
+    group: str  # vitamin | mineral
+    rda: float | None  # referencyjne spożycie z etykiet UE (RWS)
+
+
+@router.get("/nutrients", response_model=list[NutrientOut])
+def nutrients(db: Session = Depends(get_db)) -> list[NutrientOut]:
+    """Słownik mikroskładników (nazwy i jednostki do wyświetlania)."""
+    return [
+        NutrientOut(id=n.id, name_pl=n.name_pl, unit=n.unit, group=n.grp, rda=n.rda)
+        for n in repo.nutrients(db)
+    ]
+
+
+class FdcCandidateOut(BaseModel):
+    fdc_id: int
+    description: str
+    data_type: str
+    kcal: float | None
+    micros_count: int  # ile z 20 mikroskładników ma rekord
+    score: float  # dopasowanie słów do zapytania, 0–1
+
+
+class FdcSearchOut(BaseModel):
+    query: str
+    candidates: list[FdcCandidateOut]
+    suggested_id: int | None  # najlepszy kandydat; wybór i tak zatwierdza użytkownik
+
+
+class FdcChoiceIn(BaseModel):
+    fdc_id: int
+
+
+FDC_LIMIT_MESSAGE = (
+    "Wyczerpany limit zapytań do tabel USDA (klucz demonstracyjny: ok. 10 na godzinę). "
+    "Dodaj własny darmowy klucz FDC_API_KEY w .env albo spróbuj za godzinę."
+)
+SUGGEST_THRESHOLD = 0.5  # od tej oceny kandydat jest podpowiadany
+
+
+def _fdc_query(db: Session, food: Food, ai: AiRouter) -> str:
+    """Zapytanie po angielsku: zapamiętana nazwa angielska albo tłumaczenie przez AI."""
+    if food.name_en:
+        return food.name_en
+    task = Task.FOOD_QUERY
+    try:
+        result = ai.run(task, FOOD_QUERY_PROMPT.format(name=food.name), FoodQuery)
+    except AllProvidersFailed as exc:
+        for failure in exc.called:
+            repo.log_ai_run(db, task, failure.provider, "", failure.kind)
+        raise HTTPException(
+            503, "Nie udało się przetłumaczyć nazwy. Wpisz zapytanie po angielsku."
+        ) from exc
+    repo.log_ai_run(
+        db, task, result.provider, result.model, "ok", result.input_tokens, result.output_tokens
+    )
+    query = " ".join(result.data.query_en.split())[:120]
+    if query:
+        food.name_en = query  # następnym razem bez wywołania modelu
+        db.commit()
+    return query or food.name
+
+
+@router.get("/{food_id}/fdc", response_model=FdcSearchOut)
+def fdc_candidates(
+    food_id: int,
+    q: str | None = Query(default=None, max_length=120),
+    db: Session = Depends(get_db),
+    fdc: FdcClient = Depends(get_fdc_client),
+    ai: AiRouter = Depends(get_ai_router),
+) -> FdcSearchOut:
+    """Kandydaci z tabeli USDA dla produktu. Nic nie zapisuje."""
+    food = _get_food(db, food_id)
+    query = (q or "").strip() or _fdc_query(db, food, ai)
+    try:
+        found = fdc.search(query)
+    except FdcRateLimited as exc:
+        raise HTTPException(429, FDC_LIMIT_MESSAGE) from exc
+    except FdcError as exc:
+        raise HTTPException(502, "Tabele USDA nie odpowiadają. Spróbuj za chwilę.") from exc
+    by_id = {f.fdc_id: f for f in found}
+    ranked = rank_fdc(query, [(f.fdc_id, f.description) for f in found])
+    suggested = ranked[0][0] if ranked and ranked[0][1] >= SUGGEST_THRESHOLD else None
+    return FdcSearchOut(
+        query=query,
+        candidates=[
+            FdcCandidateOut(
+                fdc_id=fdc_id,
+                description=by_id[fdc_id].description,
+                data_type=by_id[fdc_id].data_type,
+                kcal=by_id[fdc_id].kcal,
+                micros_count=len(by_id[fdc_id].micros),
+                score=score,
+            )
+            for fdc_id, score in ranked
+        ],
+        suggested_id=suggested,
+    )
+
+
+def _kept_micros(db: Session, food: Food) -> dict[str, tuple[float, str]]:
+    """Mikroskładniki z etykiety lub wpisane ręcznie: tabela ich nie zastępuje."""
+    return {
+        m.nutrient_id: (m.amount_per_100g, m.source)
+        for m in repo.food_micros(db, food.id)
+        if m.source in ("label", "user")
+    }
+
+
+@router.put("/{food_id}/fdc", response_model=FoodOut)
+def fdc_choose(
+    food_id: int,
+    body: FdcChoiceIn,
+    db: Session = Depends(get_db),
+    fdc: FdcClient = Depends(get_fdc_client),
+) -> FoodOut:
+    """Zatwierdzone dopasowanie: mikroskładniki produktu z rekordu USDA (idempotentne).
+
+    Produkt bez kodu (banan) dostaje źródło `reference`, paczkowany (z kodem) `estimated`:
+    dziedziczy wartości z produktu podstawowego, który go przypomina.
+    """
+    food = _get_food(db, food_id)
+    try:
+        record = fdc.food(body.fdc_id)
+    except FdcRateLimited as exc:
+        raise HTTPException(429, FDC_LIMIT_MESSAGE) from exc
+    except FdcError as exc:
+        raise HTTPException(502, "Tabele USDA nie odpowiadają. Spróbuj za chwilę.") from exc
+    micros = merge_micros(
+        _kept_micros(db, food), clean_micros(record.micros), table_source(bool(food.barcode))
+    )
+    repo.set_food_micros(db, food, micros, record.fdc_id, record.description[:255])
+    return _food_out(db, food, cached=True)
+
+
+class BackfillOut(BaseModel):
+    updated: int  # ile wpisów dostało brakujące mikroskładniki
+
+
+@router.post("/{food_id}/micros/backfill", response_model=BackfillOut)
+def backfill_micros(food_id: int, db: Session = Depends(get_db)) -> BackfillOut:
+    """Uzupełnia brakujące witaminy i minerały we wcześniejszych wpisach tego produktu.
+
+    Świadoma decyzja użytkownika (dokumentacja 8: „przelicz wpisy"), nie efekt dopasowania.
+    Kalorie i makro wpisów pozostają zamrożone; dodawane są tylko brakujące składniki.
+    Idempotentne: drugie wywołanie nie ma już czego dodać.
+    """
+    food = _get_food(db, food_id)
+    food_micros = {
+        m.nutrient_id: (m.amount_per_100g, m.source) for m in repo.food_micros(db, food.id)
+    }
+    updated = 0
+    for entry in repo.entries_of_food(db, food.id):
+        filled = fill_missing_micros(entry.micros, food_micros, entry.amount)
+        if filled is not None:
+            entry.micros = filled
+            updated += 1
+    db.commit()
+    return BackfillOut(updated=updated)
+
+
+@router.delete("/{food_id}/fdc", response_model=FoodOut)
+def fdc_remove(food_id: int, db: Session = Depends(get_db)) -> FoodOut:
+    """Usuwa dopasowanie i mikroskładniki z tabeli (z etykiety zostają)."""
+    food = _get_food(db, food_id)
+    repo.set_food_micros(db, food, _kept_micros(db, food), None, None)
+    return _food_out(db, food, cached=True)
 
 
 @router.get("/{food_id}", response_model=FoodOut)

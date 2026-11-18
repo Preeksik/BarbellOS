@@ -92,7 +92,16 @@ export function draftEntries(
       created_at: new Date(now.getTime() + inputs.length).toISOString(),
     };
     inputs.push(
-      food ? { entry } : { entry, estimate: { name: item.name, per_100: item.estimate_per_100 } },
+      food
+        ? { entry }
+        : {
+            entry,
+            estimate: {
+              name: item.name,
+              per_100: item.estimate_per_100,
+              micros_per_100: item.estimate_micros,
+            },
+          },
     );
   });
   return inputs;

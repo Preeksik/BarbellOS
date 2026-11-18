@@ -14,6 +14,8 @@ Zasady:
   Nie przeliczaj ich na porcję. Podaj wszystkie osiem wartości; sól z uwzględnieniem soli
   typowo dodawanej przy przyrządzaniu (pieczony kurczak, frytki). null tylko wtedy, gdy
   naprawdę nie wiesz.
+- micros_per_100g: typowe witaminy i minerały tego składnika na 100 g, jak w tabelach
+  składu żywności (np. USDA). Jednostki jak w opisach pól. null, gdy nie wiesz.
 - Nie sumuj kalorii posiłku i nie licz wartości porcji: zrobi to aplikacja.
 - name_pl: nazwa po polsku, krótka i ogólna („ryż biały gotowany", „pierś z kurczaka
   pieczona"), bez marki, chyba że marka jest wyraźnie widoczna.

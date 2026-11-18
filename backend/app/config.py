@@ -29,6 +29,11 @@ class Settings(BaseSettings):
     # Wyszukiwanie po nazwie (search-a-licious). Stare API nie ma wyszukiwania pełnotekstowego.
     off_search_url: str = "https://search.openfoodfacts.org"
 
+    # USDA FoodData Central: witaminy i minerały produktów podstawowych (etap 6).
+    # DEMO_KEY działa bez rejestracji, ale tylko ok. 10 zapytań na godzinę.
+    fdc_api_key: str = "DEMO_KEY"
+    fdc_base_url: str = "https://api.nal.usda.gov/fdc"
+
     # AI: na start działa tylko Gemini. Claude włącza się po dodaniu klucza.
     gemini_api_key: str = ""
     anthropic_api_key: str = ""

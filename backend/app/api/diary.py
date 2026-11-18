@@ -11,7 +11,10 @@ from sqlalchemy.orm import Session
 from app.api.deps import require_user
 from app.api.diet import Per100 as MacroValues
 from app.core.diary import MEAL_SLOTS, day_totals, freeze_portion, scale_portion
+from app.core.micros import clean_micros
 from app.core.nutrients import MACRO_KEYS, macro_errors
+from app.core.week import average, micro_week
+from app.core.week import day_totals as day_totals_range
 from app.db import repo
 from app.db.models import AiRun, Food, MealEntry
 from app.db.session import get_db
@@ -27,6 +30,8 @@ class EstimateIn(BaseModel):
 
     name: str = Field(min_length=1, max_length=120)
     per_100: MacroValues
+    # Szacunek mikroskładników na 100 g ({id: ilość}); bez danych: pusty słownik.
+    micros_per_100: dict[str, float] = Field(default_factory=dict)
 
 
 class EntryIn(BaseModel):
@@ -116,7 +121,11 @@ def put_entry(entry_id: uuid.UUID, body: EntryIn, db: Session = Depends(get_db))
     elif body.food_id is None:
         # Szacunek modelu: bez mikroskładników, wartości oznaczone jako `estimated`.
         estimate = _estimate(body)
-        values, micros = freeze_portion(estimate.per_100.model_dump(), {}, body.amount)
+        micros_per_100 = {
+            nutrient_id: (amount, "estimated")
+            for nutrient_id, amount in clean_micros(estimate.micros_per_100).items()
+        }
+        values, micros = freeze_portion(estimate.per_100.model_dump(), micros_per_100, body.amount)
         food_name, unit, macro_source = estimate.name.strip(), "g", "estimated"
     else:
         food = db.get(Food, body.food_id)
@@ -153,6 +162,75 @@ def delete_entry(entry_id: uuid.UUID, db: Session = Depends(get_db)) -> Response
     """Idempotentne: usunięcie wpisu, którego już nie ma, też kończy się powodzeniem."""
     repo.delete_meal_entry(db, entry_id)
     return Response(status_code=204)
+
+
+# ---------- tydzień (etap 6) ----------
+
+
+class DayTotalOut(BaseModel):
+    date: dt.date
+    entries: int
+    totals: dict[str, float]
+
+
+class MicroWeekOut(BaseModel):
+    nutrient_id: str
+    name_pl: str
+    unit: str
+    group: str  # vitamin | mineral
+    rda: float | None
+    avg_amount: float
+    percent_rda: float | None
+    share_trusted: float
+    share_estimated: float
+    share_missing: float
+
+
+class WeekOut(BaseModel):
+    start: dt.date
+    end: dt.date
+    days: list[DayTotalOut]
+    logged_days: int
+    average: dict[str, float] | None  # średnia z dni z wpisami
+    micros: list[MicroWeekOut]
+
+
+WEEK_DAYS = 7
+
+
+@router.get("/week/{end}", response_model=WeekOut)
+def get_week(end: dt.date, db: Session = Depends(get_db)) -> WeekOut:
+    """Ostatnie 7 dni do `end` włącznie: sumy dni, średnia i pokrycie norm mikroskładników."""
+    start = end - dt.timedelta(days=WEEK_DAYS - 1)
+    entries = repo.meal_entries_between(db, start, end)
+    days = day_totals_range(
+        [start + dt.timedelta(days=i) for i in range(WEEK_DAYS)],
+        ({"date": e.date, **_values(e)} for e in entries),
+    )
+    logged = sum(1 for d in days if d.entries > 0)
+    dictionary = {n.id: n for n in repo.nutrients(db)}
+    coverage = micro_week(
+        ({"kcal": e.kcal, "micros": e.micros} for e in entries),
+        {nid: n.rda for nid, n in dictionary.items()},
+        logged,
+    )
+    return WeekOut(
+        start=start,
+        end=end,
+        days=[DayTotalOut(**vars(d)) for d in days],
+        logged_days=logged,
+        average=average(days),
+        micros=[
+            MicroWeekOut(
+                **vars(c),
+                name_pl=dictionary[c.nutrient_id].name_pl,
+                unit=dictionary[c.nutrient_id].unit,
+                group=dictionary[c.nutrient_id].grp,
+                rda=dictionary[c.nutrient_id].rda,
+            )
+            for c in coverage
+        ],
+    )
 
 
 @router.get("/{day}", response_model=DayOut)

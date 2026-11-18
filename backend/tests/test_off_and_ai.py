@@ -170,6 +170,30 @@ def test_meal_contract_has_no_database_ids():
                     "fiber_g": 0.4,
                     "salt_g": 0.0,
                 },
+                "micros_per_100g": dict.fromkeys(
+                    [
+                        "vit_a",
+                        "vit_d",
+                        "vit_e",
+                        "vit_k",
+                        "vit_c",
+                        "vit_b1",
+                        "vit_b2",
+                        "vit_b3",
+                        "vit_b6",
+                        "folate",
+                        "vit_b12",
+                        "calcium",
+                        "iron",
+                        "magnesium",
+                        "zinc",
+                        "potassium",
+                        "sodium",
+                        "phosphorus",
+                        "selenium",
+                        "iodine",
+                    ]
+                ),  # fmt: skip
                 "confidence": "medium",
             }
         ],

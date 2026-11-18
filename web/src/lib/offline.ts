@@ -42,7 +42,8 @@ const IDB_KEY = "barbellos-query-client";
 // 3: produkt ma pole `favorite` (etap 1, krok 5).
 // 4: profil ma tryb życia, kroki i treningi zamiast jednej „aktywności”.
 // 5: wpis dziennika ma źródło wartości i powiązanie z wywołaniem AI (etap 2).
-const CACHE_VERSION = "5";
+// 6: produkt ma dopasowanie do tabeli USDA (etap 6).
+const CACHE_VERSION = "6";
 const DAY_MS = 1000 * 60 * 60 * 24;
 const THIRTY_DAYS_MS = 30 * DAY_MS;
 // Czas trzymania nieużywanych danych w pamięci. Przeglądarka liczy opóźnienia na 32 bitach:
@@ -151,7 +152,8 @@ function updateFood(id: number, barcode: string | null, change: (food: Food) => 
   if (barcode) queryClient.setQueryData<Food>(foodQueryKey(barcode), apply);
 }
 
-function storeFood(food: Food): void {
+/** Zapisuje produkt z serwera we wszystkich miejscach pamięci (np. po dopasowaniu USDA). */
+export function storeFood(food: Food): void {
   queryClient.setQueryData(foodByIdKey(food.id), food);
   if (food.barcode) queryClient.setQueryData(foodQueryKey(food.barcode), food);
 }
@@ -336,7 +338,7 @@ const DIARY_SCOPE = { id: "diary" };
 export interface DiaryPutInput {
   entry: DiaryEntry;
   /** Składnik z AI bez produktu w bazie: szacunek modelu na 100 g (tylko przy dodaniu). */
-  estimate?: { name: string; per_100: Per100 };
+  estimate?: { name: string; per_100: Per100; micros_per_100?: Record<string, number> };
 }
 
 export interface DiaryDeleteInput {
@@ -361,6 +363,7 @@ function refreshDiaryAfterLastWrite(): void {
     void queryClient.invalidateQueries({ queryKey: ["diary"] });
     // „Ostatnie" bierze się z dziennika: bez tego lista pokazywałaby stan sprzed wpisu.
     void queryClient.invalidateQueries({ queryKey: ["recent"] });
+    void queryClient.invalidateQueries({ queryKey: ["week"] });
   }
 }
 

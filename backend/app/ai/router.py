@@ -24,6 +24,7 @@ class Task(StrEnum):
     MEAL_PHOTO = "meal_photo"
     DAY_SUMMARY = "day_summary"
     WEEK_REVIEW = "week_review"
+    FOOD_QUERY = "food_query"  # nazwa produktu -> zapytanie do tabeli USDA
 
 
 # Kolejność prób: (dostawca, poziom). Dostawca bez klucza jest pomijany, więc dopóki
@@ -35,6 +36,7 @@ ROUTES: dict[Task, tuple[tuple[str, Tier], ...]] = {
     Task.MEAL_PHOTO: (("gemini", Tier.MID), ("gemini", Tier.CHEAP), ("claude", Tier.MID)),
     Task.DAY_SUMMARY: (("claude", Tier.MID), ("gemini", Tier.MID)),
     Task.WEEK_REVIEW: (("claude", Tier.STRONG), ("gemini", Tier.MID)),
+    Task.FOOD_QUERY: (("gemini", Tier.CHEAP), ("gemini", Tier.MID), ("claude", Tier.CHEAP)),
 }
 
 # Odpowiedź niezgodna ze schematem: jedno ponowienie, potem błąd (dokumentacja 7).
