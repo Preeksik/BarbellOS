@@ -565,3 +565,20 @@ def test_background_failure_never_breaks_the_diary(client, settings, label_ai):
     label_ai.outcomes = [RuntimeError("cokolwiek")]
     body = {"date": "2026-11-18", "meal_slot": "lunch", "food_id": oats["id"], "amount": 100}
     assert client.put(f"/api/diary/entries/{uuid.uuid4()}", json=body).status_code == 200
+
+
+def test_week_autofill_survives_a_failing_product(logged_in, fake_fdc, monkeypatch):
+    """Błąd przy jednym produkcie (np. równoległy zapis w tle) nie psuje widoku tygodnia."""
+    import app.services.micros_fill as fill
+
+    oats = _own(logged_in)
+    body = {"date": "2026-11-18", "meal_slot": "lunch", "food_id": oats["id"], "amount": 100}
+    logged_in.put(f"/api/diary/entries/{uuid.uuid4()}", json=body)
+
+    def broken(db, food, fdc, ai):
+        raise RuntimeError("konflikt zapisu")
+
+    monkeypatch.setattr(fill, "auto_fill", broken)
+    response = logged_in.post("/api/diary/week/2026-11-18/autofill")
+    assert response.status_code == 200
+    assert response.json()["postponed"] == ["Płatki owsiane"]

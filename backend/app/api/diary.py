@@ -306,8 +306,16 @@ def autofill_week(
     }
     for gap in gaps:
         food = db.get(Food, gap.food_id)
-        if food is not None:
-            buckets[micros_fill.auto_fill(db, food, fdc, ai)].append(food.name)
+        if food is None:
+            continue
+        name = food.name
+        try:
+            outcome = micros_fill.auto_fill(db, food, fdc, ai)
+        except Exception:  # noqa: BLE001 - np. równoległe uzupełnianie w tle tego samego produktu
+            log.exception("Uzupełnianie witamin nieudane (produkt %s)", gap.food_id)
+            db.rollback()
+            outcome = micros_fill.Outcome.ERROR  # spróbujemy przy następnym otwarciu
+        buckets[outcome].append(name)
     return out
 
 
