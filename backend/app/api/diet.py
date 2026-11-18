@@ -3,7 +3,7 @@
 import logging
 import time
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Literal
 
 import httpx
@@ -11,9 +11,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.orm import Session
 
-from app.ai.prompts import FOOD_QUERY_PROMPT, LABEL_PROMPT
+from app.ai.prompts import LABEL_PROMPT
 from app.ai.router import AiRouter, AllProvidersFailed, FailureKind, Task
-from app.ai.schemas import FoodQuery, LabelExtract
+from app.ai.schemas import LabelExtract
 from app.api.deps import (
     OffFetcher,
     OffSearcher,
@@ -26,11 +26,7 @@ from app.api.deps import (
 from app.core.barcode import is_valid_ean
 from app.core.label import image_mime, label_draft
 from app.core.micros import (
-    clean_micros,
-    fill_missing_micros,
-    merge_micros,
     rank_fdc,
-    table_source,
 )
 from app.core.nutrients import MACRO_KEYS, macro_errors, macro_warnings
 from app.core.search import rank
@@ -39,6 +35,7 @@ from app.db.models import Food
 from app.db.session import get_db
 from app.fdc.client import FdcClient, FdcError, FdcRateLimited
 from app.off.client import parse_search, search_limiter
+from app.services import micros_fill
 
 router = APIRouter(prefix="/api/foods", tags=["diet"], dependencies=[Depends(require_user)])
 log = logging.getLogger(__name__)
@@ -424,26 +421,12 @@ SUGGEST_THRESHOLD = 0.5  # od tej oceny kandydat jest podpowiadany
 
 
 def _fdc_query(db: Session, food: Food, ai: AiRouter) -> str:
-    """Zapytanie po angielsku: zapamiętana nazwa angielska albo tłumaczenie przez AI."""
-    if food.name_en:
-        return food.name_en
-    task = Task.FOOD_QUERY
     try:
-        result = ai.run(task, FOOD_QUERY_PROMPT.format(name=food.name), FoodQuery)
-    except AllProvidersFailed as exc:
-        for failure in exc.called:
-            repo.log_ai_run(db, task, failure.provider, "", failure.kind)
+        return micros_fill.query_for(db, food, ai)
+    except micros_fill.QueryUnavailable as exc:
         raise HTTPException(
             503, "Nie udało się przetłumaczyć nazwy. Wpisz zapytanie po angielsku."
         ) from exc
-    repo.log_ai_run(
-        db, task, result.provider, result.model, "ok", result.input_tokens, result.output_tokens
-    )
-    query = " ".join(result.data.query_en.split())[:120]
-    if query:
-        food.name_en = query  # następnym razem bez wywołania modelu
-        db.commit()
-    return query or food.name
 
 
 @router.get("/{food_id}/fdc", response_model=FdcSearchOut)
@@ -483,15 +466,6 @@ def fdc_candidates(
     )
 
 
-def _kept_micros(db: Session, food: Food) -> dict[str, tuple[float, str]]:
-    """Mikroskładniki z etykiety lub wpisane ręcznie: tabela ich nie zastępuje."""
-    return {
-        m.nutrient_id: (m.amount_per_100g, m.source)
-        for m in repo.food_micros(db, food.id)
-        if m.source in ("label", "user")
-    }
-
-
 @router.put("/{food_id}/fdc", response_model=FoodOut)
 def fdc_choose(
     food_id: int,
@@ -511,10 +485,8 @@ def fdc_choose(
         raise HTTPException(429, FDC_LIMIT_MESSAGE) from exc
     except FdcError as exc:
         raise HTTPException(502, "Tabele USDA nie odpowiadają. Spróbuj za chwilę.") from exc
-    micros = merge_micros(
-        _kept_micros(db, food), clean_micros(record.micros), table_source(bool(food.barcode))
-    )
-    repo.set_food_micros(db, food, micros, record.fdc_id, record.description[:255])
+    micros_fill.apply_record(db, food, record)
+    micros_fill.backfill_entries(db, food)  # od 18.11.2026 automatycznie, bez osobnej akcji
     return _food_out(db, food, cached=True)
 
 
@@ -530,25 +502,17 @@ def backfill_micros(food_id: int, db: Session = Depends(get_db)) -> BackfillOut:
     Kalorie i makro wpisów pozostają zamrożone; dodawane są tylko brakujące składniki.
     Idempotentne: drugie wywołanie nie ma już czego dodać.
     """
-    food = _get_food(db, food_id)
-    food_micros = {
-        m.nutrient_id: (m.amount_per_100g, m.source) for m in repo.food_micros(db, food.id)
-    }
-    updated = 0
-    for entry in repo.entries_of_food(db, food.id):
-        filled = fill_missing_micros(entry.micros, food_micros, entry.amount)
-        if filled is not None:
-            entry.micros = filled
-            updated += 1
-    db.commit()
-    return BackfillOut(updated=updated)
+    return BackfillOut(updated=micros_fill.backfill_entries(db, _get_food(db, food_id)))
 
 
 @router.delete("/{food_id}/fdc", response_model=FoodOut)
 def fdc_remove(food_id: int, db: Session = Depends(get_db)) -> FoodOut:
     """Usuwa dopasowanie i mikroskładniki z tabeli (z etykiety zostają)."""
     food = _get_food(db, food_id)
-    repo.set_food_micros(db, food, _kept_micros(db, food), None, None)
+    repo.set_food_micros(db, food, micros_fill.kept_micros(db, food), None, None)
+    # Automat nie dopasuje produktu ponownie wbrew decyzji użytkownika.
+    food.fdc_checked_at = datetime.now(UTC)
+    db.commit()
     return _food_out(db, food, cached=True)
 
 

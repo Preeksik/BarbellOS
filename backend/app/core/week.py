@@ -92,9 +92,8 @@ def micro_week(
     return out
 
 
-# Wpis z mniej niż tyloma mikroskładnikami traktujemy jako „bez danych o witaminach":
-# etykiety podają zwykle tylko sód, a to nie mówi nic o witaminach.
-MIN_MICROS = 5
+# Próg „bez danych o witaminach": wspólny z automatem uzupełniania (`core/micros.py`).
+from app.core.micros import MIN_MICROS  # noqa: E402
 
 
 @dataclass(frozen=True)

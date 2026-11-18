@@ -1,6 +1,8 @@
-# BarbellOS — dokumentacja techniczna v0.11
+# BarbellOS — dokumentacja techniczna v0.12
 
 Stan: 18.11.2026.
+
+Zmiany w v0.12: witaminy z tabel USDA uzupełniają się automatycznie, bez zatwierdzania (decyzja właściciela, 4.2); kolumna `food.fdc_checked_at` (8); poprawka odczytu rekordu USDA pobranego osobno (pola `number`/`amount`), przez którą zatwierdzone dopasowania zapisywały się bez witamin.
 
 Zmiany w v0.11 (etap 6, przesunięty przed etap 3): mikroskładniki z tabel USDA z dopasowaniem produktu zatwierdzanym przez użytkownika, szacunek AI jako zapas (4.2), uzupełnianie wcześniejszych wpisów jako jawna akcja, widok tygodnia z pokryciem norm (4.11), kolumny `food.fdc_id` i `food.fdc_description` (8). Tabela `generic_foods` zastąpiona dopasowaniem na żądanie.
 
@@ -60,7 +62,7 @@ Poza zakresem v1: wielu użytkowników, Android, App Store, monetyzacja.
 1. **Serwer jest źródłem prawdy, telefon jest oknem.** Dane żyją w Postgresie. Telefon trzyma kopię podręczną i kolejkę zapisów na czas bez zasięgu. (Zmiana względem v0.1 — powód w 3.3.)
 2. **Liczby liczy kod, LLM interpretuje.** Sumy kalorii, e1RM, trend wagi, wskaźnik regeneracji to funkcje w Pythonie z testami. Model dostaje gotowe liczby i je komentuje.
 3. **Każda wartość ma źródło.** Przy składniku odżywczym zapisujemy pochodzenie: `label`, `reference`, `estimated`, `user`.
-4. **AI proponuje, Ty zatwierdzasz.** Wynik ze zdjęcia to edytowalny szkic. Plan treningowy nie zmienia się sam.
+4. **AI proponuje, Ty zatwierdzasz.** Wynik ze zdjęcia to edytowalny szkic. Plan treningowy nie zmienia się sam. Wyjątek (decyzja z 18.11.2026): dopasowanie produktu do tabeli witamin USDA dzieje się samo, bo zatwierdzanie każdego produktu było zbyt uciążliwe; dopasowanie można zmienić w karcie produktu (4.2).
 5. **Dostawcy i modele w konfiguracji**, nie w kodzie.
 6. **Logika w Pythonie, nie w przeglądarce.** Wszystko, co da się policzyć na serwerze, liczy serwer — bo ten kod umiesz przeczytać i sprawdzić. Frontend wyświetla i zbiera dane.
 
@@ -203,8 +205,15 @@ Czytane pola `nutriments` (na 100 g): `energy-kcal_100g`, `proteins_100g`, `fat_
 
 1. AI tłumaczy nazwę na zapytanie w stylu USDA („Płatki owsiane" → „Oats, rolled", „Serek wiejski lekki" → „Cheese, cottage, low fat"). Tłumaczenie jest zapamiętywane w `food.name_en`. Zapytanie można poprawić ręcznie.
 2. Wyszukiwarka USDA zwraca kandydatów. Kod ustala kolejność (`core/micros.py`, `fdc_score`): najważniejsza jest zgodność pierwszego słowa opisu („Oats, …"), a słowa porównywane są w całości z liczbą mnogą. Powód: w teście z 18.11.2026 USDA postawiło na pierwszym miejscu „Rolls, dinner, oat bran" dla zapytania o płatki, a porównanie po początkach słów myliło „rolled" z „rolls".
-3. Podpowiedź (ocena od 0,5) jest zaznaczona, ale **wybór zatwierdzasz Ty**. Obok kandydata widać jego kalorie do porównania z produktem.
-4. Zapis kopiuje mikroskładniki rekordu do `food_nutrient`. Wartości z etykiety mają pierwszeństwo i nie są nadpisywane.
+3. **Od 18.11.2026 dopasowanie jest automatyczne** (decyzja właściciela: zatwierdzanie każdego produktu było zbyt uciążliwe). Rekord jest przyjmowany bez pytania, gdy ma ocenę od 0,5, a jego kalorie nie różnią się od produktu więcej niż 2,5 raza w żadną stronę (`core/micros.py`, `auto_match`). Bez pewnego wyniku produkt zostaje do ręcznego wyboru w karcie produktu.
+4. Zapis kopiuje mikroskładniki rekordu do `food_nutrient` (wartości z etykiety mają pierwszeństwo) i od razu uzupełnia brakujące mikroskładniki wpisów tego produktu.
+
+Kiedy automat działa (`backend/app/services/micros_fill.py`):
+
+- **przy dodaniu wpisu do dziennika**, w tle po odpowiedzi (`BackgroundTasks`), jeśli produkt nie ma danych; błąd w tle trafia tylko do logu i nie psuje zapisu wpisu; wyłącznik `MICROS_AUTOFILL` w konfiguracji,
+- **przy otwarciu widoku tygodnia** (`POST /api/diary/week/{dzień}/autofill`) dla produktów z tygodnia bez danych.
+
+Produkt sprawdzony bez pewnego wyniku dostaje `fdc_checked_at` i nie jest wyszukiwany ponownie (oszczędza limit USDA i wywołania modelu); po błędzie sieci albo limicie próba powtarza się przy następnej okazji. Ręczne usunięcie dopasowania też ustawia `fdc_checked_at`, więc automat nie przywraca go wbrew decyzji. Ręczny wybór w karcie produktu działa jak dotąd i również uzupełnia wpisy.
 
 **Poziom C — przybliżenie (`estimated`).** Produkt paczkowany (z kodem) dopasowany do rekordu USDA dziedziczy wartości produktu podstawowego, który go przypomina, więc dostaje `estimated`, a nie `reference`. Składnik ze zdjęcia lub opisu posiłku bez produktu w bazie ma szacunek mikroskładników od modelu (7.1).
 
@@ -212,7 +221,7 @@ Czytane pola `nutriments` (na 100 g): `energy-kcal_100g`, `proteins_100g`, `fat_
 
 **Limit USDA:** klucz demonstracyjny (`DEMO_KEY`, gdy `FDC_API_KEY` jest pusty) pozwala na ok. 10 zapytań na godzinę. Własny darmowy klucz (https://fdc.nal.usda.gov/api-key-signup): 1000. Jedno wyszukiwanie zwraca komplet składników kandydatów, który serwer trzyma godzinę w pamięci, więc zatwierdzenie nie zużywa kolejnego zapytania.
 
-**Wcześniejsze wpisy** mają zamrożone wartości z chwili dodania, także brak mikroskładników. Przycisk „Uzupełnij witaminy we wcześniejszych wpisach tego produktu" (`POST /api/foods/{id}/micros/backfill`) dopisuje tylko brakujące składniki; kalorie i makro wpisów się nie zmieniają. To jawna akcja z rozdziału 8, a nie efekt dopasowania.
+**Wcześniejsze wpisy** mają zamrożone kalorie i makro z chwili dodania. Dopasowanie dopisuje im tylko brakujące mikroskładniki (`POST /api/foods/{id}/micros/backfill` robi to samo ręcznie); kalorie i makro się nie zmieniają, a mikroskładnik już zapisany we wpisie zostaje. Od 18.11.2026 dzieje się to razem z dopasowaniem, z decyzji właściciela, zamiast jako osobna akcja z rozdziału 8.
 
 W interfejsie: makro, sól i nasycone jako liczby; mikroskładniki jako pokrycie normy z informacją, skąd pochodzą dane (4.11). To wystarcza do wykrycia stałego niedoboru, nie do liczenia miligramów.
 
@@ -225,7 +234,7 @@ Dziennik ma przełącznik „Dzień / Tydzień (7 dni)". `GET /api/diary/week/{d
 - sumę każdego dnia i średnią dzienną **z dni z wpisami** (dzień bez wpisów to zwykle dzień niezalogowany, a nie głodówka), zestawioną z celami,
 - dla każdego z 20 mikroskładników: średnią dzienną, procent referencyjnego spożycia z etykiet UE (RWS, nie indywidualna norma; dla sodu to górna granica) oraz udział kalorii tygodnia z wpisów z danymi z tabel lub etykiet, z szacunku i bez danych.
 
-Nad listą jest karta „Uzupełnij dane o witaminach" (`GET /api/diary/week/{dzień}/gaps`): do 8 produktów z tygodnia, których wpisy mają mniej niż 5 mikroskładników (sam sód z etykiety nie mówi nic o witaminach), od największych kalorii. Przy każdym od razu jest podpowiedź z tabeli USDA (jak przy ręcznym dopasowaniu) i przyciski „Zatwierdź" / „Pomiń"; jest też „Zatwierdź wszystkie podpowiedzi". Zatwierdzenie dopasowuje produkt i uzupełnia jego wpisy (backfill z 4.2): to świadoma decyzja użytkownika, kalorie i makro wpisów się nie zmieniają. Wpisy z AI bez produktu sprzed 18.11.2026 są podane jako udział, którego nie da się uzupełnić.
+Nad listą jest karta „Dane o witaminach": przy otwarciu tygodnia aplikacja sama uzupełnia produkty bez danych (do 8 z tygodnia, od największych kalorii; wpis z mniej niż 5 mikroskładnikami liczy się jako brak, bo sam sód z etykiety nie mówi nic o witaminach) i pokazuje „Uzupełniono: …". Lista `GET /api/diary/week/{dzień}/gaps` zostaje dla produktów bez pewnego dopasowania, z odesłaniem do wyboru ręcznego. Wpisy z AI bez produktu sprzed 18.11.2026 są podane jako udział, którego nie da się uzupełnić.
 
 Podpisy źródeł: „dokładne" (etykieta albo tabela dla tego samego produktu: `label`, `reference`, `user`) i „przybliżone" (`estimated`: podobny produkt z tabeli albo szacunek AI). Gdy ponad połowa kalorii nie ma danych o składniku, pasek jest szary z dopiskiem „za mało danych": niski procent znaczy wtedy brak danych, a nie niedobór. Poniżej 50% normy przy wystarczających danych pasek jest żółty.
 
@@ -553,7 +562,8 @@ food(id PK, kind,                 -- 'packaged' | 'generic' | 'recipe'
      generic_parent_id NULL, fetched_at, raw JSONB,   -- raw: oryginalna odpowiedź źródła
      favorite_at NULL,            -- kiedy dodany do ulubionych
      client_id UUID UNIQUE NULL,  -- produkt bez kodu: identyfikator z telefonu (idempotentny zapis)
-     fdc_id NULL, fdc_description NULL)  -- rekord USDA, z którego są mikroskładniki (4.2)
+     fdc_id NULL, fdc_description NULL,  -- rekord USDA, z którego są mikroskładniki (4.2)
+     fdc_checked_at NULL)         -- kiedy sprawdzany w USDA (automat nie powtarza)
 food_alias(food_id, alias)        -- synonimy do wyszukiwania; indeks GIN pg_trgm na name i alias
 food_nutrient(food_id, nutrient_id, amount_per_100g,   -- mikroskładniki
               source,             -- 'label' | 'reference' | 'estimated'
@@ -611,6 +621,7 @@ backend/
                   gemini.py, claude.py
     off/          client.py
     fdc/          client.py (USDA FoodData Central)
+    services/     micros_fill.py (automatyczne uzupełnianie witamin: sieć + baza)
     db/           models.py, repo.py, session.py, migrations/
     tools/        seed.py, hash_password.py
     config.py, security.py, main.py

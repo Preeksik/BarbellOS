@@ -68,22 +68,37 @@ def _unit_ok(nutrient_id: str, unit: str) -> bool:
     return unit.upper() == expected
 
 
+def _nutrient_fields(nutrient: dict) -> tuple[str, object, str]:
+    """(numer, wartość, jednostka) z każdego z trzech formatów FDC.
+
+    Wyszukiwanie: `nutrientNumber`, `value`, `unitName`. Rekord w formacie „abridged":
+    `number`, `amount`, `unitName`. Format pełny: `nutrient: {number, unitName}`, `amount`.
+    """
+    inner = nutrient.get("nutrient") if isinstance(nutrient.get("nutrient"), dict) else {}
+    number = nutrient.get("nutrientNumber") or nutrient.get("number") or inner.get("number")
+    value = nutrient["value"] if "value" in nutrient else nutrient.get("amount")
+    unit = nutrient.get("unitName") or inner.get("unitName") or ""
+    return str(number or ""), value, str(unit).upper()
+
+
 def parse_food(raw: dict) -> FdcFood | None:
-    """Rekord z wyszukiwania FDC -> produkt z mikroskładnikami. None bez identyfikatora."""
+    """Rekord FDC (z wyszukiwania albo pobrany osobno) -> produkt z mikroskładnikami.
+
+    None bez identyfikatora.
+    """
     fdc_id = raw.get("fdcId")
     if not isinstance(fdc_id, int):
         return None
     micros: dict[str, float] = {}
     kcal_by_number: dict[str, float] = {}
     for nutrient in raw.get("foodNutrients") or []:
-        number = str(nutrient.get("nutrientNumber") or "")
-        value = nutrient.get("value")
+        number, value, unit = _nutrient_fields(nutrient)
         if not isinstance(value, int | float) or isinstance(value, bool) or value < 0:
             continue
-        if number in KCAL_NUMBERS and str(nutrient.get("unitName", "")).upper() == "KCAL":
+        if number in KCAL_NUMBERS and unit == "KCAL":
             kcal_by_number[number] = float(value)
         nutrient_id = NUTRIENT_NUMBERS.get(number)
-        if nutrient_id and _unit_ok(nutrient_id, str(nutrient.get("unitName") or "")):
+        if nutrient_id and _unit_ok(nutrient_id, unit):
             micros[nutrient_id] = float(value)
     kcal = next((kcal_by_number[n] for n in KCAL_NUMBERS if n in kcal_by_number), None)
     return FdcFood(

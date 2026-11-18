@@ -1,15 +1,18 @@
 """Dziennik dnia: wpisy posiłków i sumy."""
 
 import datetime as dt
+import logging
 import uuid
 from typing import Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Response
 from pydantic import BaseModel, Field
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, sessionmaker
 
-from app.api.deps import require_user
+from app.ai.router import AiRouter
+from app.api.deps import get_ai_router, get_fdc_client, require_user
 from app.api.diet import Per100 as MacroValues
+from app.config import Settings, get_settings
 from app.core.diary import MEAL_SLOTS, day_totals, freeze_portion, scale_portion
 from app.core.micros import clean_micros
 from app.core.nutrients import MACRO_KEYS, macro_errors
@@ -17,9 +20,12 @@ from app.core.week import MIN_MICROS, average, micro_gaps, micro_week
 from app.core.week import day_totals as day_totals_range
 from app.db import repo
 from app.db.models import AiRun, Food, MealEntry
-from app.db.session import get_db
+from app.db.session import get_db, get_session_factory
+from app.fdc.client import FdcClient
+from app.services import micros_fill
 
 router = APIRouter(prefix="/api/diary", tags=["diary"], dependencies=[Depends(require_user)])
+log = logging.getLogger(__name__)
 
 MealSlot = Literal["breakfast", "second_breakfast", "lunch", "snack", "dinner"]
 assert MealSlot.__args__ == MEAL_SLOTS  # jedna lista posiłków w core/diary.py
@@ -106,7 +112,16 @@ def _estimate(body: EntryIn) -> EstimateIn:
 
 
 @router.put("/entries/{entry_id}", response_model=EntryOut)
-def put_entry(entry_id: uuid.UUID, body: EntryIn, db: Session = Depends(get_db)) -> EntryOut:
+def put_entry(
+    entry_id: uuid.UUID,
+    body: EntryIn,
+    background: BackgroundTasks,
+    db: Session = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+    fdc: FdcClient = Depends(get_fdc_client),
+    ai: AiRouter = Depends(get_ai_router),
+    sessions: sessionmaker = Depends(get_session_factory),
+) -> EntryOut:
     """Dodaje wpis albo zmienia jego ilość, posiłek lub dzień.
 
     Idempotentne: identyfikator nadaje telefon, więc powtórka z kolejki offline niczego
@@ -154,7 +169,23 @@ def put_entry(entry_id: uuid.UUID, body: EntryIn, db: Session = Depends(get_db))
         ai_run_id=entry.ai_run_id if entry is not None else _known_run(db, body.ai_run_id),
         **values,
     )
+    if settings.micros_autofill and entry.food_id is not None and not entry.micros:
+        # Witaminy z tabeli USDA w tle: odpowiedź nie czeka na USDA ani na model.
+        background.add_task(_autofill_in_background, sessions, entry.food_id, fdc, ai)
     return _entry_out(entry)
+
+
+def _autofill_in_background(
+    sessions: sessionmaker, food_id: int, fdc: FdcClient, ai: AiRouter
+) -> None:
+    """Uzupełnianie po odpowiedzi. Błąd nie może zepsuć dziennika: tylko trafia do logu."""
+    try:
+        with sessions() as db:
+            food = db.get(Food, food_id)
+            if food is not None:
+                micros_fill.auto_fill(db, food, fdc, ai)
+    except Exception:  # noqa: BLE001 - zadanie w tle: zapis wpisu już się udał
+        log.exception("Uzupełnianie witamin w tle nieudane (produkt %s)", food_id)
 
 
 @router.delete("/entries/{entry_id}", status_code=204)
@@ -207,6 +238,7 @@ class GapOut(BaseModel):
     entries: int
     # Produkt ma już mikroskładniki (np. dopasowany do tabeli): wystarczy uzupełnić wpisy.
     has_micros: bool
+    checked: bool  # automat już szukał produktu w tabeli (bez pewnego wyniku: wybór ręczny)
 
 
 class GapsOut(BaseModel):
@@ -233,12 +265,50 @@ def get_week_gaps(end: dt.date, db: Session = Depends(get_db)) -> GapsOut:
                 share=g.share,
                 entries=g.entries,
                 has_micros=len(repo.food_micros(db, g.food_id)) >= MIN_MICROS,
+                checked=foods[g.food_id].fdc_checked_at is not None,
             )
             for g in gaps
             if g.food_id in foods
         ],
         share_without_food=orphan,
     )
+
+
+class AutofillOut(BaseModel):
+    filled: list[str]  # dopasowane teraz do tabeli
+    completed: list[str]  # produkty z danymi: uzupełniono tylko wpisy
+    no_match: list[str]  # bez pewnego dopasowania: wybór ręczny w karcie produktu
+    postponed: list[str]  # sieć albo limit: kolejna próba przy następnym otwarciu
+
+
+@router.post("/week/{end}/autofill", response_model=AutofillOut)
+def autofill_week(
+    end: dt.date,
+    db: Session = Depends(get_db),
+    fdc: FdcClient = Depends(get_fdc_client),
+    ai: AiRouter = Depends(get_ai_router),
+) -> AutofillOut:
+    """Uzupełnia witaminy produktów z tygodnia bez danych (decyzja właściciela z 18.11.2026).
+
+    Idempotentne: produkt sprawdzony bez wyniku nie jest wyszukiwany ponownie.
+    """
+    start = end - dt.timedelta(days=WEEK_DAYS - 1)
+    entries = repo.meal_entries_between(db, start, end)
+    gaps, _ = micro_gaps(
+        {"food_id": e.food_id, "kcal": e.kcal, "micros": e.micros} for e in entries
+    )
+    out = AutofillOut(filled=[], completed=[], no_match=[], postponed=[])
+    buckets = {
+        micros_fill.Outcome.FILLED: out.filled,
+        micros_fill.Outcome.ALREADY: out.completed,
+        micros_fill.Outcome.NO_MATCH: out.no_match,
+        micros_fill.Outcome.ERROR: out.postponed,
+    }
+    for gap in gaps:
+        food = db.get(Food, gap.food_id)
+        if food is not None:
+            buckets[micros_fill.auto_fill(db, food, fdc, ai)].append(food.name)
+    return out
 
 
 @router.get("/week/{end}", response_model=WeekOut)

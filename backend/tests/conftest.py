@@ -8,10 +8,10 @@ from sqlalchemy.pool import StaticPool
 
 from app.ai.provider import AiResult
 from app.ai.router import AiRouter
-from app.api.deps import get_ai_router, get_off_fetcher, get_off_searcher
+from app.api.deps import get_ai_router, get_fdc_client, get_off_fetcher, get_off_searcher
 from app.config import Settings, get_settings
 from app.db.models import Base, Nutrient
-from app.db.session import get_db
+from app.db.session import get_db, get_session_factory
 from app.main import create_app
 from app.security import hash_password
 
@@ -30,6 +30,8 @@ def settings() -> Settings:
         # Jawnie puste: klucz ze środowiska programisty nie może wysłać testów do sieci.
         gemini_api_key="",
         anthropic_api_key="",
+        # Uzupełnianie w tle wyłączone: testy, które go dotyczą, włączają je same.
+        micros_autofill=False,
     )
 
 
@@ -104,6 +106,17 @@ def label_ai() -> FakeLabelAi:
     return FakeLabelAi()
 
 
+class OfflineFdc:
+    """Domyślnie testy nie łączą się z USDA. Testy etapu 6 podstawiają własną atrapę."""
+
+    def search(self, query):
+        from app.fdc.client import FdcError
+
+        raise FdcError("testy bez sieci")
+
+    food = search
+
+
 class FakeOffSearch:
     """Udaje search-a-licious: zapisuje zapytania i oddaje przygotowaną odpowiedź."""
 
@@ -172,6 +185,8 @@ def client(settings, db_factory, off_calls, label_ai, off_search):
         {"gemini": label_ai}, sleep=lambda _: None
     )
     app.dependency_overrides[get_off_searcher] = lambda: off_search.search
+    app.dependency_overrides[get_session_factory] = lambda: db_factory
+    app.dependency_overrides[get_fdc_client] = lambda: OfflineFdc()
     # Adres https, bo ciasteczko sesji w trybie prod ma flagę Secure.
     with TestClient(app, base_url="https://testserver") as test_client:
         yield test_client

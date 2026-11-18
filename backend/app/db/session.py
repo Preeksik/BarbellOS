@@ -21,3 +21,8 @@ def get_engine() -> Engine:
 def get_db() -> Iterator[Session]:
     with sessionmaker(get_engine(), expire_on_commit=False)() as session:
         yield session
+
+
+def get_session_factory() -> sessionmaker[Session]:
+    """Fabryka sesji dla zadań w tle (po odpowiedzi żądanie nie ma już swojej sesji)."""
+    return sessionmaker(get_engine(), expire_on_commit=False)

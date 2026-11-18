@@ -33,6 +33,8 @@ class Settings(BaseSettings):
     # DEMO_KEY działa bez rejestracji, ale tylko ok. 10 zapytań na godzinę.
     fdc_api_key: str = "DEMO_KEY"
     fdc_base_url: str = "https://api.nal.usda.gov/fdc"
+    # Produkt dodany do dziennika dopasowuje się do tabeli USDA w tle (decyzja z 18.11.2026).
+    micros_autofill: bool = True
 
     # AI: na start działa tylko Gemini. Claude włącza się po dodaniu klucza.
     gemini_api_key: str = ""

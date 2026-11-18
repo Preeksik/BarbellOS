@@ -8,9 +8,11 @@ import pytest
 
 from app.api.deps import get_fdc_client
 from app.core.micros import (
+    auto_match,
     clean_micros,
     fdc_score,
     fill_missing_micros,
+    kcal_plausible,
     merge_micros,
     rank_fdc,
     table_source,
@@ -50,6 +52,41 @@ def test_parse_food_uses_atwater_energy_for_foundation_foods():
     record = fdc_record()
     record["foodNutrients"][0] = {"nutrientNumber": "957", "unitName": "KCAL", "value": 375}
     assert parse_food(record).kcal == 375
+
+
+def test_parse_food_reads_single_record_formats():
+    """Rekord pobrany osobno ma pola `number` i `amount` (błąd z 18.11.2026: zapis bez witamin)."""
+    abridged = {
+        "fdcId": 174852,
+        "description": "Beverages, carbonated, cola, regular",
+        "dataType": "SR Legacy",
+        "foodNutrients": [
+            {"number": "208", "name": "Energy", "amount": 42.0, "unitName": "KCAL"},
+            {"number": "301", "name": "Calcium, Ca", "amount": 2.0, "unitName": "MG"},
+            {"number": "307", "name": "Sodium, Na", "amount": 4.0, "unitName": "MG"},
+        ],
+    }
+    food = parse_food(abridged)
+    assert (food.kcal, food.micros) == (42.0, {"calcium": 2.0, "sodium": 4.0})
+    full = {
+        "fdcId": 1,
+        "foodNutrients": [
+            {"nutrient": {"number": "304", "unitName": "mg"}, "amount": 27.0},
+            {"nutrient": {"number": "951", "unitName": "g"}, "type": "FoodNutrient"},
+        ],
+    }
+    assert parse_food(full).micros == {"magnesium": 27.0}
+
+
+def test_cache_miss_still_saves_vitamins():
+    """Bez wyników w pamięci serwer pobiera rekord osobno i nadal ma witaminy."""
+    record = {
+        "fdcId": 11,
+        "description": "Cheese, gouda",
+        "foodNutrients": [{"number": "301", "amount": 700.0, "unitName": "MG"}],
+    }
+    client = _client(lambda request: httpx.Response(200, json=record))
+    assert client.food(11).micros == {"calcium": 700.0}
 
 
 def _client(handler):
@@ -353,19 +390,13 @@ def test_fill_missing_micros_only_adds():
     assert fill_missing_micros(None, {}, 50) is None
 
 
-def test_backfill_fills_old_entries_without_touching_values(logged_in, fake_fdc):
+def test_choosing_record_fills_old_entries_without_touching_values(logged_in, fake_fdc):
+    """Od 18.11.2026 dopasowanie od razu uzupełnia wpisy (decyzja właściciela)."""
     oats = _own(logged_in)
     entry_id = str(uuid.uuid4())
     body = {"date": "2026-11-16", "meal_slot": "breakfast", "food_id": oats["id"], "amount": 50}
     before = logged_in.put(f"/api/diary/entries/{entry_id}", json=body).json()
     logged_in.put(f"/api/foods/{oats['id']}/fdc", json={"fdc_id": 2346396})
-    # Dopasowanie samo nie zmienia historii.
-    week = logged_in.get("/api/diary/week/2026-11-18").json()
-    calcium = next(m for m in week["micros"] if m["nutrient_id"] == "calcium")
-    assert calcium["avg_amount"] == 0
-
-    first = logged_in.post(f"/api/foods/{oats['id']}/micros/backfill").json()
-    assert first == {"updated": 1}
     assert logged_in.post(f"/api/foods/{oats['id']}/micros/backfill").json() == {"updated": 0}
     week = logged_in.get("/api/diary/week/2026-11-18").json()
     calcium = next(m for m in week["micros"] if m["nutrient_id"] == "calcium")
@@ -422,3 +453,115 @@ def test_week_gaps_endpoint_lists_products_and_clears_after_match(logged_in, fak
         assert oats_gap["has_micros"] is True  # dopasowany: wystarczy uzupełnić wpisy
     finally:
         diary_api.MIN_MICROS = 5
+
+
+# ====================================================================== automat (18.11.2026)
+
+
+def test_auto_match_needs_good_name_and_plausible_kcal():
+    candidates = [
+        (175028, "Rolls, dinner, oat bran", 236),
+        (2346396, "Oats, whole grain, rolled, old fashioned", 379),
+        (173576, "Oil, oat", 884),
+    ]
+    assert auto_match("Oats, rolled", 372, candidates) == 2346396
+    assert auto_match("Oats, rolled", None, candidates) == 2346396  # brak kcal produktu
+    # Ta sama nazwa, ale kalorie kilkukrotnie inne: to nie ten produkt.
+    assert auto_match("Oats, rolled", 40, candidates) is None
+    assert auto_match("Pierogi, ruskie", 200, candidates) is None  # słaba ocena nazwy
+    assert auto_match("Oats", 372, []) is None
+
+
+def test_kcal_plausible():
+    assert kcal_plausible(21, 42)  # Coca-Cola z mniejszą ilością cukru a zwykła cola
+    assert not kcal_plausible(372, 1000)
+    assert kcal_plausible(None, 300) and kcal_plausible(100, None)
+
+
+def _week_autofill(client):
+    return client.post("/api/diary/week/2026-11-18/autofill").json()
+
+
+def test_week_autofill_matches_without_asking(logged_in, label_ai, fake_fdc):
+    import app.api.diary as diary_api
+    import app.core.week as week_core
+    import app.services.micros_fill as fill
+
+    oats = _own(logged_in)
+    pierogi = _own(logged_in, "Pierogi ruskie")
+    for food_id in (oats["id"], pierogi["id"]):
+        body = {"date": "2026-11-18", "meal_slot": "lunch", "food_id": food_id, "amount": 100}
+        logged_in.put(f"/api/diary/entries/{uuid.uuid4()}", json=body)
+    label_ai.outcomes = [{"query_en": "Oats, rolled"}, {"query_en": "Dumplings, potato, cheese"}]
+
+    # Słownik testowy ma 2 składniki: próg „pełnych danych" obniżony na czas testu.
+    old = fill.MIN_MICROS, diary_api.MIN_MICROS, week_core.MIN_MICROS
+    fill.MIN_MICROS = diary_api.MIN_MICROS = week_core.MIN_MICROS = 1
+    try:
+        result = _week_autofill(logged_in)
+        assert result == {
+            "filled": ["Płatki owsiane"],
+            "completed": [],
+            "no_match": ["Pierogi ruskie"],  # brak pewnego rekordu: wybór ręczny
+            "postponed": [],
+        }
+        week = logged_in.get("/api/diary/week/2026-11-18").json()
+        calcium = next(m for m in week["micros"] if m["nutrient_id"] == "calcium")
+        assert calcium["avg_amount"] == pytest.approx(52)
+
+        # Drugi raz: nic nie jest wyszukiwane ponownie (oszczędza limit USDA i model).
+        searches = len(fake_fdc.queries)
+        assert _week_autofill(logged_in)["filled"] == []
+        assert len(fake_fdc.queries) == searches
+        gaps = logged_in.get("/api/diary/week/2026-11-18/gaps").json()["foods"]
+        assert [(g["name"], g["checked"]) for g in gaps] == [("Pierogi ruskie", True)]
+    finally:
+        fill.MIN_MICROS, diary_api.MIN_MICROS, week_core.MIN_MICROS = old
+
+
+def test_week_autofill_postpones_on_network_errors(logged_in, label_ai, fake_fdc):
+    oats = _own(logged_in)
+    body = {"date": "2026-11-18", "meal_slot": "lunch", "food_id": oats["id"], "amount": 100}
+    logged_in.put(f"/api/diary/entries/{uuid.uuid4()}", json=body)
+    label_ai.outcomes = [{"query_en": "Oats, rolled"}]
+    fake_fdc.error = FdcRateLimited("limit")
+    assert _week_autofill(logged_in)["postponed"] == ["Płatki owsiane"]
+    fake_fdc.error = None
+    assert _week_autofill(logged_in)["filled"] == ["Płatki owsiane"]  # następna próba się udaje
+
+
+def test_removed_match_is_not_redone_automatically(logged_in, fake_fdc):
+    oats = _own(logged_in)
+    body = {"date": "2026-11-18", "meal_slot": "lunch", "food_id": oats["id"], "amount": 100}
+    logged_in.put(f"/api/diary/entries/{uuid.uuid4()}", json=body)
+    logged_in.put(f"/api/foods/{oats['id']}/fdc", json={"fdc_id": 2346396})
+    logged_in.delete(f"/api/foods/{oats['id']}/fdc")
+    assert _week_autofill(logged_in)["no_match"] == ["Płatki owsiane"]
+
+
+def test_new_entry_fills_vitamins_in_background(client, settings, label_ai, fake_fdc):
+    settings.micros_autofill = True
+    assert (
+        client.post("/api/auth/login", json={"password": "bardzo-tajne-haslo"}).status_code == 200
+    )
+    oats = _own(client)
+    label_ai.outcomes = [{"query_en": "Oats, rolled"}]
+    body = {"date": "2026-11-18", "meal_slot": "lunch", "food_id": oats["id"], "amount": 100}
+    entry = client.put(f"/api/diary/entries/{uuid.uuid4()}", json=body).json()
+    assert entry["values"]["kcal"] == 372  # odpowiedź nie czeka na USDA
+    # TestClient wykonuje zadania w tle przed zwróceniem odpowiedzi.
+    food = client.get(f"/api/foods/{oats['id']}").json()
+    assert food["fdc_description"] == "Oats, whole grain, rolled, old fashioned"
+    day = client.get("/api/diary/2026-11-18").json()
+    assert day["entries"][0]["values"] == entry["values"]
+
+
+def test_background_failure_never_breaks_the_diary(client, settings, label_ai):
+    settings.micros_autofill = True  # domyślna atrapa USDA zgłasza brak sieci
+    assert (
+        client.post("/api/auth/login", json={"password": "bardzo-tajne-haslo"}).status_code == 200
+    )
+    oats = _own(client)
+    label_ai.outcomes = [RuntimeError("cokolwiek")]
+    body = {"date": "2026-11-18", "meal_slot": "lunch", "food_id": oats["id"], "amount": 100}
+    assert client.put(f"/api/diary/entries/{uuid.uuid4()}", json=body).status_code == 200

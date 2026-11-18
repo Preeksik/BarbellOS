@@ -1,8 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
-import { type FdcSearch, type Food, api } from "../../lib/api";
+import { useEffect, useRef, useState } from "react";
+import { api } from "../../lib/api";
 import { percent } from "../../lib/micros";
-import { storeFood } from "../../lib/offline";
 import { formatKcal } from "../diet/macros";
 
 interface Gap {
@@ -13,6 +12,7 @@ interface Gap {
   share: number;
   entries: number;
   has_micros: boolean;
+  checked: boolean;
 }
 
 interface Gaps {
@@ -20,167 +20,93 @@ interface Gaps {
   share_without_food: number;
 }
 
-type Status = "idle" | "busy" | "done" | "skipped" | { error: string };
+interface Autofill {
+  filled: string[];
+  completed: string[];
+  no_match: string[];
+  postponed: string[];
+}
 
 /**
- * Produkty z tygodnia bez witamin, z podpowiedzią z tabeli USDA i zatwierdzeniem jednym
- * stuknięciem. Zatwierdzenie dopasowuje produkt i uzupełnia jego wpisy z tygodnia:
- * to świadoma decyzja użytkownika (dokumentacja 4.2), kalorie i makro wpisów się nie zmieniają.
+ * Witaminy z tabel USDA uzupełniane automatycznie (decyzja z 18.11.2026): przy otwarciu
+ * tygodnia serwer dopasowuje produkty bez danych i uzupełnia ich wpisy. Ręcznie zostają
+ * tylko produkty bez pewnego dopasowania. Nowe wpisy uzupełniają się same w tle.
  */
 export function MicroGaps({ day }: { day: string }) {
   const queryClient = useQueryClient();
-  const [status, setStatus] = useState<Record<number, Status>>({});
+  const [running, setRunning] = useState(false);
+  const [result, setResult] = useState<Autofill | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const started = useRef<string | null>(null);
   const gaps = useQuery({
     queryKey: ["week", day, "gaps"],
     queryFn: () => api.get<Gaps>(`/api/diary/week/${day}/gaps`),
   });
+  // Coś do zrobienia: produkt jeszcze niesprawdzony albo dane są, ale nie we wpisach.
+  const todo = (gaps.data?.foods ?? []).some((g) => !g.checked || g.has_micros);
 
-  const foods = (gaps.data?.foods ?? []).filter((g) => status[g.food_id] !== "skipped");
-  if (!gaps.data || (foods.length === 0 && gaps.data.share_without_food < 0.01)) return null;
+  useEffect(() => {
+    if (!todo || started.current === day) return;
+    started.current = day; // raz na otwarcie dnia: bez pętli przy odświeżaniu
+    setRunning(true);
+    setError(null);
+    api
+      .post<Autofill>(`/api/diary/week/${day}/autofill`)
+      .then((r) => {
+        setResult(r);
+        void queryClient.invalidateQueries({ queryKey: ["week"] });
+      })
+      .catch((err: unknown) => setError(err instanceof Error ? err.message : String(err)))
+      .finally(() => setRunning(false));
+  }, [todo, day, queryClient]);
 
-  async function confirm(gap: Gap, fdcId: number | null) {
-    setStatus((s) => ({ ...s, [gap.food_id]: "busy" }));
-    try {
-      if (fdcId != null) {
-        storeFood(await api.put<Food>(`/api/foods/${gap.food_id}/fdc`, { fdc_id: fdcId }));
-      }
-      await api.post(`/api/foods/${gap.food_id}/micros/backfill`);
-      setStatus((s) => ({ ...s, [gap.food_id]: "done" }));
-    } catch (err) {
-      setStatus((s) => ({
-        ...s,
-        [gap.food_id]: { error: err instanceof Error ? err.message : String(err) },
-      }));
-    }
+  const manual = (gaps.data?.foods ?? []).filter((g) => g.checked && !g.has_micros);
+  const added = [...(result?.filled ?? []), ...(result?.completed ?? [])];
+  const orphan = gaps.data?.share_without_food ?? 0;
+  if (!running && !error && added.length === 0 && manual.length === 0 && orphan < 0.01) {
+    return null;
   }
 
-  async function confirmAll() {
-    for (const gap of foods) {
-      if (status[gap.food_id] === "done") continue;
-      if (gap.has_micros) {
-        await confirm(gap, null);
-        continue;
-      }
-      const search = queryClient.getQueryData<FdcSearch>(["fdc", gap.food_id, null]);
-      if (search?.suggested_id != null) await confirm(gap, search.suggested_id);
-    }
-    void queryClient.invalidateQueries({ queryKey: ["week"] });
-  }
-
-  const pending = foods.filter((g) => status[g.food_id] !== "done");
   return (
     <section className="card gaps">
-      <h2>Uzupełnij dane o witaminach</h2>
-      <p className="muted">
-        Te produkty nie mają jeszcze witamin i minerałów. Podpowiedź pochodzi z tabeli USDA;
-        sprawdź opis i kalorie, potem zatwierdź. Wpisy z tego tygodnia zostaną uzupełnione
-        (kalorie i makro się nie zmienią).
-      </p>
-      <ul className="list gaplist">
-        {foods.map((gap) => (
-          <GapRow
-            key={gap.food_id}
-            gap={gap}
-            status={status[gap.food_id] ?? "idle"}
-            onConfirm={(fdcId) =>
-              confirm(gap, fdcId).then(() =>
-                queryClient.invalidateQueries({ queryKey: ["week"] }),
-              )
-            }
-            onSkip={() => setStatus((s) => ({ ...s, [gap.food_id]: "skipped" }))}
-          />
-        ))}
-      </ul>
-      {pending.length > 1 && (
-        <button type="button" className="primary" onClick={confirmAll}>
-          Zatwierdź wszystkie podpowiedzi
-        </button>
-      )}
-      {gaps.data.share_without_food >= 0.01 && (
+      <h2>Dane o witaminach</h2>
+      {running && <p className="muted">Uzupełniam witaminy z tabel USDA…</p>}
+      {error && <p className="error">Uzupełnianie nie powiodło się: {error}</p>}
+      {added.length > 0 && <p className="status ok">Uzupełniono: {added.join(", ")}.</p>}
+      {result && result.postponed.length > 0 && (
         <p className="muted">
-          {percent(gaps.data.share_without_food)} kalorii to wpisy z AI bez produktu, dodane przed
-          18.11.2026: nie mają witamin i nie da się ich uzupełnić z tabeli. Nowe wpisy z AI mają
-          szacunek witamin.
+          Bez połączenia z USDA: {result.postponed.join(", ")}. Spróbuję przy następnym otwarciu.
+        </p>
+      )}
+      {manual.length > 0 && (
+        <>
+          <p className="muted">
+            Bez pewnego dopasowania w tabeli (wybierz ręcznie: Dodaj → wyszukaj produkt →
+            Witaminy i minerały):
+          </p>
+          <ul className="list gaplist">
+            {manual.map((g) => (
+              <li key={g.food_id} className="gap">
+                <div className="goalhead">
+                  <span>
+                    {g.name}
+                    {g.brand && <span className="muted"> · {g.brand}</span>}
+                  </span>
+                  <span className="muted">
+                    {formatKcal(g.kcal)} kcal · {percent(g.share)}
+                  </span>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+      {orphan >= 0.01 && (
+        <p className="muted">
+          {percent(orphan)} kalorii to wpisy z AI bez produktu, dodane przed 18.11.2026: nie mają
+          witamin i nie da się ich uzupełnić z tabeli. Nowe wpisy z AI mają szacunek witamin.
         </p>
       )}
     </section>
-  );
-}
-
-function GapRow({
-  gap,
-  status,
-  onConfirm,
-  onSkip,
-}: {
-  gap: Gap;
-  status: Status;
-  onConfirm: (fdcId: number | null) => void;
-  onSkip: () => void;
-}) {
-  // Podpowiedź z tabeli: AI tłumaczy nazwę (raz, potem zapamiętana), kod ustala kolejność.
-  const search = useQuery({
-    queryKey: ["fdc", gap.food_id, null],
-    queryFn: () => api.get<FdcSearch>(`/api/foods/${gap.food_id}/fdc`),
-    enabled: !gap.has_micros,
-    retry: false,
-    staleTime: Number.POSITIVE_INFINITY,
-    gcTime: 0,
-  });
-  const suggested = search.data?.candidates.find((c) => c.fdc_id === search.data?.suggested_id);
-
-  return (
-    <li className="gap">
-      <div className="goalhead">
-        <strong>
-          {gap.name}
-          {gap.brand && <span className="muted"> · {gap.brand}</span>}
-        </strong>
-        <span className="muted">
-          {formatKcal(gap.kcal)} kcal · {percent(gap.share)}
-        </span>
-      </div>
-      {status === "done" ? (
-        <p className="status ok">Uzupełnione.</p>
-      ) : gap.has_micros ? (
-        <div className="row">
-          <span className="muted">Produkt ma już dane; brakuje ich we wpisach.</span>
-          <button type="button" disabled={status === "busy"} onClick={() => onConfirm(null)}>
-            Uzupełnij wpisy
-          </button>
-        </div>
-      ) : search.isFetching ? (
-        <p className="muted">Szukam w tabelach USDA…</p>
-      ) : search.error ? (
-        <p className="error">{search.error.message}</p>
-      ) : suggested ? (
-        <>
-          <p className="muted">
-            Tabela USDA: <strong>{suggested.description}</strong> ·{" "}
-            {suggested.kcal == null ? "brak kcal" : `${formatKcal(suggested.kcal)} kcal/100 g`} ·
-            składników: {suggested.micros_count}
-          </p>
-          <div className="row">
-            <button
-              type="button"
-              className="primary"
-              disabled={status === "busy"}
-              onClick={() => onConfirm(suggested.fdc_id)}
-            >
-              Zatwierdź
-            </button>
-            <button type="button" disabled={status === "busy"} onClick={onSkip}>
-              Pomiń
-            </button>
-          </div>
-        </>
-      ) : (
-        <p className="muted">
-          Brak pewnej podpowiedzi (szukano: „{search.data?.query}”). Dopasuj ręcznie: Dodaj →
-          wyszukaj produkt → Witaminy i minerały.
-        </p>
-      )}
-      {typeof status === "object" && <p className="error">{status.error}</p>}
-    </li>
   );
 }

@@ -138,3 +138,36 @@ def fill_missing_micros(
         if nutrient_id not in current
     }
     return {**current, **added} if added else None
+
+
+# Wpis albo produkt z mniej niż tyloma mikroskładnikami traktujemy jako „bez danych
+# o witaminach": etykiety podają zwykle tylko sód, a to nie mówi nic o witaminach.
+MIN_MICROS = 5
+AUTO_MATCH_SCORE = 0.5  # od tej oceny dopasowanie jest przyjmowane bez pytania
+# Kalorie rekordu USDA mogą się różnić od produktu (napój light, inny tłuszcz), ale nie
+# kilkukrotnie: wtedy to inny produkt (np. olej owsiany zamiast płatków).
+MAX_KCAL_RATIO = 2.5
+
+
+def kcal_plausible(food_kcal: float | None, record_kcal: float | None) -> bool:
+    if not food_kcal or not record_kcal:
+        return True  # brak danych do porównania: decyduje ocena nazwy
+    ratio = record_kcal / food_kcal
+    return 1 / MAX_KCAL_RATIO <= ratio <= MAX_KCAL_RATIO
+
+
+def auto_match(
+    query: str, food_kcal: float | None, candidates: Iterable[tuple[int, str, float | None]]
+) -> int | None:
+    """Rekord USDA przyjmowany automatycznie albo None (wtedy wybór zostaje ręczny).
+
+    Najlepszy według nazwy, pod warunkiem pewnej oceny i wiarygodnych kalorii.
+    """
+    candidates = list(candidates)
+    kcal_of = {fdc_id: kcal for fdc_id, _, kcal in candidates}
+    for fdc_id, score in rank_fdc(query, [(fdc_id, d) for fdc_id, d, _ in candidates]):
+        if score < AUTO_MATCH_SCORE:
+            return None
+        if kcal_plausible(food_kcal, kcal_of[fdc_id]):
+            return fdc_id
+    return None

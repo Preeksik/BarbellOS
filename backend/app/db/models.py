@@ -117,6 +117,9 @@ class Food(MacroColumns, Base):
     # Rekord USDA FoodData Central, z którego pochodzą mikroskładniki (etap 6).
     fdc_id: Mapped[int | None]
     fdc_description: Mapped[str | None] = mapped_column(String(255))
+    # Kiedy produkt był sprawdzany w tabeli USDA (automatycznie albo ręcznie). Produkt bez
+    # pewnego dopasowania nie jest wyszukiwany ponownie przy każdym wpisie.
+    fdc_checked_at: Mapped[datetime | None] = mapped_column(TZDateTime)
 
 
 class FoodAlias(Base):
