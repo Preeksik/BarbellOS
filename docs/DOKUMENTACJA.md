@@ -1,6 +1,8 @@
-# BarbellOS — dokumentacja techniczna v0.12
+# BarbellOS — dokumentacja techniczna v0.13
 
 Stan: 18.11.2026.
+
+Zmiany w v0.13: wdrożenie przygotowane (`docs/wdrozenie.md`): testy na Postgresie w GitHub Actions, Render wdraża tylko po zielonych testach, narzędzie `copy_db` do przeniesienia danych z lokalnej bazy (3.4); kolejność etapów: regeneracja (Apple Zdrowie) przeniesiona na koniec (10).
 
 Zmiany w v0.12: witaminy z tabel USDA uzupełniają się automatycznie, bez zatwierdzania (decyzja właściciela, 4.2); kolumna `food.fdc_checked_at` (8); poprawka odczytu rekordu USDA pobranego osobno (pola `number`/`amount`), przez którą zatwierdzone dopasowania zapisywały się bez witamin.
 
@@ -139,6 +141,8 @@ Decyduje pętla zwrotna: skoro kod piszą agenci, to wersja, którą agent sam u
 4. **Jeśli to nie wystarczy:** Cloud Run (zimny start liczony w sekundach, wymaga karty) albo płatna instancja Render bez usypiania (7 USD/mies.).
 
 Podtrzymanie rozwiązuje przy okazji minutowe czekanie przy otwieraniu aplikacji w ciągu dnia.
+
+**Wdrożenie krok po kroku:** `docs/wdrozenie.md`. Render wdraża nową wersję tylko po zielonych testach w GitHub Actions (`autoDeployTrigger: checksPass`), a jedno z zadań CI uruchamia migracje i główne zapisy na prawdziwym Postgresie (`backend/tests/test_postgres.py`), bo lokalne testy działają na SQLite. Dane z lokalnej bazy przenosi `python -m app.tools.copy_db` (tylko do pustej bazy, bez łączenia dwóch historii). Połączenie z Neon bez poolingu: jeden serwer i tak trzyma własną pulę.
 
 **Jedna usługa.** Ten sam proces FastAPI serwuje API i zbudowany frontend (jeden obraz Dockera, katalog `web/dist`). Dzięki temu jest jedna darmowa usługa do podtrzymywania, frontend i API mają ten sam adres, a ciasteczko sesji nie wymaga konfiguracji CORS.
 
@@ -650,12 +654,12 @@ CLAUDE.md         import @AGENTS.md + rzeczy specyficzne dla Claude Code
 | **0. Próby ryzyka** | Repo, „hello world" wdrożony pod HTTPS, PWA na ekranie głównym. Próba A: skan kodu kreskowego na Twoim iPhonie. Próba B: skrót czyta masę ciała i kroki z Apple Health i wysyła na backend — raz na rozbudzony serwer i raz celowo na uśpiony, z pomiarem, po ilu sekundach skrót się poddaje. Próba C: 30 produktów z Twojej kuchni — ile jest w OFF. Próba D: zapis zrobiony w trybie samolotowym przetrwa zamknięcie aplikacji. Instrukcje: `docs/etap-0.md`. | Wszystkie cztery próby mają wynik. Jeśli A, B lub D zawiedzie, wracamy do decyzji o stacku, zanim powstanie reszta. |
 | **1. Dieta** | Skan → OFF → baza, zdjęcie etykiety (jedyna funkcja AI w tym etapie, przeniesiona z etapu 2 po próbie C), wyszukiwarka, własne produkty, posiłki, cele, widok dnia. Kroki: `docs/etap-1.md` | Przez tydzień logujesz tu zamiast w Fitatu |
 | **2. AI w diecie** | Zdjęcie posiłku, opis tekstowy, licznik kosztów (dostawca Claude, gdy pojawi się klucz). Kroki: `docs/etap-2.md` | Posiłek na mieście w mniej niż 30 sekund |
-| **3. Regeneracja** | Pełny skrót, import, trend wagi, wskaźnik regeneracji, adaptacyjne TDEE | Rano widzisz stan regeneracji (start, gdy opaska dotrze) |
+| **3. Regeneracja** | Pełny skrót, import, trend wagi, wskaźnik regeneracji, adaptacyjne TDEE. **Przeniesiony na koniec** (decyzja z 18.11.2026: opaska będzie później); adaptacyjne zapotrzebowanie z trendu wagi może wejść wcześniej, z ręcznym wpisem wagi | Rano widzisz stan regeneracji (start, gdy opaska dotrze) |
 | **4. Trening** | Przeniesienie planu i dziennika, migracja wpisów | Trenujesz z nowej aplikacji, stary plik idzie do archiwum |
 | **5. Coach** | Podsumowanie dnia i tygodnia | Podsumowanie mówi coś, czego sam byś nie zauważył |
 | **6. Mikroskładniki** | Dopasowanie do tabel USDA, dziedziczenie, szacunek AI jako zapas, widok tygodnia (zrobione przed etapem 3). Kroki: `docs/etap-6.md` | Pokrycie witamin i minerałów z oznaczeniem pewności |
 
-Trening jest dopiero czwarty, bo działający tracker już masz. Największą lukę wypełniają dieta i regeneracja.
+Kolejność od 18.11.2026: etapy 1, 2 i 6 (dieta, AI, witaminy) są zrobione; dalej wdrożenie, trening (4), Coach (5), a regeneracja (3) na końcu, gdy dotrze opaska.
 
 ## 11. Praca z Claude Code i Antigravity
 

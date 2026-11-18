@@ -61,7 +61,7 @@ npm run dev
 
 Aplikacja: http://localhost:5173. Dokumentacja API: http://localhost:8000/api/docs.
 
-Lokalnie logowanie jest pomijane, dopóki `APP_PASSWORD_HASH` w `.env` jest puste. Na telefonie aplikacja wymaga HTTPS; jak ją wystawić, opisuje [docs/etap-0.md](docs/etap-0.md).
+Lokalnie logowanie jest pomijane, dopóki `APP_PASSWORD_HASH` w `.env` jest puste. Na telefonie aplikacja wymaga HTTPS: wdrożenie na Render + Neon krok po kroku opisuje [docs/wdrozenie.md](docs/wdrozenie.md).
 
 ## Testy
 
@@ -94,7 +94,7 @@ Obliczenia treningowe są porównywane z wartościami policzonymi oryginalnym pl
 | **0** | Próby ryzyka: skan w PWA, Apple Health przez Skróty, pokrycie Open Food Facts, zapis offline |
 | 1 | Dziennik diety; jedyna funkcja AI to zdjęcie etykiety (kroki: `docs/etap-1.md`) |
 | 2 | AI w diecie: zdjęcie posiłku, opis tekstowy, licznik kosztów (kroki: `docs/etap-2.md`) |
-| 3 | Regeneracja: import z Apple Health, trend wagi, wskaźnik regeneracji |
+| 3 | Regeneracja: import z Apple Health, trend wagi, wskaźnik regeneracji (przeniesiona na koniec) |
 | 4 | Trening: przeniesienie planu i dziennika |
 | 5 | Coach: podsumowanie dnia i tygodnia |
 | 6 | Mikroskładniki: tabele USDA, szacunek AI, widok tygodnia (kroki: `docs/etap-6.md`) |

@@ -1,8 +1,9 @@
-# Blueprint dla Render (darmowy plan). Plik nie był jeszcze uruchamiany: przy pierwszym
-# wdrożeniu porównaj go z aktualną dokumentacją https://render.com/docs/blueprint-spec
+# Blueprint dla Render (darmowy plan). Instrukcja krok po kroku: docs/wdrozenie.md.
+# Sprawdzone z dokumentacją https://render.com/docs/blueprint-spec 18.11.2026.
 #
 # Baza: osobno w Neon (darmowy Postgres na Renderze wygasa po 30 dniach).
-# Wartości oznaczone `sync: false` wpisujesz ręcznie w panelu Render.
+# Wartości `sync: false` wpisujesz w panelu Render przy tworzeniu (tylko raz; później
+# zmieniasz je w zakładce Environment usługi).
 
 services:
   - type: web
@@ -11,7 +12,10 @@ services:
     plan: free
     region: frankfurt
     dockerfilePath: ./Dockerfile
+    dockerContext: .
     healthCheckPath: /api/healthz
+    # Nowa wersja wchodzi dopiero, gdy przejdą testy w GitHub Actions (w tym na Postgresie).
+    autoDeployTrigger: checksPass
     envVars:
       - key: ENVIRONMENT
         value: prod
@@ -26,4 +30,6 @@ services:
       - key: OFF_USER_AGENT
         sync: false
       - key: GEMINI_API_KEY
+        sync: false
+      - key: FDC_API_KEY
         sync: false
