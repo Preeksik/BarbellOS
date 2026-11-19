@@ -1,6 +1,8 @@
-# BarbellOS — dokumentacja techniczna v0.14
+# BarbellOS — dokumentacja techniczna v0.15
 
 Stan: 19.11.2026.
+
+Zmiany w v0.15: zakładka „Dieta” zamiast „Dziennik” i „Dodaj”: każdy posiłek ma przycisk „Dodaj” (4.5, 4.8); wyszukiwarka sama przeszukuje dużą bazę produktów, bez przycisku i bez nazwy źródła, a pod wynikami jest „Oszacuj … (AI)” (4.8); „Produkt bez kodu” nazywa się „Dodaj własny”; próg automatycznego dopasowania witamin 0,35 zamiast 0,5 i bez wezwań do ręcznego wyboru (4.2, 4.11, migracja `0010`); więcej koloru z przypisanym znaczeniem: zielony to akcja, fiolet to AI (2.1).
 
 Zmiany w v0.14: wygląd aplikacji w kierunku „Kreda” (2.1): grafitowe tło, kredowobiałe przyciski, makroskładniki w kolorach talerzy, fonty Barlow w paczce aplikacji; motyw ciemny, jasny albo automatyczny do wyboru w Profilu.
 
@@ -74,10 +76,11 @@ Poza zakresem v1: wielu użytkowników, Android, App Store, monetyzacja.
 
 Wybrany z trzech makiet (Kreda, Atrament, Rozmowa). Źródłem prawdy są tokeny na początku `web/src/styles.css`; nowe ekrany, w tym trening, używają tych samych tokenów zamiast własnych kolorów.
 
-- **Kolory.** Ciemny: tło `#202322` (gumowa podłoga), karty `#2b2f2d`, tekst `#eeede6` (magnezja), opisy `#a3a8a3`. Główny przycisk jest kredowobiały z grafitowym tekstem, a nie kolorowy. Jasny motyw odwraca to samo (tło `#f1f1ec`, przycisk grafitowy).
+- **Kolory.** Ciemny: tło `#16181a`, karty `#202326`, tekst `#f0efe9` (magnezja), opisy `#a4aab0`. Główny przycisk jest kredowobiały z grafitowym tekstem. Jasny motyw odwraca to samo (tło `#f1f1ec`, przycisk grafitowy). Ciemniejsze tło od 19.11.2026, bo przy szarym kolory nie były widoczne („szaro-buro”).
+- **Kolor ma znaczenie.** Zielony (talerz 10 kg, `--green`) to akcja: przyciski „+ Dodaj”, aktywna zakładka, powrót, „Dodaj własny”. Fiolet (`--ai`) to wszystko z AI: kafelki zdjęcia i opisu, znaczek „szacunek AI”, „Oszacuj (AI)”. Niebieski przy skanie kodu. Nowy kolor dochodzi tylko z nowym znaczeniem.
 - **Talerze.** Kolory makroskładników pochodzą z talerzy trójbojowych: białko czerwony (25 kg), węglowodany niebieski (20 kg), tłuszcz żółty (15 kg). Kolor nigdy nie jest jedyną informacją: obok paska zawsze stoi liczba.
 - **Typografia.** Barlow Condensed do liczb i nagłówków, Barlow do tekstu. Fonty są w paczce aplikacji (`@fontsource`), więc działają bez sieci i nie odpytują Google.
-- **Dziennik.** Na górze wielka liczba kcal do celu, pod nią grube paski B/W/T, niżej drobne cele w dwóch kolumnach.
+- **Dieta.** Na górze wielka liczba kcal do celu, pod nią grube paski B/W/T (tło paska zabarwione kolorem talerza, więc widać go także przy zerze), niżej drobne cele w dwóch kolumnach. Pod spodem wszystkie posiłki dnia, każdy z sumą, literami B/W/T w kolorach talerzy i przyciskiem „+ Dodaj”.
 - **Motyw.** Ciemny, jasny albo automatyczny (jak w telefonie), do wyboru w Profilu. Wybór żyje w pamięci telefonu (`localStorage`), nie na serwerze. Górny i dolny pasek są grafitowe w obu motywach, bo na iOS tekst paska stanu nad zainstalowaną aplikacją jest biały.
 - **Dostępność.** Kontrast tekstu co najmniej 4,5:1 w obu motywach (sprawdzony przy wyborze kolorów), cele dotyku co najmniej 44 px.
 
@@ -222,7 +225,7 @@ Czytane pola `nutriments` (na 100 g): `energy-kcal_100g`, `proteins_100g`, `fat_
 
 1. AI tłumaczy nazwę na zapytanie w stylu USDA („Płatki owsiane" → „Oats, rolled", „Serek wiejski lekki" → „Cheese, cottage, low fat"). Tłumaczenie jest zapamiętywane w `food.name_en`. Zapytanie można poprawić ręcznie.
 2. Wyszukiwarka USDA zwraca kandydatów. Kod ustala kolejność (`core/micros.py`, `fdc_score`): najważniejsza jest zgodność pierwszego słowa opisu („Oats, …"), a słowa porównywane są w całości z liczbą mnogą. Powód: w teście z 18.11.2026 USDA postawiło na pierwszym miejscu „Rolls, dinner, oat bran" dla zapytania o płatki, a porównanie po początkach słów myliło „rolled" z „rolls".
-3. **Od 18.11.2026 dopasowanie jest automatyczne** (decyzja właściciela: zatwierdzanie każdego produktu było zbyt uciążliwe). Rekord jest przyjmowany bez pytania, gdy ma ocenę od 0,5, a jego kalorie nie różnią się od produktu więcej niż 2,5 raza w żadną stronę (`core/micros.py`, `auto_match`). Bez pewnego wyniku produkt zostaje do ręcznego wyboru w karcie produktu.
+3. **Od 18.11.2026 dopasowanie jest automatyczne** (decyzja właściciela: zatwierdzanie każdego produktu było zbyt uciążliwe). Rekord jest przyjmowany bez pytania, gdy ma ocenę od 0,35 (do 19.11.2026: 0,5), a jego kalorie nie różnią się od produktu więcej niż 2,5 raza w żadną stronę (`core/micros.py`, `auto_match`). 0,35 przepuszcza te same słowa w innej kolejności („Iceberg lettuce” przy „Lettuce, iceberg…”, ok. 0,4), a odrzuca jedno wspólne słowo („Apple juice” przy „Pineapple juice”, ok. 0,25). Migracja `0010` zdjęła znacznik `fdc_checked_at` z produktów odrzuconych przy starym progu, żeby spróbowały jeszcze raz. Produkt bez wyniku zostaje bez witamin; aplikacja nie prosi o ręczny wybór (decyzja z 19.11.2026: to szacunek, a nie pomiar), choć dopasowanie można zmienić w karcie produktu.
 4. Zapis kopiuje mikroskładniki rekordu do `food_nutrient` (wartości z etykiety mają pierwszeństwo) i od razu uzupełnia brakujące mikroskładniki wpisów tego produktu.
 
 Kiedy automat działa (`backend/app/services/micros_fill.py`):
@@ -251,7 +254,7 @@ Dziennik ma przełącznik „Dzień / Tydzień (7 dni)". `GET /api/diary/week/{d
 - sumę każdego dnia i średnią dzienną **z dni z wpisami** (dzień bez wpisów to zwykle dzień niezalogowany, a nie głodówka), zestawioną z celami,
 - dla każdego z 20 mikroskładników: średnią dzienną, procent referencyjnego spożycia z etykiet UE (RWS, nie indywidualna norma; dla sodu to górna granica) oraz udział kalorii tygodnia z wpisów z danymi z tabel lub etykiet, z szacunku i bez danych.
 
-Nad listą jest karta „Dane o witaminach": przy otwarciu tygodnia aplikacja sama uzupełnia produkty bez danych (do 8 z tygodnia, od największych kalorii; wpis z mniej niż 5 mikroskładnikami liczy się jako brak, bo sam sód z etykiety nie mówi nic o witaminach) i pokazuje „Uzupełniono: …". Lista `GET /api/diary/week/{dzień}/gaps` zostaje dla produktów bez pewnego dopasowania, z odesłaniem do wyboru ręcznego. Wpisy z AI bez produktu sprzed 18.11.2026 są podane jako udział, którego nie da się uzupełnić.
+Nad listą jest karta „Dane o witaminach": przy otwarciu tygodnia aplikacja sama uzupełnia produkty bez danych (do 8 z tygodnia, od największych kalorii; wpis z mniej niż 5 mikroskładnikami liczy się jako brak, bo sam sód z etykiety nie mówi nic o witaminach) i pokazuje „Uzupełniono: …". Produkty, których tabela nie zna (`GET /api/diary/week/{dzień}/gaps`), są wymienione jednym zdaniem jako niewliczone do norm, bez odsyłania do wyboru ręcznego. Wpisy z AI bez produktu sprzed 18.11.2026 są podane jako udział, którego nie da się uzupełnić.
 
 Podpisy źródeł: „dokładne" (etykieta albo tabela dla tego samego produktu: `label`, `reference`, `user`) i „przybliżone" (`estimated`: podobny produkt z tabeli albo szacunek AI). Gdy ponad połowa kalorii nie ma danych o składniku, pasek jest szary z dopiskiem „za mało danych": niski procent znaczy wtedy brak danych, a nie niedobór. Poniżej 50% normy przy wystarczających danych pasek jest żółty.
 
@@ -280,9 +283,9 @@ Wynik etapu 0: zeskanowane produkty są w Open Food Facts, ale wartości bywają
 
 Źródła są wymienne (osobny adapter na źródło), więc przy skanie można docelowo pokazać kilku kandydatów obok siebie. **FatSecret Platform API odrzucony:** darmowe warianty obejmują tylko dane z USA, a warunki pozwalają przechowywać wyłącznie identyfikatory produktów, co wyklucza własną bazę i zamrożoną historię.
 
-### 4.5 Dziennik dnia
+### 4.5 Dziennik dnia (zakładka „Dieta”)
 
-Dzień składa się z pięciu posiłków: śniadanie, II śniadanie, obiad, podwieczorek, kolacja. Wpis to produkt, ilość (g albo ml) i posiłek.
+Dzień składa się z pięciu posiłków: śniadanie, II śniadanie, obiad, podwieczorek, kolacja. Wpis to produkt, ilość (g albo ml) i posiłek. Od 19.11.2026 wszystkie posiłki są zawsze widoczne (pusty jako jedna linijka) i każdy ma przycisk „+ Dodaj”, który otwiera dodawanie od razu do tego posiłku. Osobnej zakładki „Dodaj” nie ma; dodawanie jest stanem zakładki „Dieta”, nie adresem (AGENTS.md, zasada 11).
 
 - `PUT /api/diary/entries/{id}` dodaje wpis albo go zmienia. Identyfikator UUID nadaje telefon, więc powtórzona wysyłka nie tworzy duplikatu.
 - Przy dodaniu wartości porcji są liczone z produktu i zamrażane. Przy zmianie ilości zamrożone wartości są **skalowane**, a nie liczone od nowa: wpis nadal odpowiada produktowi z chwili dodania.
@@ -331,20 +334,21 @@ Cele dotyczą ośmiu wartości z etykiety. Każda ma stały rodzaj celu (`backen
 
 ### 4.8 Wyszukiwarka, ostatnie, ulubione, produkt bez kodu
 
-Zakładka „Dodaj" zastępuje „Skan": wyszukiwarka, przyciski „Skanuj kod" i „Produkt bez kodu", a pod spodem listy „Posiłki", „Ulubione" i „Ostatnie".
+Ekran „Dodaj do: [posiłek]” (z przycisku przy posiłku w Diecie): wyszukiwarka, kafelki „Skanuj kod”, „Zdjęcie posiłku (AI)”, „Opisz posiłek (AI)”, „Dodaj własny”, a pod spodem „Zapisane posiłki” (gdy jakieś są), „Ulubione” i „Ostatnie”. Wynik wyszukiwania to jedna lista: najpierw własna baza, potem duża baza produktów; użytkownik nie widzi, skąd pochodzi wynik.
 
 - **Własna baza** jest przeszukiwana przy pisaniu (`GET /api/foods/search?q=`). Każde słowo zapytania musi być początkiem słowa w nazwie albo marce, bez polskich znaków i wielkości liter („ser wiej" znajduje „Serek wiejski"). Wyżej są całe słowa, nazwa zaczynająca się od zapytania, produkty często dodawane do dziennika i ulubione. Logika: `backend/app/core/search.py`. Dopasowanie jest liczone w Pythonie, bo baza jednego użytkownika ma setki produktów; indeksy pg_trgm przydadzą się w etapie 6.
-- **Open Food Facts** jest przeszukiwane na przycisk (`GET /api/foods/search/off?q=`), przez search-a-licious (`https://search.openfoodfacts.org/search`): stare API v2 nie ma wyszukiwania po nazwie. OFF pozwala na 10 wyszukiwań na minutę z jednego adresu i za przekroczenie blokuje adres, dlatego serwer przepuszcza najwyżej 8 na minutę i nie wyszukuje przy każdym znaku. Wynik z OFF nie zapisuje się w bazie: po wybraniu produkt jest pobierany po kodzie kreskowym, jak przy skanie.
+- **Open Food Facts** jest przeszukiwane samo, po 0,9 s pauzy w pisaniu (od 3 znaków) albo od razu po „Szukaj” na klawiaturze, które też chowa klawiaturę (`GET /api/foods/search/off?q=`; do 19.11.2026 tylko na przycisk). Wyniki są pamiętane na czas sesji, więc powrót do tego samego zapytania nie zużywa limitu. Wyszukiwanie idzie przez search-a-licious (`https://search.openfoodfacts.org/search`): stare API v2 nie ma wyszukiwania po nazwie. OFF pozwala na 10 wyszukiwań na minutę z jednego adresu i za przekroczenie blokuje adres, dlatego serwer przepuszcza najwyżej 8 na minutę i nie wyszukuje przy każdym znaku. Wynik z OFF nie zapisuje się w bazie: po wybraniu produkt jest pobierany po kodzie kreskowym, jak przy skanie.
 - **Ostatnie** (`GET /api/foods/recent`): 20 ostatnio jedzonych produktów, każdy raz, z ilością z ostatniego wpisu, która jest podpowiedzią przy dodawaniu.
 - **Ulubione:** gwiazdka na karcie produktu (`PUT /api/foods/{id}/favorite` ze stanem, nie przełącznikiem, więc powtórka jest bezpieczna).
-- **Produkt bez kodu** (danie domowe, produkt na wagę): ten sam formularz co „Popraw", także ze zdjęciem etykiety. `PUT /api/foods/custom/{uuid}` z identyfikatorem nadanym na telefonie, więc zapis może czekać w kolejce offline bez ryzyka duplikatu.
+- **Oszacuj (AI):** pod wynikami jest „Oszacuj „…” (AI)”, który otwiera opis posiłku z wpisanym zapytaniem. Warzywa na wagę i dania domowe rzadko są w bazie produktów (np. „sałata lodowa” daje tam tylko mieszanki paczkowane).
+- **Dodaj własny** (do 19.11.2026 „Produkt bez kodu”; danie domowe, produkt na wagę): ten sam formularz co „Popraw", także ze zdjęciem etykiety. `PUT /api/foods/custom/{uuid}` z identyfikatorem nadanym na telefonie, więc zapis może czekać w kolejce offline bez ryzyka duplikatu.
 
 ### 4.9 Zapisane posiłki
 
 Zestaw produktów z ilościami, np. „Śniadanie standard", dodawany do dnia jednym stuknięciem.
 
 - **Zapis:** w dzienniku przy posiłku (śniadanie, obiad…) przycisk „Zapisz jako posiłek" zapisuje jego produkty z ilościami. Wpis bez produktu (w przyszłości ze zdjęcia posiłku) jest pomijany.
-- **Dodanie:** w zakładce „Dodaj" wybierasz posiłek dnia (podpowiadany według godziny) i stukasz zestaw. Powstają zwykłe wpisy dziennika, po jednym na produkt, ze źródłem `meal`. Działa bez sieci tak samo jak pojedynczy produkt. „Cofnij" usuwa właśnie dodane wpisy.
+- **Dodanie:** przy posiłku w Diecie stukasz „+ Dodaj”, a potem zestaw z listy „Zapisane posiłki”; trafia do tego posiłku. Powstają zwykłe wpisy dziennika, po jednym na produkt, ze źródłem `meal`. Działa bez sieci tak samo jak pojedynczy produkt. „Cofnij" usuwa właśnie dodane wpisy.
 - **Zestaw przechowuje produkty i ilości, nie wartości.** Wartości liczy i zamraża wpis dziennika w chwili dodania (rozdział 8), więc poprawka produktu działa od tej pory w przód, a dodane wcześniej wpisy się nie zmieniają. Kalorie zestawu na liście są liczone według produktów na dziś.
 - `GET /api/meals`, `PUT /api/meals/{uuid}` (nazwa i skład; powtórka zastępuje skład), `DELETE /api/meals/{uuid}` (wpisy w dzienniku zostają). Logika: `backend/app/core/meals.py`.
 - Edycja składu zestawu (zmiana ilości, usunięcie produktu) nie jest jeszcze dostępna: zestaw zapisuje się od nowa z dziennika.
@@ -535,7 +539,7 @@ Model **nie sumuje** kalorii posiłku i nie przelicza wartości na porcję (pole
 
 ### 7.1 Posiłek ze zdjęcia i z opisu (etap 2)
 
-Zakładka „Dodaj" ma przyciski „Zdjęcie posiłku (AI)" i „Opisz posiłek (AI)".
+Ekran dodawania ma kafelki „Zdjęcie posiłku (AI)” i „Opisz posiłek (AI)”; posiłek dnia jest ten, przy którym stuknięto „+ Dodaj”.
 
 - `POST /api/ai/meal/photo` (zdjęcie w treści żądania, zmniejszone na telefonie jak etykieta; opcjonalnie `?description=`) i `POST /api/ai/meal/text` (`{"text": …}`) zwracają szkic: składniki z gramaturą i zakresem, pewnością, dopasowanym produktem, listą innych produktów do wyboru, szacunkiem na 100 g i wartościami porcji. Szkic niczego nie zapisuje.
 - Na ekranie szkicu zmieniasz gramaturę, produkt (z listy albo „Szacunek AI"), odznaczasz składniki i wybierasz posiłek dnia. Podgląd kalorii przelicza telefon, tak jak w dzienniku.

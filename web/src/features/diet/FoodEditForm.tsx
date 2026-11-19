@@ -149,7 +149,7 @@ export function FoodEditForm({
 
   return (
     <form className="card" onSubmit={submit}>
-      <h2>{food ? "Popraw według etykiety" : "Nowy produkt"}</h2>
+      <h2>{food ? "Popraw według etykiety" : "Własny produkt"}</h2>
       {!food && (
         <p className="muted">
           {barcode ? `EAN ${barcode}` : "Bez kodu kreskowego (np. danie domowe, produkt na wagę)"}

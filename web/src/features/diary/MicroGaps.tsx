@@ -2,7 +2,6 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { api } from "../../lib/api";
 import { percent } from "../../lib/micros";
-import { formatKcal } from "../diet/macros";
 
 interface Gap {
   food_id: number;
@@ -79,27 +78,11 @@ export function MicroGaps({ day }: { day: string }) {
         </p>
       )}
       {manual.length > 0 && (
-        <>
-          <p className="muted">
-            Bez pewnego dopasowania w tabeli (wybierz ręcznie: Dodaj → wyszukaj produkt →
-            Witaminy i minerały):
-          </p>
-          <ul className="list gaplist">
-            {manual.map((g) => (
-              <li key={g.food_id} className="gap">
-                <div className="goalhead">
-                  <span>
-                    {g.name}
-                    {g.brand && <span className="muted"> · {g.brand}</span>}
-                  </span>
-                  <span className="muted">
-                    {formatKcal(g.kcal)} kcal · {percent(g.share)}
-                  </span>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </>
+        // Bez wezwania do ręcznego wyboru (decyzja z 19.11.2026): witaminy to szacunek.
+        <p className="muted">
+          Bez danych o witaminach: {manual.map((g) => g.name).join(", ")}. Tabele nie mają
+          podobnego produktu, więc te pozycje nie liczą się do norm.
+        </p>
       )}
       {orphan >= 0.01 && (
         <p className="muted">

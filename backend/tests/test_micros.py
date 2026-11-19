@@ -472,6 +472,16 @@ def test_auto_match_needs_good_name_and_plausible_kcal():
     assert auto_match("Oats", 372, []) is None
 
 
+def test_auto_match_accepts_same_words_in_other_order():
+    # Tłumaczenie AI nie zawsze trzyma kolejność USDA („Rzeczownik, cechy").
+    lettuce = [(169248, "Lettuce, iceberg (includes crisphead types), raw", 14)]
+    assert auto_match("Iceberg lettuce", 15, lettuce) == 169248
+    chicken = [(171477, "Chicken, broilers or fryers, breast, meat only, cooked, roasted", 165)]
+    assert auto_match("Roasted chicken breast", 150, chicken) == 171477
+    # Jedno wspólne słowo to za mało: sok jabłkowy to nie ananasowy.
+    assert auto_match("Apple juice", 46, [(1, "Pineapple juice", 53)]) is None
+
+
 def test_kcal_plausible():
     assert kcal_plausible(21, 42)  # Coca-Cola z mniejszą ilością cukru a zwykła cola
     assert not kcal_plausible(372, 1000)

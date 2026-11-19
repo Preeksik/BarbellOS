@@ -143,7 +143,12 @@ def fill_missing_micros(
 # Wpis albo produkt z mniej niż tyloma mikroskładnikami traktujemy jako „bez danych
 # o witaminach": etykiety podają zwykle tylko sód, a to nie mówi nic o witaminach.
 MIN_MICROS = 5
-AUTO_MATCH_SCORE = 0.5  # od tej oceny dopasowanie jest przyjmowane bez pytania
+# Od tej oceny dopasowanie jest przyjmowane bez pytania. 0,35 (19.11.2026, wcześniej 0,5):
+# wszystkie słowa zapytania w innej kolejności niż w tabeli („Iceberg lettuce" przy
+# „Lettuce, iceberg…") dają ok. 0,4 i mają przejść; samo wspólne słowo („Apple juice"
+# przy „Pineapple juice") daje ok. 0,25 i nie przechodzi. Witaminy to szacunek, a pytanie
+# o każdy produkt było uciążliwe (decyzja właściciela).
+AUTO_MATCH_SCORE = 0.35
 # Kalorie rekordu USDA mogą się różnić od produktu (napój light, inny tłuszcz), ale nie
 # kilkukrotnie: wtedy to inny produkt (np. olej owsiany zamiast płatków).
 MAX_KCAL_RATIO = 2.5

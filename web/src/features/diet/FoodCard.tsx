@@ -1,6 +1,6 @@
 import { useMutation, useMutationState, useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { ApiError, type Food, api } from "../../lib/api";
+import { ApiError, type Food, type MealSlot, api } from "../../lib/api";
 import { MEAL_SLOTS } from "../../lib/diary";
 import { formatDecimal } from "../../lib/number";
 import {
@@ -32,6 +32,7 @@ export function FoodCard({
   onBack,
   backLabel,
   onShowDiary,
+  slot,
 }: {
   target: FoodRef;
   day: string;
@@ -39,6 +40,7 @@ export function FoodCard({
   onBack: () => void;
   backLabel: string;
   onShowDiary: () => void;
+  slot?: MealSlot;
 }) {
   const [editing, setEditing] = useState(false);
   const [added, setAdded] = useState<Added | null>(null);
@@ -126,7 +128,7 @@ export function FoodCard({
                   {backLabel}
                 </button>
                 <button type="button" onClick={onShowDiary}>
-                  Pokaż dziennik
+                  Wróć do diety
                 </button>
               </div>
             </div>
@@ -136,6 +138,7 @@ export function FoodCard({
               day={day}
               source={source}
               initialAmount={target.kind === "food" ? target.amount : undefined}
+              initialSlot={slot}
               onAdded={setAdded}
             />
           )}
@@ -203,7 +206,7 @@ function FoodStatus({ food }: { food: Food }) {
   const age = food.source_updated_at ? `, dane z ${formatMonth(food.source_updated_at)}` : "";
   return (
     <p className="status todo">
-      Niezweryfikowany · Open Food Facts{age}. Porównaj z etykietą.
+      Wartości z bazy produktów{age}. Porównaj z etykietą.
     </p>
   );
 }

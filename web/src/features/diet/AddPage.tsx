@@ -1,5 +1,5 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { type FormEvent, type ReactNode, useEffect, useRef, useState } from "react";
 import {
   type DiaryEntry,
   type Food,
@@ -9,7 +9,7 @@ import {
   type RecentFood,
   api,
 } from "../../lib/api";
-import { MEAL_SLOTS, dayLabel, defaultSlot, toIsoDay } from "../../lib/diary";
+import { MEAL_SLOTS, dayLabel, toIsoDay } from "../../lib/diary";
 import { mealEntries } from "../../lib/meals";
 import { formatDecimal } from "../../lib/number";
 import {
@@ -28,27 +28,42 @@ import { formatKcal } from "./macros";
 
 const MIN_QUERY = 2; // jak na serwerze (`core/search.py`)
 const TYPING_PAUSE_MS = 250;
+// Duża baza produktów pozwala na kilka wyszukiwań na minutę (limit na serwerze), więc
+// pytamy ją dopiero po dłuższej pauzie w pisaniu albo od razu po „Szukaj" na klawiaturze.
+const WIDE_QUERY = 3;
+const WIDE_PAUSE_MS = 900;
 
 type View =
   | { kind: "home" }
   | { kind: "scan" }
   | { kind: "card"; target: FoodRef; source: EntrySource; back: "scan" | "home" }
   | { kind: "new" }
-  | { kind: "ai"; mode: "photo" | "text" };
+  | { kind: "ai"; mode: "photo" | "text"; text?: string };
 
 /**
- * Dodawanie do dnia: wyszukiwarka, ostatnie, ulubione, zapisane posiłki, skan kodu
- * oraz posiłek ze zdjęcia lub opisu (AI, etap 2).
- * Widoki są stanem, nie adresami (AGENTS.md, zasada 11).
+ * Dodawanie do posiłku, otwierane przyciskiem „Dodaj" przy posiłku w Diecie:
+ * wyszukiwarka, skan kodu, posiłek ze zdjęcia lub opisu (AI), własny produkt,
+ * zapisane posiłki, ulubione i ostatnie. Widoki są stanem, nie adresami (AGENTS.md, zasada 11).
  */
-export function AddPage({ day, onShowDiary }: { day: string; onShowDiary: () => void }) {
+export function AddPage({
+  day,
+  slot,
+  onClose,
+}: {
+  day: string;
+  slot: MealSlot;
+  onClose: () => void;
+}) {
   const [view, setView] = useState<View>({ kind: "home" });
   // Wpisany tekst zostaje po powrocie z karty produktu do listy.
   const [query, setQuery] = useState("");
   const home = () => setView({ kind: "home" });
+  const slotLabel = MEAL_SLOTS.find((s) => s.id === slot)?.label ?? "";
+  const today = toIsoDay(new Date());
 
+  let body: ReactNode;
   if (view.kind === "scan") {
-    return (
+    body = (
       <>
         <Scanner
           onDetected={(barcode) =>
@@ -65,27 +80,34 @@ export function AddPage({ day, onShowDiary }: { day: string; onShowDiary: () => 
         </button>
       </>
     );
-  }
-  if (view.kind === "card") {
+  } else if (view.kind === "card") {
     const target = view.target;
-    return (
+    body = (
       <FoodCard
         // `key`: kolejny produkt zaczyna od czystej karty (bez „Dodano" z poprzedniego).
         key={target.kind === "barcode" ? target.barcode : `id-${target.food.id}`}
         target={target}
         day={day}
+        slot={slot}
         source={view.source}
         onBack={() => setView({ kind: view.back })}
-        backLabel={view.back === "scan" ? "Skanuj kolejny" : "Wróć do listy"}
-        onShowDiary={onShowDiary}
+        backLabel={view.back === "scan" ? "Skanuj kolejny" : "Dodaj kolejny"}
+        onShowDiary={onClose}
       />
     );
-  }
-  if (view.kind === "ai") {
-    return <MealAi mode={view.mode} day={day} onBack={home} onShowDiary={onShowDiary} />;
-  }
-  if (view.kind === "new") {
-    return (
+  } else if (view.kind === "ai") {
+    body = (
+      <MealAi
+        mode={view.mode}
+        initialText={view.text}
+        day={day}
+        slot={slot}
+        onBack={home}
+        onShowDiary={onClose}
+      />
+    );
+  } else if (view.kind === "new") {
+    body = (
       <FoodEditForm
         food={null}
         barcode={null}
@@ -95,60 +117,140 @@ export function AddPage({ day, onShowDiary }: { day: string; onShowDiary: () => 
         }
       />
     );
+  } else {
+    const open = (food: Food, amount?: number) =>
+      setView({ kind: "card", target: { kind: "food", food, amount }, source: "search", back: "home" });
+    body = (
+      <Home
+        day={day}
+        slot={slot}
+        query={query}
+        onQuery={setQuery}
+        onOpen={open}
+        onOpenBarcode={(barcode) =>
+          setView({ kind: "card", target: { kind: "barcode", barcode }, source: "search", back: "home" })
+        }
+        onScan={() => setView({ kind: "scan" })}
+        onAi={(mode, text) => setView({ kind: "ai", mode, text })}
+        onNew={() => setView({ kind: "new" })}
+      />
+    );
   }
-
-  const open = (food: Food, amount?: number) =>
-    setView({ kind: "card", target: { kind: "food", food, amount }, source: "search", back: "home" });
-  const searching = query.trim().length >= MIN_QUERY;
 
   return (
     <>
-      <p className="muted daynote">Dodajesz do dnia: {dayLabel(day, toIsoDay(new Date()))}</p>
-      <section className="card">
+      <div className="addhead">
+        <button type="button" className="back" onClick={view.kind === "home" ? onClose : home}>
+          ‹ {view.kind === "home" ? "Dieta" : "Wróć"}
+        </button>
+        <h1>
+          Dodaj do: {slotLabel}
+          {day !== today && <span className="muted"> ({dayLabel(day, today).toLowerCase()})</span>}
+        </h1>
+      </div>
+      {body}
+    </>
+  );
+}
+
+function Home({
+  day,
+  slot,
+  query,
+  onQuery,
+  onOpen,
+  onOpenBarcode,
+  onScan,
+  onAi,
+  onNew,
+}: {
+  day: string;
+  slot: MealSlot;
+  query: string;
+  onQuery: (query: string) => void;
+  onOpen: (food: Food, amount?: number) => void;
+  onOpenBarcode: (barcode: string) => void;
+  onScan: () => void;
+  onAi: (mode: "photo" | "text", text?: string) => void;
+  onNew: () => void;
+}) {
+  // „Szukaj" na klawiaturze: od razu pyta dużą bazę i chowa klawiaturę, żeby było widać wyniki.
+  const [submitted, setSubmitted] = useState<string | null>(null);
+  const input = useRef<HTMLInputElement>(null);
+  const searching = query.trim().length >= MIN_QUERY;
+
+  function submit(event: FormEvent) {
+    event.preventDefault();
+    setSubmitted(query.trim());
+    input.current?.blur();
+  }
+
+  return (
+    <>
+      <form className="searchbar" role="search" onSubmit={submit}>
+        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
+          <circle cx="11" cy="11" r="7" />
+          <path d="M20 20l-3.5-3.5" />
+        </svg>
         <input
+          ref={input}
           type="search"
           enterKeyHint="search"
-          placeholder="Szukaj produktu…"
+          placeholder="Szukaj produktu, np. sałata lodowa"
           aria-label="Szukaj produktu"
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
+          onChange={(e) => onQuery(e.target.value)}
         />
-        <div className="row">
-          <button type="button" className="primary" onClick={() => setView({ kind: "scan" })}>
-            Skanuj kod
-          </button>
-          <button type="button" onClick={() => setView({ kind: "new" })}>
-            Produkt bez kodu
-          </button>
-        </div>
-        <div className="row">
-          <button type="button" onClick={() => setView({ kind: "ai", mode: "photo" })}>
-            Zdjęcie posiłku (AI)
-          </button>
-          <button type="button" onClick={() => setView({ kind: "ai", mode: "text" })}>
-            Opisz posiłek (AI)
-          </button>
-        </div>
-      </section>
+      </form>
 
       {searching ? (
         <SearchResults
           query={query.trim()}
-          onOpen={open}
-          onOpenBarcode={(barcode) =>
-            setView({
-              kind: "card",
-              target: { kind: "barcode", barcode },
-              source: "search",
-              back: "home",
-            })
-          }
+          submitted={submitted}
+          onOpen={onOpen}
+          onOpenBarcode={onOpenBarcode}
+          onNew={onNew}
+          onEstimate={(text) => onAi("text", text)}
         />
       ) : (
         <>
-          <MealList day={day} />
-          <FavoriteList onOpen={open} />
-          <RecentList onOpen={open} />
+          <div className="tiles">
+            <button type="button" className="tile scan" onClick={onScan}>
+              <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
+                <path d="M4 7V5a1 1 0 0 1 1-1h2M17 4h2a1 1 0 0 1 1 1v2M20 17v2a1 1 0 0 1-1 1h-2M7 20H5a1 1 0 0 1-1-1v-2" />
+                <path d="M8 8v8M11 8v8M14 8v8M17 8v8" />
+              </svg>
+              Skanuj kod
+            </button>
+            <button type="button" className="tile ai" onClick={() => onAi("photo")}>
+              <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                <path d="M4 8h3l2-3h6l2 3h3v11H4z" />
+                <circle cx="12" cy="13" r="3.5" />
+              </svg>
+              <span>
+                Zdjęcie posiłku <small>AI</small>
+              </span>
+            </button>
+            <button type="button" className="tile ai" onClick={() => onAi("text")}>
+              <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                <path d="M5 19l1-4L16 5l3 3L9 18z" />
+                <path d="M14 7l3 3" />
+              </svg>
+              <span>
+                Opisz posiłek <small>AI</small>
+              </span>
+            </button>
+            <button type="button" className="tile own" onClick={onNew}>
+              <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
+                <rect x="4" y="4" width="16" height="16" rx="3" />
+                <path d="M12 8v8M8 12h8" />
+              </svg>
+              Dodaj własny
+            </button>
+          </div>
+          <MealList day={day} slot={slot} />
+          <FavoriteList onOpen={onOpen} />
+          <RecentList onOpen={onOpen} />
         </>
       )}
     </>
@@ -166,18 +268,25 @@ function useDebounced<T>(value: T, delayMs: number): T {
   return settled;
 }
 
+/** Jedna lista: najpierw Twoje produkty, potem duża baza. Skąd są dane, nie ma znaczenia. */
 function SearchResults({
   query,
+  submitted,
   onOpen,
   onOpenBarcode,
+  onNew,
+  onEstimate,
 }: {
   query: string;
+  submitted: string | null;
   onOpen: (food: Food) => void;
   onOpenBarcode: (barcode: string) => void;
+  onNew: () => void;
+  onEstimate: (text: string) => void;
 }) {
   const settled = useDebounced(query, TYPING_PAUSE_MS);
-  // Open Food Facts pozwala na kilka wyszukiwań na minutę, więc tylko na przycisk.
-  const [offQuery, setOffQuery] = useState<string | null>(null);
+  const paused = useDebounced(query, WIDE_PAUSE_MS);
+  const wide = submitted === query ? query : paused === query ? paused : null;
   const own = useQuery({
     queryKey: ["search", settled],
     queryFn: () =>
@@ -185,70 +294,94 @@ function SearchResults({
     enabled: settled.length >= MIN_QUERY,
     placeholderData: (previous) => previous,
   });
-  const off = useQuery({
-    queryKey: ["search-off", offQuery],
-    queryFn: () => api.get<OffHit[]>(`/api/foods/search/off?q=${encodeURIComponent(offQuery!)}`),
-    enabled: offQuery != null,
+  const big = useQuery({
+    queryKey: ["search-off", wide],
+    queryFn: () => api.get<OffHit[]>(`/api/foods/search/off?q=${encodeURIComponent(wide!)}`),
+    enabled: wide != null && wide.length >= WIDE_QUERY,
     retry: false,
     staleTime: Number.POSITIVE_INFINITY,
+    // W trakcie pisania zostają poprzednie wyniki, zamiast znikać do następnej pauzy.
+    placeholderData: (previous) => previous,
   });
   const foods = own.data?.foods ?? [];
+  const known = new Set(foods.map((food) => food.barcode).filter(Boolean));
+  const hits = (big.data ?? []).filter((hit) => !known.has(hit.barcode));
+  const waitingForBig = big.isFetching || (wide == null && query.length >= WIDE_QUERY);
+  const nothing = foods.length === 0 && hits.length === 0 && !own.isPending && !waitingForBig;
 
   return (
-    <>
-      <section className="card">
-        <h2>Twoje produkty</h2>
-        {own.error ? (
-          <p className="error">{own.error.message}</p>
-        ) : own.isPending ? (
-          <p className="muted">Szukam…</p>
-        ) : foods.length === 0 ? (
-          <p className="muted">Brak w Twojej bazie. Poszukaj w Open Food Facts poniżej.</p>
-        ) : (
-          <FoodRows foods={foods.map((food) => ({ food }))} onOpen={onOpen} />
-        )}
-      </section>
-
-      <section className="card">
-        <h2>Open Food Facts</h2>
-        {offQuery !== query && (
-          <button type="button" onClick={() => setOffQuery(query)}>
-            Szukaj „{query}" w Open Food Facts
-          </button>
-        )}
-        {offQuery != null &&
-          (off.isFetching ? (
-            <p className="muted">Szukam w Open Food Facts…</p>
-          ) : off.error ? (
-            <p className="error">{off.error.message}</p>
-          ) : off.data?.length === 0 ? (
-            <p className="muted">Nic nie znaleziono. Spróbuj innych słów albo zeskanuj kod.</p>
-          ) : (
-            <ul className="list foods">
-              {off.data?.map((hit) => (
-                <li key={hit.barcode}>
-                  <button type="button" className="food" onClick={() => onOpenBarcode(hit.barcode)}>
-                    <span className="name">
-                      {hit.name}
-                      {hit.brand && <em> · {hit.brand}</em>}
-                    </span>
-                    <span className="kcal">
-                      {hit.kcal == null ? "–" : formatKcal(hit.kcal)} kcal/100 {hit.unit}
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </ul>
+    <section className="card">
+      {own.error && <p className="error">{own.error.message}</p>}
+      {(foods.length > 0 || hits.length > 0) && (
+        <ul className="list foods">
+          {foods.map((food) => (
+            <li key={`own-${food.id}`}>
+              <FoodRow food={food} onOpen={() => onOpen(food)} />
+            </li>
           ))}
-        <p className="muted">
-          Wartości z Open Food Facts to szkic: po wybraniu porównaj je z etykietą.
-        </p>
-      </section>
-    </>
+          {hits.map((hit) => (
+            <li key={hit.barcode}>
+              <button type="button" className="food" onClick={() => onOpenBarcode(hit.barcode)}>
+                <span className="name">
+                  {hit.name}
+                  {hit.brand && <em> · {hit.brand}</em>}
+                </span>
+                <span className="kcal">
+                  {hit.kcal == null ? "–" : formatKcal(hit.kcal)} kcal/100 {hit.unit}
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      {waitingForBig && <p className="muted">Szukam w bazie produktów…</p>}
+      {big.error && (
+        <div className="row added">
+          <p className="muted">{big.error.message}</p>
+          <button type="button" onClick={() => big.refetch()}>
+            Szukaj ponownie
+          </button>
+        </div>
+      )}
+      {nothing && !big.error && (
+        <p className="muted">Nic nie znaleziono dla „{query}". Spróbuj innej nazwy albo:</p>
+      )}
+      {/* Warzywa na wagę i dania domowe rzadko są w bazie produktów: AI je oszacuje. */}
+      {!own.isPending && !waitingForBig && (
+        <button type="button" className="estimate" onClick={() => onEstimate(query)}>
+          <span>
+            Oszacuj „{query}" <small>AI</small>
+          </span>
+          <span className="muted">kalorie, makro i witaminy na podstawie nazwy</span>
+        </button>
+      )}
+      {nothing && !big.error && (
+        <button type="button" onClick={onNew}>
+          Dodaj własny produkt
+        </button>
+      )}
+    </section>
   );
 }
 
 // ---------- listy produktów ----------
+
+function FoodRow({ food, amount, onOpen }: { food: Food; amount?: number; onOpen: () => void }) {
+  return (
+    <button type="button" className="food" onClick={onOpen}>
+      <span className="name">
+        {food.favorite && <span aria-label="ulubiony">★ </span>}
+        {food.name}
+        {food.brand && <em> · {food.brand}</em>}
+      </span>
+      <span className="kcal">
+        {amount != null
+          ? `${formatDecimal(amount)} ${food.unit}`
+          : `${food.per_100.kcal == null ? "–" : formatKcal(food.per_100.kcal)} kcal/100 ${food.unit}`}
+      </span>
+    </button>
+  );
+}
 
 function FoodRows({
   foods,
@@ -261,18 +394,7 @@ function FoodRows({
     <ul className="list foods">
       {foods.map(({ food, amount }) => (
         <li key={food.id}>
-          <button type="button" className="food" onClick={() => onOpen(food, amount)}>
-            <span className="name">
-              {food.favorite && <span aria-label="ulubiony">★ </span>}
-              {food.name}
-              {food.brand && <em> · {food.brand}</em>}
-            </span>
-            <span className="kcal">
-              {amount != null
-                ? `${formatDecimal(amount)} ${food.unit}`
-                : `${food.per_100.kcal == null ? "–" : formatKcal(food.per_100.kcal)} kcal/100 ${food.unit}`}
-            </span>
-          </button>
+          <FoodRow food={food} amount={amount} onOpen={() => onOpen(food, amount)} />
         </li>
       ))}
     </ul>
@@ -304,7 +426,7 @@ function RecentList({ onOpen }: { onOpen: (food: Food, amount?: number) => void 
       {recent.error ? (
         <p className="error">{recent.error.message}</p>
       ) : recent.data?.length === 0 ? (
-        <p className="muted">Tu pojawią się produkty, które dodasz do dziennika.</p>
+        <p className="muted">Tu pojawią się produkty, które dodasz.</p>
       ) : (
         <FoodRows
           foods={(recent.data ?? []).map((r) => ({ food: r.food, amount: r.last_amount }))}
@@ -317,8 +439,8 @@ function RecentList({ onOpen }: { onOpen: (food: Food, amount?: number) => void 
 
 // ---------- zapisane posiłki ----------
 
-function MealList({ day }: { day: string }) {
-  const [slot, setSlot] = useState<MealSlot>(() => defaultSlot(new Date().getHours()));
+/** Zapisane posiłki trafiają do posiłku, przy którym stuknięto „Dodaj". */
+function MealList({ day, slot }: { day: string; slot: MealSlot }) {
   const [added, setAdded] = useState<{ meal: Meal; entries: DiaryEntry[] } | null>(null);
   const meals = useQuery({
     queryKey: MEALS_QUERY_KEY,
@@ -346,23 +468,17 @@ function MealList({ day }: { day: string }) {
   }
 
   function forget(meal: Meal) {
-    if (window.confirm(`Usunąć zapisany posiłek „${meal.name}"? Dziennik się nie zmieni.`)) {
+    if (window.confirm(`Usunąć zapisany posiłek „${meal.name}"? Wpisy w Diecie się nie zmienią.`)) {
       removeMeal.mutate({ id: meal.id });
     }
   }
 
+  // Bez zapisanych posiłków karta tylko zajmowałaby miejsce: podpowiedź jest przy posiłkach.
+  if (!meals.data?.length && !meals.error) return null;
+
   return (
     <section className="card">
-      <div className="slothead">
-        <h2>Posiłki</h2>
-        <select value={slot} aria-label="Dodaj do posiłku" onChange={(e) => setSlot(e.target.value as MealSlot)}>
-          {MEAL_SLOTS.map((s) => (
-            <option key={s.id} value={s.id}>
-              do: {s.label}
-            </option>
-          ))}
-        </select>
-      </div>
+      <h2>Zapisane posiłki</h2>
       {added && (
         <div className="row added">
           <p className="status ok">
@@ -374,9 +490,11 @@ function MealList({ day }: { day: string }) {
           </button>
         </div>
       )}
-      {meals.data?.length ? (
+      {meals.error ? (
+        <p className="error">{meals.error.message}</p>
+      ) : (
         <ul className="list meals">
-          {meals.data.map((meal) => (
+          {meals.data!.map((meal) => (
             <li key={meal.id}>
               <button type="button" className="food" onClick={() => add(meal)}>
                 <span className="name">
@@ -396,13 +514,6 @@ function MealList({ day }: { day: string }) {
             </li>
           ))}
         </ul>
-      ) : meals.error ? (
-        <p className="error">{meals.error.message}</p>
-      ) : (
-        <p className="muted">
-          Zapisz posiłek w dzienniku („Zapisz jako posiłek" przy śniadaniu, obiedzie…), a potem
-          dodawaj go tutaj jednym stuknięciem.
-        </p>
       )}
     </section>
   );

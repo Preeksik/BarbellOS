@@ -29,11 +29,16 @@ export function MealAi({
   day,
   onBack,
   onShowDiary,
+  slot,
+  initialText,
 }: {
   mode: "photo" | "text";
   day: string;
   onBack: () => void;
   onShowDiary: () => void;
+  slot?: MealSlot;
+  /** Tekst z wyszukiwarki, gdy produktu nie było w bazie. */
+  initialText?: string;
 }) {
   const [draft, setDraft] = useState<MealDraft | null>(null);
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
@@ -50,12 +55,14 @@ export function MealAi({
         onAgain={() => setDraft(null)}
         onBack={onBack}
         onShowDiary={onShowDiary}
+        initialSlot={slot}
       />
     );
   }
   return (
     <DraftRequest
       mode={mode}
+      initialText={initialText}
       onBack={onBack}
       onDraft={(next, photo) => {
         setDraft(next);
@@ -67,14 +74,16 @@ export function MealAi({
 
 function DraftRequest({
   mode,
+  initialText,
   onBack,
   onDraft,
 }: {
   mode: "photo" | "text";
+  initialText?: string;
   onBack: () => void;
   onDraft: (draft: MealDraft, photo: Blob | null) => void;
 }) {
-  const [text, setText] = useState("");
+  const [text, setText] = useState(initialText ?? "");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const queryClient = useQueryClient();
@@ -151,6 +160,7 @@ function DraftEditor({
   onAgain,
   onBack,
   onShowDiary,
+  initialSlot,
 }: {
   draft: MealDraft;
   day: string;
@@ -158,10 +168,13 @@ function DraftEditor({
   onAgain: () => void;
   onBack: () => void;
   onShowDiary: () => void;
+  initialSlot?: MealSlot;
 }) {
   const [states, setStates] = useState<ItemState[]>(() => initialState(draft));
   const [texts, setTexts] = useState<string[]>(() => draft.items.map((i) => formatDecimal(i.grams)));
-  const [slot, setSlot] = useState<MealSlot>(() => defaultSlot(new Date().getHours()));
+  const [slot, setSlot] = useState<MealSlot>(
+    () => initialSlot ?? defaultSlot(new Date().getHours()),
+  );
   const [added, setAdded] = useState<number | null>(null);
   // Funkcja zapisu jest w rejestrze lib/offline.ts: dodanie działa bez sieci.
   const put = useMutation<DiaryEntry, Error, DiaryPutInput>({ mutationKey: mutationKeys.diaryPut });
@@ -195,7 +208,7 @@ function DraftEditor({
         </p>
         <div className="row">
           <button type="button" className="primary" onClick={onShowDiary}>
-            Pokaż dziennik
+            Wróć do diety
           </button>
           <button type="button" onClick={onBack}>
             Gotowe

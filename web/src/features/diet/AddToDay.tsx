@@ -23,6 +23,7 @@ export function AddToDay({
   day,
   source,
   initialAmount,
+  initialSlot,
   onAdded,
 }: {
   food: Food;
@@ -30,13 +31,17 @@ export function AddToDay({
   source: EntrySource;
   /** Np. ilość z ostatniego razu, gdy produkt wybrano z listy „Ostatnie". */
   initialAmount?: number;
+  /** Posiłek, przy którym stuknięto „Dodaj". Bez niego: według godziny. */
+  initialSlot?: MealSlot;
   onAdded: (added: Added) => void;
 }) {
   const [amountText, setAmountText] = useState(
     formatDecimal(initialAmount ?? food.serving_g ?? 100),
   );
-  // Posiłek według godziny: „Ostatnie" podpowiada ilość, a nie porę dnia.
-  const [slot, setSlot] = useState<MealSlot>(() => defaultSlot(new Date().getHours()));
+  // Posiłek z przycisku „Dodaj" albo według godziny („Ostatnie" podpowiada ilość, nie porę).
+  const [slot, setSlot] = useState<MealSlot>(
+    () => initialSlot ?? defaultSlot(new Date().getHours()),
+  );
   const put = useMutation<DiaryEntry, Error, DiaryPutInput>({ mutationKey: mutationKeys.diaryPut });
 
   const parsed = parseDecimal(amountText);

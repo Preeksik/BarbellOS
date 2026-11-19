@@ -50,7 +50,10 @@ import { WeekView } from "./WeekView";
 
 const MAX_AMOUNT = 5000; // ta sama granica co na serwerze
 
-/** Dziennik dnia: suma z celami, posiłki, zmiana ilości i usuwanie wpisów. */
+/**
+ * Dieta: dzień z sumą i celami, a pod nią wszystkie posiłki. Każdy ma przycisk „Dodaj"
+ * (decyzja z 19.11.2026: bez osobnej zakładki „Dodaj"). Wpis stuknięty: zmiana ilości, usunięcie.
+ */
 export function DiaryPage({
   day,
   onDayChange,
@@ -59,7 +62,7 @@ export function DiaryPage({
 }: {
   day: string;
   onDayChange: (day: string) => void;
-  onAdd: () => void;
+  onAdd: (slot: MealSlot) => void;
   onOpenProfile: () => void;
 }) {
   const today = toIsoDay(new Date());
@@ -142,7 +145,7 @@ export function DiaryPage({
         <section className="card">
           <p className="error">
             Serwer odrzucił {rejected.length === 1 ? "zmianę" : `zmiany (${rejected.length})`}:{" "}
-            {rejected[0]} Dziennik pokazuje stan z serwera.
+            {rejected[0]} Dieta pokazuje stan z serwera.
           </p>
           <button type="button" onClick={dismissDiaryErrors}>
             Rozumiem
@@ -172,16 +175,37 @@ export function DiaryPage({
               onEditGoals={() => setEditingGoals(true)}
             />
           )}
-          {MEAL_SLOTS.filter((slot) => diary.data.by_slot[slot.id]).map((slot) => (
-            <section className="card" key={slot.id}>
+          {MEAL_SLOTS.map((slot) => {
+            const slotTotals = diary.data.by_slot[slot.id];
+            const slotEntries = diary.data.entries.filter((entry) => entry.meal_slot === slot.id);
+            const addButton = (
+              <button type="button" className="addbtn" onClick={() => onAdd(slot.id)}>
+                <span aria-hidden="true">+</span> Dodaj
+                <span className="visually-hidden"> do: {slot.label}</span>
+              </button>
+            );
+            if (!slotTotals || slotEntries.length === 0) {
+              // Pusty posiłek: jedna linijka z nazwą i przyciskiem.
+              return (
+                <section className="card slot empty" key={slot.id}>
+                  <div className="slothead">
+                    <h2>{slot.label}</h2>
+                    {addButton}
+                  </div>
+                </section>
+              );
+            }
+            return (
+            <section className="card slot" key={slot.id}>
               <div className="slothead">
                 <h2>{slot.label}</h2>
-                <span>{formatKcal(diary.data.by_slot[slot.id]!.kcal)} kcal</span>
+                <span>
+                  {formatKcal(slotTotals.kcal)} <small>kcal</small>
+                </span>
               </div>
+              <MacroLine totals={slotTotals} />
               <ul className="entries">
-                {diary.data.entries
-                  .filter((entry) => entry.meal_slot === slot.id)
-                  .map((entry) => (
+                {slotEntries.map((entry) => (
                     <li key={entry.id}>
                       {editingId === entry.id ? (
                         <EntryEditor entry={entry} onDone={() => setEditingId(null)} />
@@ -216,21 +240,20 @@ export function DiaryPage({
               {savingSlot === slot.id ? (
                 <SaveMealForm
                   defaultName={slot.label}
-                  entries={diary.data.entries.filter((entry) => entry.meal_slot === slot.id)}
+                  entries={slotEntries}
                   onDone={() => setSavingSlot(null)}
                 />
               ) : (
-                <button type="button" className="link" onClick={() => setSavingSlot(slot.id)}>
-                  Zapisz jako posiłek
-                </button>
+                <div className="slotactions">
+                  {addButton}
+                  <button type="button" className="link" onClick={() => setSavingSlot(slot.id)}>
+                    Zapisz jako posiłek
+                  </button>
+                </div>
               )}
             </section>
-          ))}
-          {diary.data.entries.length === 0 && (
-            <section className="card">
-              <p className="muted">Nic jeszcze nie dodano.</p>
-            </section>
-          )}
+            );
+          })}
         </>
       ) : (
         <section className="card">
@@ -246,11 +269,21 @@ export function DiaryPage({
           )}
         </section>
       )}
-
-      <button type="button" className="primary wide" onClick={onAdd}>
-        Dodaj produkt
-      </button>
     </>
+  );
+}
+
+/** B, W, T posiłku z kropkami w kolorach talerzy, jak paski na górze. */
+function MacroLine({ totals }: { totals: DiaryDay["totals"] }) {
+  return (
+    <p className="macroline">
+      {PLATE_KEYS.map((key) => (
+        <span key={key} className={key}>
+          {MAIN_ROWS.find((row) => row.key === key)!.letter}{" "}
+          <strong>{formatGrams(totals[key])}</strong>
+        </span>
+      ))}
+    </p>
   );
 }
 
@@ -403,10 +436,10 @@ function Totals({
 const PLATE_KEYS: MacroKey[] = ["protein_g", "carbs_g", "fat_g"];
 
 // Wartości pokazywane bez paska, gdy nie mają celu.
-const MAIN_ROWS: { key: MacroKey; short: string }[] = [
-  { key: "protein_g", short: "Białko" },
-  { key: "carbs_g", short: "Węglowodany" },
-  { key: "fat_g", short: "Tłuszcz" },
+const MAIN_ROWS: { key: MacroKey; short: string; letter: string }[] = [
+  { key: "protein_g", short: "Białko", letter: "B" },
+  { key: "carbs_g", short: "Węglowodany", letter: "W" },
+  { key: "fat_g", short: "Tłuszcz", letter: "T" },
 ];
 const MINOR_ROWS: { key: MacroKey; short: string }[] = [
   { key: "sat_fat_g", short: "nasycone" },
