@@ -1,6 +1,8 @@
-# BarbellOS — dokumentacja techniczna v0.16
+# BarbellOS — dokumentacja techniczna v0.17
 
 Stan: 19.11.2026.
+
+Zmiany w v0.17: duża liczba w Diecie to zjedzone kcal, a nie „do celu”; strony nie da się przewinąć poza aplikację (2.1).
 
 Zmiany w v0.16: produkty podstawowe (warzywa, mięso, kasze) w wyszukiwarce z tabel USDA, z polskimi nazwami od taniego modelu i z witaminami (4.8, 7); wyniki dużej bazy bez kalorii i bez słowa z zapytania odpadają, a reszta jest ułożona według nazwy (4.8); dolny pasek przy samym dole ekranu i nazwa u góry poza strefą rozmycia iOS (2.1).
 
@@ -82,8 +84,8 @@ Wybrany z trzech makiet (Kreda, Atrament, Rozmowa). Źródłem prawdy są tokeny
 - **Kolor ma znaczenie.** Zielony (talerz 10 kg, `--green`) to akcja: przyciski „+ Dodaj”, aktywna zakładka, powrót, „Dodaj własny”. Fiolet (`--ai`) to wszystko z AI: kafelki zdjęcia i opisu, znaczek „szacunek AI”, „Oszacuj (AI)”. Niebieski przy skanie kodu. Nowy kolor dochodzi tylko z nowym znaczeniem.
 - **Talerze.** Kolory makroskładników pochodzą z talerzy trójbojowych: białko czerwony (25 kg), węglowodany niebieski (20 kg), tłuszcz żółty (15 kg). Kolor nigdy nie jest jedyną informacją: obok paska zawsze stoi liczba.
 - **Typografia.** Barlow Condensed do liczb i nagłówków, Barlow do tekstu. Fonty są w paczce aplikacji (`@fontsource`), więc działają bez sieci i nie odpytują Google.
-- **Dieta.** Na górze wielka liczba kcal do celu, pod nią grube paski B/W/T (tło paska zabarwione kolorem talerza, więc widać go także przy zerze), niżej drobne cele w dwóch kolumnach. Pod spodem wszystkie posiłki dnia, każdy z sumą, literami B/W/T w kolorach talerzy i przyciskiem „+ Dodaj”.
-- **Pasek stanu iOS.** Wysokość aplikacji jest z jednostek ekranu (`100vh`, `100lvh`), a nie „100%”: w zainstalowanej aplikacji z paskiem stanu „black-translucent” 100% jest liczone bez paska stanu i dolny pasek wisiał o tyle wyżej. Nazwa „BarbellOS” stoi 22 px pod paskiem stanu, bo iOS rozmywa treść tuż pod nim.
+- **Dieta.** Na górze wielka liczba zjedzonych kcal z celem obok drobniej („337 / 2230”) i podpisem „Zostało …” (do 19.11.2026 duża była liczba „do celu”, co na pierwszy rzut oka myliło), pod nią grube paski B/W/T (tło paska zabarwione kolorem talerza, więc widać go także przy zerze), niżej drobne cele w dwóch kolumnach. Pod spodem wszystkie posiłki dnia, każdy z sumą, literami B/W/T w kolorach talerzy i przyciskiem „+ Dodaj”.
+- **Pasek stanu iOS.** Szkielet aplikacji jest przypięty do ekranu (`position: fixed`) z wysokością z jednostek ekranu (`100vh`, `100lvh`), a strona pod nim się nie przewija; przewija się tylko treść między paskami. W zainstalowanej aplikacji z paskiem stanu „black-translucent” 100% jest liczone bez paska stanu (dolny pasek wisiał wyżej), a wysokość z jednostek ekranu nadana całej stronie pozwalała przewinąć ją poza aplikację. Nazwa „BarbellOS” stoi 22 px pod paskiem stanu, bo iOS rozmywa treść tuż pod nim.
 - **Motyw.** Ciemny, jasny albo automatyczny (jak w telefonie), do wyboru w Profilu. Wybór żyje w pamięci telefonu (`localStorage`), nie na serwerze. Górny i dolny pasek są grafitowe w obu motywach, bo na iOS tekst paska stanu nad zainstalowaną aplikacją jest biały.
 - **Dostępność.** Kontrast tekstu co najmniej 4,5:1 w obu motywach (sprawdzony przy wyborze kolorów), cele dotyku co najmniej 44 px.
 

@@ -323,10 +323,16 @@ function Totals({
     <section className="totals" aria-label="Suma dnia">
       {kcal && kcalGoal != null ? (
         <>
-          <p className="hero">{formatKcal(Math.abs(kcal.left))}</p>
+          {/* Duża liczba to zjedzone kcal (decyzja z 19.11.2026: „zostało" myliło na pierwszy rzut oka). */}
+          <p className="hero">
+            {formatKcal(t.kcal)}
+            <span className="of"> / {formatKcal(kcalGoal)}</span>
+          </p>
           <p className={kcal.state === "over" ? "hero-sub over" : "hero-sub"}>
-            {kcal.state === "over" ? "kcal ponad cel." : "kcal do celu."} Zjedzone{" "}
-            {formatKcal(t.kcal)} z {formatKcal(kcalGoal)}.
+            kcal zjedzone.{" "}
+            {kcal.state === "over"
+              ? `${formatKcal(-kcal.left)} ponad cel.`
+              : `Zostało ${formatKcal(kcal.left)}.`}
           </p>
           <div
             className="bar kcalbar"

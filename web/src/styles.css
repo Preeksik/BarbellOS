@@ -98,19 +98,13 @@
  * „black-translucent" 100% jest liczone bez paska stanu, więc dolny pasek wisiał o tyle wyżej
  * niż dół ekranu (zgłoszenie z iPhone'a, 19.11.2026). 100vh/100lvh obejmują cały ekran.
  */
+/* Strona pod aplikacją nie przewija się: przewija się tylko treść między paskami (`main`). */
 html,
 body,
 #root {
-  height: 100vh;
+  height: 100%;
   margin: 0;
-}
-
-@supports (height: 100lvh) {
-  html,
-  body,
-  #root {
-    height: 100lvh;
-  }
+  overflow: hidden;
 }
 
 /*
@@ -135,12 +129,28 @@ body {
   font-weight: 600;
 }
 
+/*
+ * Szkielet przypięty do ekranu. Wysokość z jednostek ekranu, nie „100%": w zainstalowanej
+ * aplikacji na iOS z paskiem stanu „black-translucent" 100% jest liczone bez paska stanu,
+ * więc dolny pasek wisiał o tyle wyżej. Gdy zamiast tego wysokość miała cała strona, dało
+ * się ją przewinąć poza aplikację (oba zgłoszenia z iPhone'a, 19.11.2026).
+ */
 .app {
+  position: fixed;
+  top: 0;
+  right: 0;
+  left: 0;
   display: flex;
   flex-direction: column;
-  height: 100%;
+  height: 100vh;
   max-width: 640px;
   margin: 0 auto;
+}
+
+@supports (height: 100lvh) {
+  .app {
+    height: 100lvh;
+  }
 }
 
 .topbar {
@@ -179,7 +189,9 @@ button.update {
 
 main {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 16px 20px 24px;
   background: var(--bg);
 }
@@ -750,6 +762,14 @@ button.danger {
   font-weight: 700;
   line-height: 0.86;
   letter-spacing: -0.02em;
+}
+
+/* Cel obok zjedzonych, drobniej: „337 / 2230". */
+.totals .hero .of {
+  color: var(--muted);
+  font-size: 0.4em;
+  font-weight: 600;
+  letter-spacing: 0;
 }
 
 .totals .hero-sub {
