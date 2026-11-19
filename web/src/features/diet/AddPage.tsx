@@ -3,6 +3,7 @@ import { type FormEvent, type ReactNode, useEffect, useRef, useState } from "rea
 import {
   type DiaryEntry,
   type Food,
+  type GenericHit,
   type Meal,
   type MealSlot,
   type OffHit,
@@ -303,20 +304,64 @@ function SearchResults({
     // W trakcie pisania zostają poprzednie wyniki, zamiast znikać do następnej pauzy.
     placeholderData: (previous) => previous,
   });
+  // Produkty podstawowe (warzywa, mięso, kasze) z tabel: tłumaczy je serwer, więc też po pauzie.
+  const basic = useQuery({
+    queryKey: ["search-generic", wide],
+    queryFn: () =>
+      api.get<GenericHit[]>(`/api/foods/search/generic?q=${encodeURIComponent(wide!)}`),
+    enabled: wide != null && wide.length >= WIDE_QUERY,
+    retry: false,
+    staleTime: Number.POSITIVE_INFINITY,
+    placeholderData: (previous) => previous,
+  });
+  const [opening, setOpening] = useState<number | null>(null);
+  const [openError, setOpenError] = useState<string | null>(null);
   const foods = own.data?.foods ?? [];
   const known = new Set(foods.map((food) => food.barcode).filter(Boolean));
+  const knownBasic = new Set(foods.filter((f) => !f.barcode).map((f) => f.fdc_id));
   const hits = (big.data ?? []).filter((hit) => !known.has(hit.barcode));
-  const waitingForBig = big.isFetching || (wide == null && query.length >= WIDE_QUERY);
-  const nothing = foods.length === 0 && hits.length === 0 && !own.isPending && !waitingForBig;
+  const basics = (basic.data ?? []).filter((hit) => !knownBasic.has(hit.fdc_id));
+  const waitingForBig =
+    big.isFetching || basic.isFetching || (wide == null && query.length >= WIDE_QUERY);
+  const nothing =
+    foods.length === 0 && hits.length === 0 && basics.length === 0 && !own.isPending && !waitingForBig;
+
+  // Wybrany produkt podstawowy zapisuje się w bazie (z witaminami) i otwiera jak każdy inny.
+  async function openBasic(hit: GenericHit) {
+    setOpening(hit.fdc_id);
+    setOpenError(null);
+    try {
+      onOpen(await api.put<Food>(`/api/foods/generic/${hit.fdc_id}`, { name: hit.name }));
+    } catch (err) {
+      setOpenError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setOpening(null);
+    }
+  }
 
   return (
     <section className="card">
       {own.error && <p className="error">{own.error.message}</p>}
-      {(foods.length > 0 || hits.length > 0) && (
+      {(foods.length > 0 || hits.length > 0 || basics.length > 0) && (
         <ul className="list foods">
           {foods.map((food) => (
             <li key={`own-${food.id}`}>
               <FoodRow food={food} onOpen={() => onOpen(food)} />
+            </li>
+          ))}
+          {basics.map((hit) => (
+            <li key={`basic-${hit.fdc_id}`}>
+              <button
+                type="button"
+                className="food"
+                disabled={opening != null}
+                onClick={() => openBasic(hit)}
+              >
+                <span className="name">{hit.name}</span>
+                <span className="kcal">
+                  {opening === hit.fdc_id ? "otwieram…" : `${formatKcal(hit.kcal)} kcal/100 g`}
+                </span>
+              </button>
             </li>
           ))}
           {hits.map((hit) => (
@@ -334,6 +379,7 @@ function SearchResults({
           ))}
         </ul>
       )}
+      {openError && <p className="error">{openError}</p>}
       {waitingForBig && <p className="muted">Szukam w bazie produktów…</p>}
       {big.error && (
         <div className="row added">

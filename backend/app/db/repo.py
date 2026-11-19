@@ -249,6 +249,36 @@ def create_user_food(
     return food
 
 
+def find_generic_food(db: Session, fdc_id: int) -> Food | None:
+    """Produkt podstawowy zapisany z wyszukiwarki z tego rekordu USDA (bez kodu kreskowego)."""
+    return db.scalars(
+        select(Food).where(Food.origin == "fdc", Food.fdc_id == fdc_id, Food.barcode.is_(None))
+    ).first()
+
+
+def create_generic_food(
+    db: Session, name: str, name_en: str, macros: dict[str, float | None]
+) -> Food:
+    """Produkt podstawowy z tabel USDA (wyszukiwarka, 19.11.2026).
+
+    Wartości to średnie z analiz (`reference`), nie etykieta, więc produkt nie jest
+    „zweryfikowany". Brak wartości w rekordzie zostaje NULL (AGENTS.md, zasada 7).
+    """
+    food = Food(
+        kind="generic",
+        name=name,
+        name_en=name_en,
+        unit="g",
+        origin="fdc",
+        macro_source="reference",
+        fetched_at=datetime.now(UTC),
+        **{key: macros.get(key) for key in MACRO_KEYS},
+    )
+    db.add(food)
+    db.commit()
+    return food
+
+
 def find_food_by_client_id(db: Session, client_id: uuid.UUID) -> Food | None:
     return db.scalars(select(Food).where(Food.client_id == client_id)).first()
 

@@ -161,6 +161,30 @@ def kcal_plausible(food_kcal: float | None, record_kcal: float | None) -> bool:
     return 1 / MAX_KCAL_RATIO <= ratio <= MAX_KCAL_RATIO
 
 
+GENERIC_LIMIT = 6  # tyle produktów podstawowych pokazuje wyszukiwarka
+
+
+def generic_candidates(
+    query: str,
+    candidates: Iterable[tuple[int, str, float | None]],
+    limit: int = GENERIC_LIMIT,
+) -> list[int]:
+    """Rekordy USDA do wyszukiwarki produktów (19.11.2026): najlepsze według nazwy.
+
+    Bez kalorii rekord jest bezużyteczny w dzienniku, więc odpada. Próg ten sam co przy
+    automatycznym dopasowaniu witamin: jedno wspólne słowo to za mało.
+    """
+    candidates = list(candidates)
+    kcal_of = {fdc_id: kcal for fdc_id, _, kcal in candidates}
+    ranked = rank_fdc(query, [(fdc_id, description) for fdc_id, description, _ in candidates])
+    chosen = [
+        fdc_id
+        for fdc_id, score in ranked
+        if score >= AUTO_MATCH_SCORE and kcal_of[fdc_id] is not None
+    ]
+    return chosen[:limit]
+
+
 def auto_match(
     query: str, food_kcal: float | None, candidates: Iterable[tuple[int, str, float | None]]
 ) -> int | None:

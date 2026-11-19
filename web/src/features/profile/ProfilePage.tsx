@@ -529,6 +529,8 @@ const TASK_LABELS: Record<string, string> = {
   text_to_items: "Opis posiłku",
   day_summary: "Podsumowanie dnia",
   week_review: "Przegląd tygodnia",
+  food_query: "Tłumaczenie nazw do tabel USDA",
+  generic_names: "Polskie nazwy z tabel USDA",
 };
 
 /** Licznik kosztów AI w bieżącym miesiącu (etap 2). Koszt według cennika płatnego poziomu. */

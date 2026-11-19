@@ -52,7 +52,11 @@ def get_fdc_client(settings: Settings = Depends(get_settings)) -> FdcClient:
 
 
 def get_off_searcher(settings: Settings = Depends(get_settings)) -> OffSearcher:
-    return lambda query: search_products(query, settings.off_search_url, settings.off_user_agent)
+    # 50 zamiast 20: wyniki bez kalorii i nietrafione odpadają (`core.search.order_hits`),
+    # a liczba zapytań do bazy (limit na minutę) się nie zmienia.
+    return lambda query: search_products(
+        query, settings.off_search_url, settings.off_user_agent, page_size=50
+    )
 
 
 def get_ai_router(settings: Settings = Depends(get_settings)) -> AiRouter:

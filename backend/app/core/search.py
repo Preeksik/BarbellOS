@@ -70,3 +70,38 @@ def rank(query: str, candidates: Iterable[Candidate], limit: int = 30) -> list[i
     ]
     scored.sort(key=lambda item: (-item[0], item[1], item[2]))
     return [food_id for _, _, food_id in scored[:limit]]
+
+
+def order_hits(query: str, hits: Iterable[tuple[str, str | None, float | None]]) -> list[int]:
+    """Kolejność wyników z dużej bazy produktów (19.11.2026): indeksy od najlepszego.
+
+    Baza stawia wysoko wszystko, co ma słowo gdziekolwiek („papryka" -> chipsy, przyprawa,
+    „papryka czerwona" -> oranżada czerwona). Tutaj liczy się nazwa:
+    - bez kalorii wynik odpada (w dzienniku jest bezużyteczny),
+    - odpada też wynik bez żadnego słowa zapytania w nazwie,
+    - wyżej: wszystkie słowa zapytania, potem pierwsze słowo (zwykle rzeczownik), potem
+      nazwa od niego zaczynająca się, potem krótsza nazwa (samo warzywo przed daniem z nim).
+    Słowo pasuje, gdy zaczyna słowo nazwy, bez polskich znaków („papryką" to „papryka").
+    """
+    query_words = words(query)
+    if not query_words:
+        return []
+    scored: list[tuple[bool, bool, bool, int, int]] = []
+    for index, (name, _brand, kcal) in enumerate(hits):
+        if kcal is None:
+            continue
+        name_words = words(name)
+        found = [any(w.startswith(q) for w in name_words) for q in query_words]
+        if not any(found):
+            continue
+        scored.append(
+            (
+                not all(found),
+                not found[0],
+                not name_words[0].startswith(query_words[0]),
+                len(name_words),
+                index,
+            )
+        )
+    scored.sort()
+    return [item[-1] for item in scored]

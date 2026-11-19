@@ -31,3 +31,14 @@ Bez marki, bez gramatury, bez słów reklamowych. Produkt paczkowany opisz jako 
 podstawowy, który go najlepiej przypomina (serek wiejski -> „Cheese, cottage").
 Produkt: «{name}»
 """
+
+
+GENERIC_NAMES_PROMPT = """\
+Użytkownik szukał w polskiej aplikacji: «{query}». Oto opisy produktów z bazy USDA
+FoodData Central, po jednym w linii:
+{descriptions}
+Dla każdego opisu podaj krótką polską nazwę, jaką zna polski klient, w tej samej
+kolejności i w tej samej liczbie: najpierw produkt, potem po przecinku najważniejsza
+cecha (surowy, gotowany, z puszki…), np. „Papryka czerwona, surowa", „Ryż biały, gotowany".
+Bez tłumaczenia słowo w słowo, bez marek i bez liczb.
+"""

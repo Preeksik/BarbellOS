@@ -29,13 +29,15 @@ from app.core.micros import (
     rank_fdc,
 )
 from app.core.nutrients import MACRO_KEYS, macro_errors, macro_warnings
-from app.core.search import rank
+from app.core.search import order_hits, rank
 from app.db import repo
 from app.db.models import Food
 from app.db.session import get_db
 from app.fdc.client import FdcClient, FdcError, FdcRateLimited
 from app.off.client import parse_search, search_limiter
-from app.services import micros_fill
+from app.services import generic_search, micros_fill
+
+OFF_RESULTS = 20  # tyle wyników z dużej bazy dostaje telefon, po odsianiu
 
 router = APIRouter(prefix="/api/foods", tags=["diet"], dependencies=[Depends(require_user)])
 log = logging.getLogger(__name__)
@@ -347,7 +349,85 @@ def search_off(
         payload = searcher(q.strip())
     except httpx.HTTPError as exc:
         raise HTTPException(502, "Open Food Facts nie odpowiada. Spróbuj ponownie.") from exc
-    return [OffHitOut(**vars(hit)) for hit in parse_search(payload, is_valid_ean)]
+    hits = parse_search(payload, is_valid_ean)
+    order = order_hits(q, [(hit.name, hit.brand, hit.kcal) for hit in hits])
+    return [OffHitOut(**vars(hits[index])) for index in order[:OFF_RESULTS]]
+
+
+class GenericHitOut(BaseModel):
+    fdc_id: int
+    name: str  # po polsku
+    description: str  # opis USDA
+    kcal: float  # na 100 g
+    protein_g: float | None
+    fat_g: float | None
+    carbs_g: float | None
+
+
+class GenericIn(BaseModel):
+    name: str = Field(min_length=1, max_length=120)
+
+
+@router.get("/search/generic", response_model=list[GenericHitOut])
+def search_generic(
+    q: str = Query(min_length=3, max_length=100),
+    db: Session = Depends(get_db),
+    fdc: FdcClient = Depends(get_fdc_client),
+    ai: AiRouter = Depends(get_ai_router),
+) -> list[GenericHitOut]:
+    """Produkty podstawowe (warzywa, mięso, kasze) z tabel USDA, z polskimi nazwami."""
+    try:
+        hits = generic_search.search(db, q.strip(), fdc, ai)
+    except generic_search.TranslationUnavailable as exc:
+        raise HTTPException(
+            503, "Wyszukiwanie produktów podstawowych chwilowo nie działa."
+        ) from exc
+    except FdcRateLimited as exc:
+        raise HTTPException(429, FDC_LIMIT_MESSAGE) from exc
+    except FdcError as exc:
+        raise HTTPException(502, "Tabele produktów nie odpowiadają. Spróbuj za chwilę.") from exc
+    return [
+        GenericHitOut(
+            fdc_id=hit.record.fdc_id,
+            name=hit.name,
+            description=hit.record.description,
+            kcal=hit.record.kcal,
+            protein_g=hit.record.macros.get("protein_g"),
+            fat_g=hit.record.macros.get("fat_g"),
+            carbs_g=hit.record.macros.get("carbs_g"),
+        )
+        for hit in hits
+    ]
+
+
+@router.put("/generic/{fdc_id}", response_model=FoodOut)
+def put_generic(
+    fdc_id: int,
+    body: GenericIn,
+    db: Session = Depends(get_db),
+    fdc: FdcClient = Depends(get_fdc_client),
+) -> FoodOut:
+    """Produkt podstawowy wybrany w wyszukiwarce: zapis z wartościami i witaminami z USDA.
+
+    Kluczem jest rekord USDA, więc powtórny wybór (albo powtórzone żądanie) zwraca ten sam
+    produkt. Wartości to średnie z tabel (`reference`), a nie etykieta.
+    """
+    food = repo.find_generic_food(db, fdc_id)
+    if food is not None:
+        return _food_out(db, food, cached=True)
+    try:
+        record = fdc.food(fdc_id)
+    except FdcRateLimited as exc:
+        raise HTTPException(429, FDC_LIMIT_MESSAGE) from exc
+    except FdcError as exc:
+        raise HTTPException(502, "Tabele produktów nie odpowiadają. Spróbuj za chwilę.") from exc
+    if record.kcal is None:
+        raise HTTPException(422, "Ten rekord nie ma kalorii. Wybierz inny.")
+    food = repo.create_generic_food(
+        db, body.name.strip(), record.description[:255], {"kcal": record.kcal, **record.macros}
+    )
+    micros_fill.apply_record(db, food, record)
+    return _food_out(db, food, cached=False)
 
 
 @router.get("/recent", response_model=list[RecentOut])

@@ -95,7 +95,12 @@ export function FoodCard({
         )}
       </div>
       <p className="muted">
-        {[data?.brand, barcode ? `EAN ${barcode}` : "bez kodu"].filter(Boolean).join(" · ")}
+        {[
+          data?.brand,
+          barcode ? `EAN ${barcode}` : data?.origin === "fdc" ? "produkt podstawowy" : "własny",
+        ]
+          .filter(Boolean)
+          .join(" · ")}
       </p>
       {food.isPending && <p className="muted">Szukam produktu…</p>}
       {food.error && <p className="error">{food.error.message}</p>}
@@ -168,7 +173,8 @@ export function FoodCard({
           ))}
 
           <div className="row">
-            {!data.verified_at && (
+            {/* Produkt podstawowy z tabel nie ma etykiety, z którą można go porównać. */}
+            {!data.verified_at && data.origin !== "fdc" && (
               <button
                 type="button"
                 disabled={verify.isPending}
@@ -202,6 +208,10 @@ function FoodStatus({ food }: { food: Food }) {
         Zweryfikowany {formatDay(food.verified_at)} · {how}
       </p>
     );
+  }
+  if (food.origin === "fdc") {
+    // Produkt podstawowy z wyszukiwarki: średnie z tabel, etykiety nie ma z czym porównać.
+    return <p className="status ok">Średnie wartości z tabel składu żywności</p>;
   }
   const age = food.source_updated_at ? `, dane z ${formatMonth(food.source_updated_at)}` : "";
   return (

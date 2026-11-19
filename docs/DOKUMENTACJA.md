@@ -1,6 +1,8 @@
-# BarbellOS — dokumentacja techniczna v0.15
+# BarbellOS — dokumentacja techniczna v0.16
 
 Stan: 19.11.2026.
+
+Zmiany w v0.16: produkty podstawowe (warzywa, mięso, kasze) w wyszukiwarce z tabel USDA, z polskimi nazwami od taniego modelu i z witaminami (4.8, 7); wyniki dużej bazy bez kalorii i bez słowa z zapytania odpadają, a reszta jest ułożona według nazwy (4.8); dolny pasek przy samym dole ekranu i nazwa u góry poza strefą rozmycia iOS (2.1).
 
 Zmiany w v0.15: zakładka „Dieta” zamiast „Dziennik” i „Dodaj”: każdy posiłek ma przycisk „Dodaj” (4.5, 4.8); wyszukiwarka sama przeszukuje dużą bazę produktów, bez przycisku i bez nazwy źródła, a pod wynikami jest „Oszacuj … (AI)” (4.8); „Produkt bez kodu” nazywa się „Dodaj własny”; próg automatycznego dopasowania witamin 0,35 zamiast 0,5 i bez wezwań do ręcznego wyboru (4.2, 4.11, migracja `0010`); więcej koloru z przypisanym znaczeniem: zielony to akcja, fiolet to AI (2.1).
 
@@ -81,6 +83,7 @@ Wybrany z trzech makiet (Kreda, Atrament, Rozmowa). Źródłem prawdy są tokeny
 - **Talerze.** Kolory makroskładników pochodzą z talerzy trójbojowych: białko czerwony (25 kg), węglowodany niebieski (20 kg), tłuszcz żółty (15 kg). Kolor nigdy nie jest jedyną informacją: obok paska zawsze stoi liczba.
 - **Typografia.** Barlow Condensed do liczb i nagłówków, Barlow do tekstu. Fonty są w paczce aplikacji (`@fontsource`), więc działają bez sieci i nie odpytują Google.
 - **Dieta.** Na górze wielka liczba kcal do celu, pod nią grube paski B/W/T (tło paska zabarwione kolorem talerza, więc widać go także przy zerze), niżej drobne cele w dwóch kolumnach. Pod spodem wszystkie posiłki dnia, każdy z sumą, literami B/W/T w kolorach talerzy i przyciskiem „+ Dodaj”.
+- **Pasek stanu iOS.** Wysokość aplikacji jest z jednostek ekranu (`100vh`, `100lvh`), a nie „100%”: w zainstalowanej aplikacji z paskiem stanu „black-translucent” 100% jest liczone bez paska stanu i dolny pasek wisiał o tyle wyżej. Nazwa „BarbellOS” stoi 22 px pod paskiem stanu, bo iOS rozmywa treść tuż pod nim.
 - **Motyw.** Ciemny, jasny albo automatyczny (jak w telefonie), do wyboru w Profilu. Wybór żyje w pamięci telefonu (`localStorage`), nie na serwerze. Górny i dolny pasek są grafitowe w obu motywach, bo na iOS tekst paska stanu nad zainstalowaną aplikacją jest biały.
 - **Dostępność.** Kontrast tekstu co najmniej 4,5:1 w obu motywach (sprawdzony przy wyborze kolorów), cele dotyku co najmniej 44 px.
 
@@ -340,6 +343,8 @@ Ekran „Dodaj do: [posiłek]” (z przycisku przy posiłku w Diecie): wyszukiwa
 - **Open Food Facts** jest przeszukiwane samo, po 0,9 s pauzy w pisaniu (od 3 znaków) albo od razu po „Szukaj” na klawiaturze, które też chowa klawiaturę (`GET /api/foods/search/off?q=`; do 19.11.2026 tylko na przycisk). Wyniki są pamiętane na czas sesji, więc powrót do tego samego zapytania nie zużywa limitu. Wyszukiwanie idzie przez search-a-licious (`https://search.openfoodfacts.org/search`): stare API v2 nie ma wyszukiwania po nazwie. OFF pozwala na 10 wyszukiwań na minutę z jednego adresu i za przekroczenie blokuje adres, dlatego serwer przepuszcza najwyżej 8 na minutę i nie wyszukuje przy każdym znaku. Wynik z OFF nie zapisuje się w bazie: po wybraniu produkt jest pobierany po kodzie kreskowym, jak przy skanie.
 - **Ostatnie** (`GET /api/foods/recent`): 20 ostatnio jedzonych produktów, każdy raz, z ilością z ostatniego wpisu, która jest podpowiedzią przy dodawaniu.
 - **Ulubione:** gwiazdka na karcie produktu (`PUT /api/foods/{id}/favorite` ze stanem, nie przełącznikiem, więc powtórka jest bezpieczna).
+- **Produkty podstawowe z tabel USDA** (od 19.11.2026, `GET /api/foods/search/generic?q=`, `services/generic_search.py`): duża baza zna głównie produkty paczkowane, więc „papryka” dawała chipsy i przyprawy. Tani model tłumaczy zapytanie na styl USDA („papryka czerwona” → „Peppers, sweet, red”), USDA zwraca rekordy (Foundation i SR Legacy), kod wybiera najwyżej 6 z kaloriami i oceną nazwy od 0,35 (`core/micros.py`, `generic_candidates`), a drugi krótki model nadaje im polskie nazwy w tej samej kolejności (bez identyfikatorów, zasada 8; przy złej liczbie nazw zostają opisy USDA). Ta sama polska nazwa dwa razy (dwa zbiory USDA) zostaje raz. Wynik jest pamiętany dla zapytania (do 200 zapytań w pamięci serwera), więc powtórka nic nie kosztuje. Pomiar 19.11.2026: ok. 4 s na nowe zapytanie, trafne wyniki dla „papryka”, „sałata lodowa”, „pierś z kurczaka”. Wybór wyniku (`PUT /api/foods/generic/{fdc_id}` z polską nazwą) zapisuje produkt `kind = generic`, `origin = fdc`, `macro_source = reference` z makro (sól = sód × 2,5) i witaminami z rekordu; kluczem jest rekord USDA, więc powtórny wybór zwraca ten sam produkt. Brak wartości w rekordzie to NULL. Karta takiego produktu nie proponuje porównania z etykietą.
+- **Kolejność dużej bazy** (`core/search.py`, `order_hits`): bez kalorii wynik odpada; odpada też wynik bez żadnego słowa zapytania w nazwie; wyżej wszystkie słowa zapytania, potem pierwsze słowo, potem nazwa od niego zaczynająca się, potem krótsza nazwa. Serwer pobiera 50 wyników zamiast 20 (liczba zapytań do bazy się nie zmienia) i oddaje 20 po odsianiu. Na liście najpierw własne produkty, potem podstawowe, potem duża baza.
 - **Oszacuj (AI):** pod wynikami jest „Oszacuj „…” (AI)”, który otwiera opis posiłku z wpisanym zapytaniem. Warzywa na wagę i dania domowe rzadko są w bazie produktów (np. „sałata lodowa” daje tam tylko mieszanki paczkowane).
 - **Dodaj własny** (do 19.11.2026 „Produkt bez kodu”; danie domowe, produkt na wagę): ten sam formularz co „Popraw", także ze zdjęciem etykiety. `PUT /api/foods/custom/{uuid}` z identyfikatorem nadanym na telefonie, więc zapis może czekać w kolejce offline bez ryzyka duplikatu.
 
@@ -500,7 +505,8 @@ Klucze i wywołania są na serwerze. Jeden interfejs `AiProvider`, dwie implemen
 
 | Zadanie | Poziom | Domyślnie | Zapasowo |
 |---|---|---|---|
-| Skan kodu, wyszukiwanie | bez AI | — | — |
+| Skan kodu, wyszukiwanie we własnej i dużej bazie | bez AI | — | — |
+| Produkty podstawowe w wyszukiwarce: tłumaczenie zapytania i polskie nazwy rekordów USDA | tani | Gemini Flash-Lite (darmowy) | Gemini Flash, potem Claude Haiku 5.5 |
 | Zdjęcie etykiety → produkt | tani | Gemini Flash-Lite (darmowy) | Gemini Flash, potem Claude Haiku 5.5 |
 | Opis tekstowy → składniki | tani | Gemini Flash-Lite (darmowy) | Gemini Flash, potem Claude Haiku 5.5 |
 | Zdjęcie posiłku → szkic | średni | Gemini Flash (darmowy) | Gemini Flash-Lite, potem Claude Sonnet 5.5 |

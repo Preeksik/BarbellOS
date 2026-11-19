@@ -44,6 +44,17 @@ NUTRIENT_NUMBERS: dict[str, str] = {
 # Jednostka, w której FDC musi podać składnik, żeby wartość pasowała do naszej.
 EXPECTED_UNITS = {"UG": {"vit_a", "vit_d", "vit_k", "folate", "vit_b12", "selenium", "iodine"}}
 KCAL_NUMBERS = ("208", "957", "958")  # Energy; Atwater General; Atwater Specific (Foundation)
+# Makroskładniki w gramach na 100 g: dla produktów podstawowych z wyszukiwarki (19.11.2026).
+MACRO_NUMBERS: dict[str, str] = {
+    "203": "protein_g",  # Protein
+    "204": "fat_g",  # Total lipid (fat)
+    "205": "carbs_g",  # Carbohydrate, by difference
+    "269": "sugars_g",  # Sugars, total
+    "291": "fiber_g",  # Fiber, total dietary
+    "606": "sat_fat_g",  # Fatty acids, total saturated
+}
+SODIUM_NUMBER = "307"
+SALT_PER_SODIUM = 2.5  # jak w Open Food Facts i na etykietach UE: sól = sód × 2,5
 
 
 class FdcError(Exception):
@@ -61,6 +72,8 @@ class FdcFood:
     data_type: str
     kcal: float | None
     micros: dict[str, float] = field(default_factory=dict)  # na 100 g, nasze jednostki
+    # Makro na 100 g (klucze jak w `core.nutrients.MACRO_KEYS`, bez kcal). Brak = brak klucza.
+    macros: dict[str, float] = field(default_factory=dict)
 
 
 def _unit_ok(nutrient_id: str, unit: str) -> bool:
@@ -90,6 +103,7 @@ def parse_food(raw: dict) -> FdcFood | None:
     if not isinstance(fdc_id, int):
         return None
     micros: dict[str, float] = {}
+    macros: dict[str, float] = {}
     kcal_by_number: dict[str, float] = {}
     for nutrient in raw.get("foodNutrients") or []:
         number, value, unit = _nutrient_fields(nutrient)
@@ -97,6 +111,10 @@ def parse_food(raw: dict) -> FdcFood | None:
             continue
         if number in KCAL_NUMBERS and unit == "KCAL":
             kcal_by_number[number] = float(value)
+        if number in MACRO_NUMBERS and unit == "G":
+            macros[MACRO_NUMBERS[number]] = float(value)
+        if number == SODIUM_NUMBER and unit == "MG":
+            macros["salt_g"] = round(float(value) * SALT_PER_SODIUM / 1000, 3)
         nutrient_id = NUTRIENT_NUMBERS.get(number)
         if nutrient_id and _unit_ok(nutrient_id, unit):
             micros[nutrient_id] = float(value)
@@ -107,6 +125,7 @@ def parse_food(raw: dict) -> FdcFood | None:
         data_type=str(raw.get("dataType") or ""),
         kcal=kcal,
         micros=micros,
+        macros=macros,
     )
 
 

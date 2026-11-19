@@ -137,6 +137,15 @@ class LabelExtract(BaseModel):
     salt_g: float | None = Field(description="Sól, g.")
 
 
+class GenericNames(BaseModel):
+    """Polskie nazwy rekordów USDA w tej samej kolejności, w jakiej je podano."""
+
+    names_pl: list[str] = Field(
+        description="Krótka polska nazwa dla każdego opisu, w tej samej kolejności, "
+        "np. 'Papryka czerwona, surowa'."
+    )
+
+
 class FoodQuery(BaseModel):
     """Nazwa produktu po angielsku w stylu bazy USDA, do wyszukania w tabeli."""
 

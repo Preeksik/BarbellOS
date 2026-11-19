@@ -166,6 +166,17 @@ export interface OffHit {
   unit: "g" | "ml";
 }
 
+/** Produkt podstawowy z tabel USDA w wyszukiwarce (polska nazwa nadana przez AI). */
+export interface GenericHit {
+  fdc_id: number;
+  name: string;
+  description: string;
+  kcal: number; // na 100 g
+  protein_g: number | null;
+  fat_g: number | null;
+  carbs_g: number | null;
+}
+
 export interface RecentFood {
   food: Food;
   last_amount: number;
