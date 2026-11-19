@@ -82,8 +82,17 @@ body,
   margin: 0;
 }
 
+/*
+ * Tło strony ma kolor pasków, a nie treści. W zainstalowanej aplikacji na iOS (pasek stanu
+ * „black-translucent") wysokość 100% jest liczona bez paska stanu, więc pod dolnym paskiem
+ * zostaje pas gołego tła. W kolorze paska go nie widać (zgłoszenie z iPhone'a, 19.11.2026).
+ */
+html,
 body {
-  background: var(--bg);
+  background: var(--chrome);
+}
+
+body {
   color: var(--text);
   font-variant-numeric: tabular-nums;
   -webkit-text-size-adjust: 100%;
@@ -139,6 +148,7 @@ main {
   flex: 1;
   overflow-y: auto;
   padding: 16px 20px 24px;
+  background: var(--bg);
 }
 
 .card {
@@ -838,6 +848,19 @@ button.star.on {
 
 .goal.plate .bar {
   height: 14px;
+}
+
+/* Tło paska zabarwione kolorem talerza: widać, który to makroskładnik, nawet przy zerze. */
+.goal.plate.protein_g .bar {
+  background: color-mix(in srgb, var(--plate-red) 22%, var(--surface-2));
+}
+
+.goal.plate.carbs_g .bar {
+  background: color-mix(in srgb, var(--plate-blue) 22%, var(--surface-2));
+}
+
+.goal.plate.fat_g .bar {
+  background: color-mix(in srgb, var(--plate-yellow) 22%, var(--surface-2));
 }
 
 .goal.plate.protein_g .bar > div {
