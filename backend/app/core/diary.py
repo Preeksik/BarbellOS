@@ -4,7 +4,9 @@ Wpis przechowuje wartości policzone w chwili dodania. Późniejsza poprawka pro
 nie zmienia historii (dokumentacja, rozdział 8).
 """
 
+import calendar
 from collections.abc import Iterable, Mapping
+from datetime import date
 
 from app.core.nutrients import MACRO_KEYS, portion_values, sum_values
 
@@ -84,3 +86,14 @@ def recent_meals(
     order = {slot: i for i, slot in enumerate(MEAL_SLOTS)}
     keys = sorted(groups, key=lambda key: (-key[0].toordinal(), order.get(key[1], len(order))))
     return [(day, slot, groups[(day, slot)]) for day, slot in keys[:limit]]
+
+
+def month_days(month: str) -> list[date]:
+    """Dni miesiąca „RRRR-MM" (22.11.2026, kalendarz kopiowania posiłku). Zły zapis: ValueError."""
+    year_text, sep, month_text = month.partition("-")
+    if not sep or len(year_text) != 4 or len(month_text) != 2:
+        raise ValueError("Miesiąc w postaci RRRR-MM, np. 2026-11.")
+    year, number = int(year_text), int(month_text)
+    if not 1 <= number <= 12:
+        raise ValueError("Miesiąc od 01 do 12.")
+    return [date(year, number, day) for day in range(1, calendar.monthrange(year, number)[1] + 1)]

@@ -18,6 +18,7 @@ from app.core.diary import (
     RECENT_MEALS_LIMIT,
     day_totals,
     freeze_portion,
+    month_days,
     recent_meals,
     scale_portion,
 )
@@ -251,6 +252,28 @@ def get_recent_meals(day: dt.date, db: Session = Depends(get_db)) -> list[Recent
             )
         )
     return meals
+
+
+class MonthDayOut(BaseModel):
+    date: dt.date
+    entries: int
+    kcal: float
+
+
+@router.get("/month/{month}", response_model=list[MonthDayOut])
+def get_month(month: str, db: Session = Depends(get_db)) -> list[MonthDayOut]:
+    """Dni miesiąca („RRRR-MM") z wpisami: kropki w kalendarzu kopiowania posiłku."""
+    try:
+        days = month_days(month)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    entries = repo.meal_entries_between(db, days[0], days[-1])
+    totals = day_totals_range(days, ({"date": e.date, **_values(e)} for e in entries))
+    return [
+        MonthDayOut(date=d.date, entries=d.entries, kcal=d.totals["kcal"])
+        for d in totals
+        if d.entries > 0
+    ]
 
 
 # ---------- tydzień (etap 6) ----------

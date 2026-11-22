@@ -1,6 +1,7 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { type FormEvent, type ReactNode, useEffect, useRef, useState } from "react";
 import {
+  type DiaryDay,
   type DiaryEntry,
   type Food,
   type GenericHit,
@@ -11,6 +12,7 @@ import {
   type RecentMeal,
   api,
 } from "../../lib/api";
+import { WEEKDAYS, monthGrid, monthLabel, monthOf, shiftMonth } from "../../lib/calendar";
 import { MEAL_SLOTS, dayLabel, toIsoDay } from "../../lib/diary";
 import { copiedEntries, mealEntries } from "../../lib/meals";
 import { formatDecimal } from "../../lib/number";
@@ -19,6 +21,7 @@ import {
   type DiaryPutInput,
   MEALS_QUERY_KEY,
   type MealDeleteInput,
+  diaryQueryKey,
   mutationKeys,
 } from "../../lib/offline";
 import type { EntrySource } from "./AddToDay";
@@ -40,7 +43,8 @@ type View =
   | { kind: "scan" }
   | { kind: "card"; target: FoodRef; source: EntrySource; back: "scan" | "home" }
   | { kind: "new" }
-  | { kind: "ai"; mode: "photo" | "text"; text?: string };
+  | { kind: "ai"; mode: "photo" | "text"; text?: string }
+  | { kind: "copyday" };
 
 /**
  * Dodawanie do posiłku, otwierane przyciskiem „Dodaj" przy posiłku w Diecie:
@@ -108,6 +112,8 @@ export function AddPage({
         onShowDiary={onClose}
       />
     );
+  } else if (view.kind === "copyday") {
+    body = <CopyFromDay day={day} slot={slot} />;
   } else if (view.kind === "new") {
     body = (
       <FoodEditForm
@@ -135,6 +141,7 @@ export function AddPage({
         onScan={() => setView({ kind: "scan" })}
         onAi={(mode, text) => setView({ kind: "ai", mode, text })}
         onNew={() => setView({ kind: "new" })}
+        onCopyDay={() => setView({ kind: "copyday" })}
       />
     );
   }
@@ -165,6 +172,7 @@ function Home({
   onScan,
   onAi,
   onNew,
+  onCopyDay,
 }: {
   day: string;
   slot: MealSlot;
@@ -175,6 +183,7 @@ function Home({
   onScan: () => void;
   onAi: (mode: "photo" | "text", text?: string) => void;
   onNew: () => void;
+  onCopyDay: () => void;
 }) {
   // „Szukaj" na klawiaturze: od razu pyta dużą bazę i chowa klawiaturę, żeby było widać wyniki.
   const [submitted, setSubmitted] = useState<string | null>(null);
@@ -250,6 +259,20 @@ function Home({
               Dodaj własny
             </button>
           </div>
+          <button type="button" className="copyday" onClick={onCopyDay}>
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2}
+              strokeLinecap="round"
+            >
+              <rect x="4" y="5" width="16" height="15" rx="2" />
+              <path d="M4 10h16M9 3v4M15 3v4" />
+            </svg>
+            Kopiuj posiłek z innego dnia
+          </button>
           <RecentMeals day={day} slot={slot} />
           <MealList day={day} slot={slot} />
           <FavoriteList onOpen={onOpen} />
@@ -549,6 +572,156 @@ function RecentMeals({ day, slot }: { day: string; slot: MealSlot }) {
         ))}
       </ul>
     </section>
+  );
+}
+
+// ---------- kopiowanie z wybranego dnia ----------
+
+/**
+ * „Kopiuj posiłek z innego dnia" (22.11.2026): mini-kalendarz z kropkami przy dniach
+ * z wpisami, potem posiłki wybranego dnia. Stuknięcie kopiuje posiłek do tego, przy którym
+ * stuknięto „Dodaj" (te same wpisy z `copy_of` co w „Poprzednich posiłkach").
+ */
+function CopyFromDay({ day, slot }: { day: string; slot: MealSlot }) {
+  const today = toIsoDay(new Date());
+  const [month, setMonth] = useState(() => monthOf(day));
+  const [picked, setPicked] = useState<string | null>(null);
+  const [added, setAdded] = useState<{ label: string; ids: string[] } | null>(null);
+  const logged = useQuery({
+    queryKey: ["diary-month", month],
+    queryFn: () =>
+      api.get<{ date: string; entries: number; kcal: number }[]>(`/api/diary/month/${month}`),
+  });
+  const chosen = useQuery({
+    queryKey: diaryQueryKey(picked ?? ""),
+    queryFn: () => api.get<DiaryDay>(`/api/diary/${picked}`),
+    enabled: picked != null,
+  });
+  const put = useMutation<DiaryEntry, Error, DiaryPutInput>({ mutationKey: mutationKeys.diaryPut });
+  const remove = useMutation<void, Error, DiaryDeleteInput>({
+    mutationKey: mutationKeys.diaryDelete,
+  });
+  const withEntries = new Set((logged.data ?? []).map((d) => d.date));
+  const slotLabel = (id: MealSlot) => MEAL_SLOTS.find((s) => s.id === id)?.label ?? id;
+
+  function copy(meal: RecentMeal) {
+    const copies = copiedEntries(meal, day, slot, new Date(), () => crypto.randomUUID());
+    for (const input of copies) put.mutate(input);
+    const label = `${slotLabel(meal.meal_slot)}, ${dayLabel(meal.date, today).toLowerCase()}`;
+    setAdded({ label, ids: copies.map((c) => c.entry.id) });
+  }
+
+  function undo() {
+    if (!added) return;
+    for (const id of added.ids) remove.mutate({ id, date: day });
+    setAdded(null);
+  }
+
+  const data = chosen.data;
+  const meals: RecentMeal[] =
+    data && picked
+      ? MEAL_SLOTS.flatMap(({ id }) => {
+          const entries = data.entries.filter((e) => e.meal_slot === id);
+          const totals = data.by_slot[id];
+          // Bez posiłku, do którego właśnie dodajesz: kopiowanie go do siebie nie ma sensu.
+          if (!entries.length || !totals || (picked === day && id === slot)) return [];
+          return [{ date: picked, meal_slot: id, kcal: totals.kcal, entries }];
+        })
+      : [];
+
+  return (
+    <>
+      <section className="card">
+        <div className="calhead">
+          <button
+            type="button"
+            aria-label="Poprzedni miesiąc"
+            onClick={() => setMonth(shiftMonth(month, -1))}
+          >
+            ‹
+          </button>
+          <h2>{monthLabel(month)}</h2>
+          <button
+            type="button"
+            aria-label="Następny miesiąc"
+            onClick={() => setMonth(shiftMonth(month, 1))}
+          >
+            ›
+          </button>
+        </div>
+        <div className="calendar">
+          {WEEKDAYS.map((name) => (
+            <span key={name} className="weekday" aria-hidden="true">
+              {name}
+            </span>
+          ))}
+          {monthGrid(month)
+            .flat()
+            .map((cell, index) =>
+              cell == null ? (
+                <span key={`pusty-${index}`} />
+              ) : (
+                <button
+                  key={cell}
+                  type="button"
+                  className={[
+                    withEntries.has(cell) ? "has" : "",
+                    cell === picked ? "picked" : "",
+                    cell === today ? "today" : "",
+                  ]
+                    .join(" ")
+                    .trim()}
+                  disabled={!withEntries.has(cell)}
+                  aria-pressed={cell === picked}
+                  aria-label={`${dayLabel(cell, today)}${withEntries.has(cell) ? "" : ", bez wpisów"}`}
+                  onClick={() => {
+                    setPicked(cell);
+                    setAdded(null);
+                  }}
+                >
+                  {Number(cell.slice(8))}
+                </button>
+              ),
+            )}
+        </div>
+        {logged.data?.length === 0 && (
+          <p className="muted">W tym miesiącu nie ma wpisów. Zobacz poprzedni miesiąc.</p>
+        )}
+      </section>
+
+      {picked && (
+        <section className="card">
+          <h2>{dayLabel(picked, today)}: co skopiować?</h2>
+          {added && (
+            <div className="row added">
+              <p className="status ok">Skopiowano: {added.label}</p>
+              <button type="button" onClick={undo}>
+                Cofnij
+              </button>
+            </div>
+          )}
+          {chosen.isPending ? (
+            <p className="muted">Wczytuję dzień…</p>
+          ) : chosen.error ? (
+            <p className="error">{chosen.error.message}</p>
+          ) : (
+            <ul className="list meals">
+              {meals.map((meal) => (
+                <li key={meal.meal_slot}>
+                  <button type="button" className="food" onClick={() => copy(meal)}>
+                    <span className="name">
+                      {slotLabel(meal.meal_slot)}
+                      <em> · {meal.entries.map((e) => e.food_name).join(", ")}</em>
+                    </span>
+                    <span className="kcal">{formatKcal(meal.kcal)} kcal</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      )}
+    </>
   );
 }
 

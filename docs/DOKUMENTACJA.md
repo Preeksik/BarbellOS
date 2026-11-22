@@ -1,6 +1,8 @@
-# BarbellOS — dokumentacja techniczna v0.19
+# BarbellOS — dokumentacja techniczna v0.20
 
 Stan: 19.11.2026.
+
+Zmiany w v0.20: „Kopiuj posiłek z innego dnia” z mini-kalendarzem (`GET /api/diary/month/{RRRR-MM}`) (4.5).
 
 Zmiany w v0.19: zapis posiłku z wyborem produktów i od razu po szacunku AI; posiłek może wskazać wpisy (`entry_ids`) zamiast produktów, a jego zapis idzie w kolejce za wpisami dziennika (4.9).
 
@@ -295,6 +297,8 @@ Wynik etapu 0: zeskanowane produkty są w Open Food Facts, ale wartości bywają
 ### 4.5 Dziennik dnia (zakładka „Dieta”)
 
 **Poprzednie posiłki** (od 22.11.2026): na ekranie „Dodaj do: [posiłek]” lista posiłków z ostatnich 14 dni (`GET /api/diary/recent-meals/{dzień}`, najwyżej 10, najnowszy dzień pierwszy). Stuknięcie kopiuje cały posiłek do wybranego; „Cofnij” usuwa kopie. Każda kopia to zwykły wpis z nowym UUID i polem `copy_of` (źródło `copy`): serwer bierze zamrożone wartości z oryginalnego wpisu, a nie z produktu, więc kopia jest dokładnie tym, co zjedzono, także gdy produkt poprawiono później. Działa bez sieci jak każdy wpis.
+
+**Kopiuj posiłek z innego dnia** (od 22.11.2026): przycisk na ekranie dodawania otwiera mini-kalendarz miesiąca (tydzień od poniedziałku, `web/src/lib/calendar.ts`). Dni z wpisami podaje `GET /api/diary/month/{RRRR-MM}` (dzień, liczba wpisów, kcal) i tylko one są do wyboru, z kropką. Po wyborze dnia widać jego posiłki z kcal i produktami; stuknięcie kopiuje posiłek tak samo jak „Poprzednie posiłki” (`copy_of`), z „Cofnij”. Kalendarz i lista posiłków dnia wymagają sieci, chyba że dzień jest w pamięci telefonu; sama kopia idzie przez kolejkę offline.
 
 Dzień składa się z pięciu posiłków: śniadanie, II śniadanie, obiad, podwieczorek, kolacja. Wpis to produkt, ilość (g albo ml) i posiłek. Od 19.11.2026 wszystkie posiłki są zawsze widoczne (pusty jako jedna linijka) i każdy ma przycisk „+ Dodaj”, który otwiera dodawanie od razu do tego posiłku. Osobnej zakładki „Dodaj” nie ma; dodawanie jest stanem zakładki „Dieta”, nie adresem (AGENTS.md, zasada 11).
 

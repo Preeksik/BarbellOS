@@ -1562,3 +1562,102 @@ label.pickrow:not(.on) .name {
   color: var(--muted);
   text-decoration: line-through;
 }
+
+/* „Kopiuj posiłek z innego dnia" i mini-kalendarz (22.11.2026). */
+button.copyday {
+  justify-content: flex-start;
+  gap: 12px;
+  width: 100%;
+  min-height: 56px;
+  margin-bottom: 16px;
+  padding: 8px 14px;
+  border: 0;
+  background: var(--surface);
+  font-weight: 600;
+}
+
+button.copyday svg {
+  width: 40px;
+  height: 40px;
+  padding: 8px;
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--green) 18%, var(--surface));
+  color: var(--green);
+}
+
+.calhead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.calhead button {
+  flex: 0 0 48px;
+  border: 0;
+  background: var(--surface-2);
+  font-size: 1.4rem;
+}
+
+.calhead h2 {
+  text-transform: none;
+}
+
+.calendar {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.calendar .weekday {
+  padding-bottom: 4px;
+  color: var(--muted);
+  font-size: 0.75rem;
+  text-align: center;
+}
+
+.calendar button {
+  position: relative;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius);
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.calendar button:disabled {
+  color: var(--muted);
+  opacity: 0.45;
+}
+
+/* Dzień z wpisami: tło i zielona kropka. */
+.calendar button.has {
+  background: var(--surface-2);
+}
+
+.calendar button.has::after {
+  position: absolute;
+  bottom: 5px;
+  left: 50%;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--green);
+  content: "";
+  transform: translateX(-50%);
+}
+
+.calendar button.today {
+  box-shadow: inset 0 0 0 2px var(--muted);
+}
+
+.calendar button.picked {
+  background: var(--text);
+  color: var(--on-chalk);
+}
+
+.calendar button.picked::after {
+  background: var(--on-chalk);
+}

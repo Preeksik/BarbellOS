@@ -379,6 +379,7 @@ function refreshDiaryAfterLastWrite(): void {
     // „Ostatnie" bierze się z dziennika: bez tego lista pokazywałaby stan sprzed wpisu.
     void queryClient.invalidateQueries({ queryKey: ["recent"] });
     void queryClient.invalidateQueries({ queryKey: ["recent-meals"] });
+    void queryClient.invalidateQueries({ queryKey: ["diary-month"] });
     void queryClient.invalidateQueries({ queryKey: ["week"] });
     // Szacunek AI zakłada produkt na serwerze: wyszukiwarka ma go znać od razu.
     void queryClient.invalidateQueries({ queryKey: ["search"] });

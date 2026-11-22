@@ -168,3 +168,29 @@ def test_meal_from_selected_entries_includes_ai_estimates(logged_in):
     assert logged_in.put(f"/api/meals/{uuid.uuid4()}", json=gone).status_code == 404
     empty = {"name": "X", "entry_ids": []}
     assert logged_in.put(f"/api/meals/{uuid.uuid4()}", json=empty).status_code == 422
+
+
+# ====================================================================== kalendarz
+
+
+def test_month_days():
+    from app.core.diary import month_days
+
+    days = month_days("2026-02")
+    assert (days[0], days[-1], len(days)) == (dt.date(2026, 2, 1), dt.date(2026, 2, 28), 28)
+    assert len(month_days("2028-02")) == 29  # rok przestępny
+    for wrong in ("2026-13", "2026-2", "26-11", "listopad"):
+        with pytest.raises(ValueError):
+            month_days(wrong)
+
+
+def test_month_lists_only_days_with_entries(logged_in):
+    _put(logged_in, date="2026-11-03", estimate=DONUT, source="photo")
+    _put(logged_in, date="2026-11-03", meal_slot="lunch", amount=100, estimate=DONUT, source="text")
+    _put(logged_in, date="2026-11-21", estimate=DONUT, source="photo")
+    _put(logged_in, date="2026-12-01", estimate=DONUT, source="photo")  # inny miesiąc
+
+    days = logged_in.get("/api/diary/month/2026-11").json()
+    assert [(d["date"], d["entries"]) for d in days] == [("2026-11-03", 2), ("2026-11-21", 1)]
+    assert days[0]["kcal"] == pytest.approx(320 + 400)
+    assert logged_in.get("/api/diary/month/2026-13").status_code == 422
