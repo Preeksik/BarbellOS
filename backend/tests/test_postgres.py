@@ -24,7 +24,7 @@ from app.tools.copy_db import _url, copy
 
 from .conftest import PASSWORD
 from .test_copy_db import source as source  # noqa: F401 - fixture z danymi w SQLite
-from .test_migrations import BACKEND
+from .test_migrations import BACKEND, check_old_ai_entries_become_products
 
 URL = os.environ.get("POSTGRES_TEST_URL")
 pytestmark = pytest.mark.skipif(not URL, reason="brak POSTGRES_TEST_URL (test tylko w CI)")
@@ -118,3 +118,13 @@ def test_copy_local_sqlite_to_postgres(pg, source):  # noqa: F811
             )
         ).scalar_one()
     assert new_id == 2  # licznik Postgresa ustawiony za skopiowanymi wierszami
+
+
+def test_old_ai_entries_become_products_on_postgres():
+    """Migracja 0011 na Postgresie (JSONB, UUID): tak jak przy wdrożeniu na Neon."""
+
+    def clean(engine):
+        with engine.begin() as connection:
+            connection.execute(text("drop schema public cascade; create schema public"))
+
+    check_old_ai_entries_become_products(_url(URL), prepare=clean)

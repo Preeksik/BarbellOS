@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { DiaryEntry, Meal, Per100 } from "./api";
-import { itemsFromEntries, mealEntries } from "./meals";
+import { copiedEntries, itemsFromEntries, mealEntries } from "./meals";
 
 const NONE: Per100 = {
   kcal: null,
@@ -51,5 +51,46 @@ describe("itemsFromEntries", () => {
       { food_id: 1, amount: 300 },
       { food_id: 2, amount: 50 },
     ]);
+  });
+});
+
+describe("copiedEntries", () => {
+  it("kopiuje wpisy na inny dzień i posiłek, z odnośnikiem do oryginału", () => {
+    const original: DiaryEntry = {
+      id: "stary",
+      date: "2026-11-21",
+      meal_slot: "lunch",
+      food_id: 7,
+      food_name: "Spaghetti z leczo",
+      amount: 400,
+      unit: "g",
+      values: { ...NONE, kcal: 600 },
+      macro_source: "estimated",
+      source: "photo",
+      ai_run_id: 12,
+      created_at: "2026-11-21T12:00:00.000Z",
+    };
+    const ids = ["k1", "k2"];
+    const copies = copiedEntries(
+      { date: "2026-11-21", meal_slot: "lunch", kcal: 600, entries: [original, original] },
+      "2026-11-22",
+      "dinner",
+      new Date("2026-11-22T18:00:00.000Z"),
+      () => ids.shift()!,
+    );
+    expect(copies.map((c) => c.copyOf)).toEqual(["stary", "stary"]);
+    expect(copies[0].entry).toMatchObject({
+      id: "k1",
+      date: "2026-11-22",
+      meal_slot: "dinner",
+      food_id: 7,
+      amount: 400,
+      values: { kcal: 600 },
+      macro_source: "estimated",
+      source: "copy",
+      ai_run_id: null,
+    });
+    // Kolejność z oryginalnego posiłku zostaje.
+    expect(copies[1].entry.created_at > copies[0].entry.created_at).toBe(true);
   });
 });

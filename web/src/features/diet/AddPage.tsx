@@ -8,10 +8,11 @@ import {
   type MealSlot,
   type OffHit,
   type RecentFood,
+  type RecentMeal,
   api,
 } from "../../lib/api";
 import { MEAL_SLOTS, dayLabel, toIsoDay } from "../../lib/diary";
-import { mealEntries } from "../../lib/meals";
+import { copiedEntries, mealEntries } from "../../lib/meals";
 import { formatDecimal } from "../../lib/number";
 import {
   type DiaryDeleteInput,
@@ -249,6 +250,7 @@ function Home({
               Dodaj własny
             </button>
           </div>
+          <RecentMeals day={day} slot={slot} />
           <MealList day={day} slot={slot} />
           <FavoriteList onOpen={onOpen} />
           <RecentList onOpen={onOpen} />
@@ -479,6 +481,73 @@ function RecentList({ onOpen }: { onOpen: (food: Food, amount?: number) => void 
           onOpen={onOpen}
         />
       )}
+    </section>
+  );
+}
+
+// ---------- poprzednie posiłki ----------
+
+/**
+ * Posiłki z ostatnich dwóch tygodni: stuknięcie kopiuje cały posiłek do tego, przy którym
+ * stuknięto „Dodaj" (22.11.2026: „wczoraj spaghetti, dziś to samo"). Działa bez sieci, jak
+ * każdy wpis; wartości przenosi serwer z oryginalnych wpisów.
+ */
+function RecentMeals({ day, slot }: { day: string; slot: MealSlot }) {
+  const [added, setAdded] = useState<{ label: string; ids: string[] } | null>(null);
+  const recent = useQuery({
+    queryKey: ["recent-meals", day],
+    queryFn: () => api.get<RecentMeal[]>(`/api/diary/recent-meals/${day}`),
+  });
+  const put = useMutation<DiaryEntry, Error, DiaryPutInput>({ mutationKey: mutationKeys.diaryPut });
+  const remove = useMutation<void, Error, DiaryDeleteInput>({
+    mutationKey: mutationKeys.diaryDelete,
+  });
+  const today = toIsoDay(new Date());
+  // Bez posiłku, do którego właśnie dodajesz: kopiowanie go do siebie nie ma sensu.
+  const meals = (recent.data ?? [])
+    .filter((m) => !(m.date === day && m.meal_slot === slot))
+    .slice(0, 10);
+  if (meals.length === 0) return null;
+
+  const label = (meal: RecentMeal) =>
+    `${MEAL_SLOTS.find((s) => s.id === meal.meal_slot)?.label}, ${dayLabel(meal.date, today).toLowerCase()}`;
+
+  function copy(meal: RecentMeal) {
+    const copies = copiedEntries(meal, day, slot, new Date(), () => crypto.randomUUID());
+    for (const input of copies) put.mutate(input);
+    setAdded({ label: label(meal), ids: copies.map((c) => c.entry.id) });
+  }
+
+  function undo() {
+    if (!added) return;
+    for (const id of added.ids) remove.mutate({ id, date: day });
+    setAdded(null);
+  }
+
+  return (
+    <section className="card">
+      <h2>Poprzednie posiłki</h2>
+      {added && (
+        <div className="row added">
+          <p className="status ok">Skopiowano: {added.label}</p>
+          <button type="button" onClick={undo}>
+            Cofnij
+          </button>
+        </div>
+      )}
+      <ul className="list meals">
+        {meals.map((meal) => (
+          <li key={`${meal.date}-${meal.meal_slot}`}>
+            <button type="button" className="food" onClick={() => copy(meal)}>
+              <span className="name">
+                {label(meal)}
+                <em> · {meal.entries.map((e) => e.food_name).join(", ")}</em>
+              </span>
+              <span className="kcal">{formatKcal(meal.kcal)} kcal</span>
+            </button>
+          </li>
+        ))}
+      </ul>
     </section>
   );
 }

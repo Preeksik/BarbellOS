@@ -135,6 +135,14 @@ export interface DiaryEntry {
 
 export type MacroTotals = Record<MacroKey, number>;
 
+/** Posiłek z ostatnich dwóch tygodni do skopiowania (`GET /api/diary/recent-meals/{dzień}`). */
+export interface RecentMeal {
+  date: string;
+  meal_slot: MealSlot;
+  kcal: number;
+  entries: DiaryEntry[];
+}
+
 export interface DiaryDay {
   date: string;
   entries: DiaryEntry[];

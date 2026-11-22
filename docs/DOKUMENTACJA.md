@@ -1,6 +1,8 @@
-# BarbellOS — dokumentacja techniczna v0.17
+# BarbellOS — dokumentacja techniczna v0.18
 
 Stan: 19.11.2026.
+
+Zmiany w v0.18: szacunek AI zakłada produkt (`origin = ai`), więc da się go zapisać w posiłku, wyszukać i dodać ponownie; dawne wpisy z AI dostały produkt w migracji `0011` (7.1, 4.9); kopiowanie posiłku z ostatnich dwóch tygodni („Poprzednie posiłki”, `copy_of`, źródło `copy`) (4.5).
 
 Zmiany w v0.17: duża liczba w Diecie to zjedzone kcal, a nie „do celu”; strony nie da się przewinąć poza aplikację (2.1).
 
@@ -290,6 +292,8 @@ Wynik etapu 0: zeskanowane produkty są w Open Food Facts, ale wartości bywają
 
 ### 4.5 Dziennik dnia (zakładka „Dieta”)
 
+**Poprzednie posiłki** (od 22.11.2026): na ekranie „Dodaj do: [posiłek]” lista posiłków z ostatnich 14 dni (`GET /api/diary/recent-meals/{dzień}`, najwyżej 10, najnowszy dzień pierwszy). Stuknięcie kopiuje cały posiłek do wybranego; „Cofnij” usuwa kopie. Każda kopia to zwykły wpis z nowym UUID i polem `copy_of` (źródło `copy`): serwer bierze zamrożone wartości z oryginalnego wpisu, a nie z produktu, więc kopia jest dokładnie tym, co zjedzono, także gdy produkt poprawiono później. Działa bez sieci jak każdy wpis.
+
 Dzień składa się z pięciu posiłków: śniadanie, II śniadanie, obiad, podwieczorek, kolacja. Wpis to produkt, ilość (g albo ml) i posiłek. Od 19.11.2026 wszystkie posiłki są zawsze widoczne (pusty jako jedna linijka) i każdy ma przycisk „+ Dodaj”, który otwiera dodawanie od razu do tego posiłku. Osobnej zakładki „Dodaj” nie ma; dodawanie jest stanem zakładki „Dieta”, nie adresem (AGENTS.md, zasada 11).
 
 - `PUT /api/diary/entries/{id}` dodaje wpis albo go zmienia. Identyfikator UUID nadaje telefon, więc powtórzona wysyłka nie tworzy duplikatu.
@@ -354,7 +358,7 @@ Ekran „Dodaj do: [posiłek]” (z przycisku przy posiłku w Diecie): wyszukiwa
 
 Zestaw produktów z ilościami, np. „Śniadanie standard", dodawany do dnia jednym stuknięciem.
 
-- **Zapis:** w dzienniku przy posiłku (śniadanie, obiad…) przycisk „Zapisz jako posiłek" zapisuje jego produkty z ilościami. Wpis bez produktu (w przyszłości ze zdjęcia posiłku) jest pomijany.
+- **Zapis:** w dzienniku przy posiłku (śniadanie, obiad…) przycisk „Zapisz jako posiłek" zapisuje jego produkty z ilościami. Od 22.11.2026 także składniki ze zdjęcia i opisu, bo szacunek AI jest produktem (7.1); wcześniej były pomijane.
 - **Dodanie:** przy posiłku w Diecie stukasz „+ Dodaj”, a potem zestaw z listy „Zapisane posiłki”; trafia do tego posiłku. Powstają zwykłe wpisy dziennika, po jednym na produkt, ze źródłem `meal`. Działa bez sieci tak samo jak pojedynczy produkt. „Cofnij" usuwa właśnie dodane wpisy.
 - **Zestaw przechowuje produkty i ilości, nie wartości.** Wartości liczy i zamraża wpis dziennika w chwili dodania (rozdział 8), więc poprawka produktu działa od tej pory w przód, a dodane wcześniej wpisy się nie zmieniają. Kalorie zestawu na liście są liczone według produktów na dziś.
 - `GET /api/meals`, `PUT /api/meals/{uuid}` (nazwa i skład; powtórka zastępuje skład), `DELETE /api/meals/{uuid}` (wpisy w dzienniku zostają). Logika: `backend/app/core/meals.py`.
@@ -552,6 +556,7 @@ Ekran dodawania ma kafelki „Zdjęcie posiłku (AI)” i „Opisz posiłek (AI)
 - `POST /api/ai/meal/photo` (zdjęcie w treści żądania, zmniejszone na telefonie jak etykieta; opcjonalnie `?description=`) i `POST /api/ai/meal/text` (`{"text": …}`) zwracają szkic: składniki z gramaturą i zakresem, pewnością, dopasowanym produktem, listą innych produktów do wyboru, szacunkiem na 100 g i wartościami porcji. Szkic niczego nie zapisuje.
 - Na ekranie szkicu zmieniasz gramaturę, produkt (z listy albo „Szacunek AI"), odznaczasz składniki i wybierasz posiłek dnia. Podgląd kalorii przelicza telefon, tak jak w dzienniku.
 - „Dodaj do dnia" zapisuje zwykłe wpisy przez kolejkę offline (`PUT /api/diary/entries/{id}`): z `food_id`, gdy wybrano produkt, albo z `estimate` (nazwa i wartości na 100 g), gdy szacunek. Wpis pamięta `ai_run_id`. Samo rozpoznanie wymaga sieci.
+- **Szacunek staje się produktem** (od 22.11.2026, `repo.food_from_estimate`): serwer zakłada produkt `kind = generic`, `origin = ai`, `macro_source = estimated` z wartościami i mikroskładnikami szacunku i łączy z nim wpis. Dzięki temu oszacowany raz „pączek z polewą” jest w wyszukiwarce, w „Ostatnich”, da się go zapisać w posiłku, a kolejny opis AI dopasuje się do niego. Ta sama nazwa (bez wielkości liter i polskich znaków) to ten sam produkt: nowy szacunek odświeża jego wartości, dopóki są szacunkiem; poprawionych przez użytkownika nie rusza. Zamrożone wartości wpisu pochodzą ze szacunku, jak wcześniej. Telefon nie zna jeszcze numeru produktu, więc późniejsza zmiana ilości z `food_id` NULL dotyczy wpisu, który już ma produkt. Migracja `0011` zrobiła to samo dla wpisów sprzed zmiany (wartości na 100 g odtworzone z najnowszego wpisu o danej nazwie, `core/diary.py`, `per_100_of_entry`).
 - Wpis z szacunkiem można potem zmieniać w dzienniku jak każdy inny: zamrożone wartości są skalowane.
 - Suma dnia liczy brak danych jak zero (4.5), więc dziennik oznacza to wprost: wartość, której nie ma żaden wpis, to „brak danych", a wartość, której nie mają niektóre wpisy, ma gwiazdkę i przypis „suma jest zaniżona".
 

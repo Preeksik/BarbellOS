@@ -439,8 +439,9 @@ def test_week_gaps_endpoint_lists_products_and_clears_after_match(logged_in, fak
     assert [(g["name"], g["has_micros"]) for g in gaps["foods"]] == [
         ("Płatki owsiane", False),  # 372 kcal
         ("Serek wiejski", False),  # 194 kcal, wapń z etykiety to za mało
+        ("kawa", False),  # od 22.11.2026 szacunek AI to też produkt
     ]
-    assert gaps["share_without_food"] == pytest.approx(39 / (372 + 194 + 39))
+    assert gaps["share_without_food"] == 0
 
     # Słownik testowy ma tylko 2 składniki, więc „pełne dane" udajemy niższym progiem.
     import app.api.diary as diary_api

@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from app.core.ai_cost import call_cost
 from app.core.health_ingest import Sample
 from app.core.nutrients import MACRO_KEYS, fill_implied_zeros
-from app.core.search import Candidate
+from app.core.search import Candidate, words
 from app.core.targets import TargetRow
 from app.db.models import (
     AiRun,
@@ -276,6 +276,51 @@ def create_generic_food(
     )
     db.add(food)
     db.commit()
+    return food
+
+
+def food_from_estimate(
+    db: Session,
+    name: str,
+    per_100: dict[str, float | None],
+    micros_per_100: dict[str, tuple[float, str]],
+) -> Food:
+    """Produkt z szacunku AI (22.11.2026): to, co oszacowano raz, da się zapisać i dodać znowu.
+
+    Ta sama nazwa (bez wielkości liter i polskich znaków) to ten sam produkt, więc kolejny
+    szacunek „pączka z polewą" nie tworzy duplikatu, tylko odświeża wartości, dopóki są
+    szacunkiem. Wartości poprawione przez użytkownika (`macro_source = user`) zostają, a
+    mikroskładniki dopasowane już z tabeli USDA też.
+    """
+    key = " ".join(words(name))
+    existing = next(
+        (
+            food
+            for food in db.scalars(select(Food).where(Food.origin == "ai"))
+            if " ".join(words(food.name)) == key
+        ),
+        None,
+    )
+    if existing is not None:
+        if existing.macro_source == "estimated":
+            for macro in MACRO_KEYS:
+                setattr(existing, macro, per_100.get(macro))
+        if not food_micros(db, existing.id):
+            set_food_micros(db, existing, micros_per_100, existing.fdc_id, existing.fdc_description)
+        db.commit()
+        return existing
+    food = Food(
+        kind="generic",
+        name=name[:255],
+        unit="g",
+        origin="ai",
+        macro_source="estimated",
+        **{macro: per_100.get(macro) for macro in MACRO_KEYS},
+    )
+    db.add(food)
+    db.commit()
+    if micros_per_100:
+        set_food_micros(db, food, micros_per_100, None, None)
     return food
 
 

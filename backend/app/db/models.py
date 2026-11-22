@@ -100,7 +100,7 @@ class Food(MacroColumns, Base):
     serving_g: Mapped[float | None]
     # Jednostka odniesienia: wartości są na 100 g albo (napoje) na 100 ml.
     unit: Mapped[str] = mapped_column(String(2), default="g", server_default="g")
-    origin: Mapped[str] = mapped_column(String(16))  # off | fdc | user | ai_label
+    origin: Mapped[str] = mapped_column(String(16))  # off | fdc | user | ai_label | ai
     # Skąd pochodzą aktualne wartości: label | reference | estimated | user
     macro_source: Mapped[str] = mapped_column(String(16))
     # Kiedy dane ostatnio zmieniono w źródle (np. w Open Food Facts).

@@ -357,7 +357,8 @@ def test_estimated_entry_is_frozen_and_marked(logged_in, label_ai):
     response = _entry(logged_in, entry_id, estimate=ESTIMATE, source="photo", ai_run_id=run_id)
     assert response.status_code == 200
     saved = response.json()
-    assert (saved["food_id"], saved["food_name"], saved["unit"]) == (None, "pomidor", "g")
+    assert (saved["food_name"], saved["unit"]) == ("pomidor", "g")
+    assert saved["food_id"] is not None  # od 22.11.2026 szacunek zakłada produkt
     assert saved["macro_source"] == "estimated"
     assert saved["ai_run_id"] == run_id
     assert saved["values"]["kcal"] == pytest.approx(21.6)

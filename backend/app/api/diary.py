@@ -13,7 +13,14 @@ from app.ai.router import AiRouter
 from app.api.deps import get_ai_router, get_fdc_client, require_user
 from app.api.diet import Per100 as MacroValues
 from app.config import Settings, get_settings
-from app.core.diary import MEAL_SLOTS, day_totals, freeze_portion, scale_portion
+from app.core.diary import (
+    MEAL_SLOTS,
+    RECENT_MEALS_LIMIT,
+    day_totals,
+    freeze_portion,
+    recent_meals,
+    scale_portion,
+)
 from app.core.micros import clean_micros
 from app.core.nutrients import MACRO_KEYS, macro_errors
 from app.core.week import MIN_MICROS, average, micro_gaps, micro_week
@@ -43,11 +50,14 @@ class EstimateIn(BaseModel):
 class EntryIn(BaseModel):
     date: dt.date
     meal_slot: MealSlot
-    food_id: int | None = None  # None tylko dla składnika z AI bez produktu w bazie
+    food_id: int | None = None  # None dla składnika z AI (produkt zakłada serwer) i kopii
     estimate: EstimateIn | None = None
+    # Kopia wpisu z innego dnia lub posiłku (22.11.2026): wartości przenoszone z tego wpisu.
+    copy_of: uuid.UUID | None = None
     amount: float = Field(gt=0, le=5000)  # gramy albo mililitry, zależnie od produktu
-    # meal: dodany z zapisanego posiłku (krok 6); photo/text: ze szkicu AI (etap 2)
-    source: Literal["scan", "search", "photo", "text", "manual", "meal"] = "scan"
+    # meal: dodany z zapisanego posiłku (krok 6); photo/text: ze szkicu AI (etap 2);
+    # copy: skopiowany z poprzedniego posiłku
+    source: Literal["scan", "search", "photo", "text", "manual", "meal", "copy"] = "scan"
     ai_run_id: int | None = None  # wywołanie modelu, z którego pochodzi wpis
 
 
@@ -129,19 +139,35 @@ def put_entry(
     skalowane, a nie pobierane ponownie z produktu.
     """
     entry = db.get(MealEntry, entry_id)
-    if entry is not None and entry.food_id == body.food_id:
+    food_id = body.food_id
+    if entry is not None and (body.food_id is None or entry.food_id == body.food_id):
         # Zmiana ilości lub posiłku: zamrożone wartości są skalowane (także szacunek modelu).
+        # Telefon może nie znać produktu, który serwer założył dla szacunku (food_id None).
         values, micros = scale_portion(_values(entry), entry.micros, body.amount / entry.amount)
         food_name, unit, macro_source = entry.food_name, entry.unit, entry.macro_source
+        food_id = entry.food_id
+    elif body.food_id is None and body.copy_of is not None:
+        # Kopia wpisu: te same zamrożone wartości (przeskalowane do ilości), ten sam produkt.
+        original = db.get(MealEntry, body.copy_of)
+        if original is None:
+            raise HTTPException(404, "Kopiowany wpis już nie istnieje.")
+        values, micros = scale_portion(
+            _values(original), original.micros, body.amount / original.amount
+        )
+        food_name, unit, macro_source = original.food_name, original.unit, original.macro_source
+        food_id = original.food_id
     elif body.food_id is None:
-        # Szacunek modelu: bez mikroskładników, wartości oznaczone jako `estimated`.
+        # Szacunek modelu: wartości oznaczone jako `estimated`. Od 22.11.2026 serwer zakłada
+        # z niego produkt, żeby dało się go zapisać w posiłku, wyszukać i dodać ponownie.
         estimate = _estimate(body)
         micros_per_100 = {
             nutrient_id: (amount, "estimated")
             for nutrient_id, amount in clean_micros(estimate.micros_per_100).items()
         }
-        values, micros = freeze_portion(estimate.per_100.model_dump(), micros_per_100, body.amount)
+        per_100 = estimate.per_100.model_dump()
+        values, micros = freeze_portion(per_100, micros_per_100, body.amount)
         food_name, unit, macro_source = estimate.name.strip(), "g", "estimated"
+        food_id = repo.food_from_estimate(db, food_name, per_100, micros_per_100).id
     else:
         food = db.get(Food, body.food_id)
         if food is None:
@@ -159,7 +185,7 @@ def put_entry(
         entry_id,
         date=body.date,
         meal_slot=body.meal_slot,
-        food_id=body.food_id,
+        food_id=food_id,
         food_name=food_name,
         amount=body.amount,
         unit=unit,
@@ -193,6 +219,38 @@ def delete_entry(entry_id: uuid.UUID, db: Session = Depends(get_db)) -> Response
     """Idempotentne: usunięcie wpisu, którego już nie ma, też kończy się powodzeniem."""
     repo.delete_meal_entry(db, entry_id)
     return Response(status_code=204)
+
+
+# ---------- poprzednie posiłki (22.11.2026) ----------
+
+RECENT_DAYS = 14
+
+
+class RecentMealOut(BaseModel):
+    date: dt.date
+    meal_slot: MealSlot
+    kcal: float
+    entries: list[EntryOut]
+
+
+@router.get("/recent-meals/{day}", response_model=list[RecentMealOut])
+def get_recent_meals(day: dt.date, db: Session = Depends(get_db)) -> list[RecentMealOut]:
+    """Posiłki z ostatnich dwóch tygodni do `day` włącznie, do skopiowania jednym stuknięciem."""
+    entries = repo.meal_entries_between(db, day - dt.timedelta(days=RECENT_DAYS - 1), day)
+    rows = [{"date": e.date, "meal_slot": e.meal_slot, **_values(e)} for e in entries]
+    meals = []
+    # Jeden więcej: telefon pomija posiłek, do którego właśnie dodaje.
+    for date, slot, indices in recent_meals(rows, limit=RECENT_MEALS_LIMIT + 1):
+        group = [entries[i] for i in indices]
+        meals.append(
+            RecentMealOut(
+                date=date,
+                meal_slot=slot,
+                kcal=day_totals(rows[i] for i in indices)["totals"]["kcal"],
+                entries=[_entry_out(e) for e in group],
+            )
+        )
+    return meals
 
 
 # ---------- tydzień (etap 6) ----------

@@ -339,6 +339,8 @@ export interface DiaryPutInput {
   entry: DiaryEntry;
   /** Składnik z AI bez produktu w bazie: szacunek modelu na 100 g (tylko przy dodaniu). */
   estimate?: { name: string; per_100: Per100; micros_per_100?: Record<string, number> };
+  /** Kopia wpisu z innego dnia lub posiłku: serwer przenosi zamrożone wartości z tego wpisu. */
+  copyOf?: string;
 }
 
 export interface DiaryDeleteInput {
@@ -363,13 +365,16 @@ function refreshDiaryAfterLastWrite(): void {
     void queryClient.invalidateQueries({ queryKey: ["diary"] });
     // „Ostatnie" bierze się z dziennika: bez tego lista pokazywałaby stan sprzed wpisu.
     void queryClient.invalidateQueries({ queryKey: ["recent"] });
+    void queryClient.invalidateQueries({ queryKey: ["recent-meals"] });
     void queryClient.invalidateQueries({ queryKey: ["week"] });
+    // Szacunek AI zakłada produkt na serwerze: wyszukiwarka ma go znać od razu.
+    void queryClient.invalidateQueries({ queryKey: ["search"] });
   }
 }
 
 queryClient.setMutationDefaults(mutationKeys.diaryPut, {
   scope: DIARY_SCOPE,
-  mutationFn: ({ entry, estimate }: DiaryPutInput) =>
+  mutationFn: ({ entry, estimate, copyOf }: DiaryPutInput) =>
     api.put<DiaryEntry>(`/api/diary/entries/${entry.id}`, {
       date: entry.date,
       meal_slot: entry.meal_slot,
@@ -377,6 +382,7 @@ queryClient.setMutationDefaults(mutationKeys.diaryPut, {
       amount: entry.amount,
       source: entry.source,
       estimate: estimate ?? null,
+      copy_of: copyOf ?? null,
       ai_run_id: entry.ai_run_id ?? null,
     }),
   onMutate: ({ entry }: DiaryPutInput) => previewDay(entry.date, (day) => withEntry(day, entry)),
