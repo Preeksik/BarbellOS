@@ -141,3 +141,30 @@ def test_recent_meals_lists_groups_with_entries(logged_in):
     assert [e["food_name"] for e in meals[0]["entries"]][0] == "Spaghetti z leczo"
     # Dzień dalej niż dwa tygodnie wstecz nie wchodzi.
     assert logged_in.get("/api/diary/recent-meals/2026-12-10").json() == []
+
+
+# ====================================================================== posiłek z wpisów
+
+
+def test_meal_from_selected_entries_includes_ai_estimates(logged_in):
+    spaghetti = {"name": "Spaghetti z leczo", "per_100": {"kcal": 150}}
+    pasta = _put(logged_in, meal_slot="lunch", amount=400, estimate=spaghetti, source="photo")
+    donut = _put(logged_in, meal_slot="lunch", estimate=DONUT, source="text")
+    jelly = logged_in.get("/api/foods/barcode/5900000000015").json()  # produkt z kodu (atrapa)
+    _put(logged_in, meal_slot="lunch", amount=50, food_id=jelly["id"], source="scan")
+
+    # Wybrane tylko spaghetti i pączek: żelki zostają poza zestawem.
+    meal_id = uuid.uuid4()
+    ids = [pasta.json()["id"], donut.json()["id"]]
+    body = {"name": "Obiad jak wczoraj", "entry_ids": ids}
+    assert logged_in.put(f"/api/meals/{meal_id}", json=body).status_code == 204
+    meal = next(m for m in logged_in.get("/api/meals").json() if m["id"] == str(meal_id))
+    assert [(i["food_name"], i["amount"]) for i in meal["items"]] == [
+        ("Spaghetti z leczo", 400),
+        (DONUT["name"], 80),
+    ]
+
+    gone = {"name": "X", "entry_ids": [str(uuid.uuid4())]}
+    assert logged_in.put(f"/api/meals/{uuid.uuid4()}", json=gone).status_code == 404
+    empty = {"name": "X", "entry_ids": []}
+    assert logged_in.put(f"/api/meals/{uuid.uuid4()}", json=empty).status_code == 422

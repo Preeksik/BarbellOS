@@ -55,10 +55,3 @@ export function copiedEntries(
     },
   }));
 }
-
-/** Skład zestawu z wpisów posiłku. Wpis bez produktu (np. ze zdjęcia) jest pomijany. */
-export function itemsFromEntries(entries: DiaryEntry[]): { food_id: number; amount: number }[] {
-  return entries
-    .filter((entry): entry is DiaryEntry & { food_id: number } => entry.food_id != null)
-    .map((entry) => ({ food_id: entry.food_id, amount: entry.amount }));
-}

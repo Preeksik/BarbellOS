@@ -274,8 +274,19 @@ queryClient.setMutationDefaults(mutationKeys.targetsPut, {
 export const MEALS_QUERY_KEY = ["meals"] as const;
 
 /** Pełny zestaw: serwer dostaje nazwę i skład, telefon trzyma resztę do podglądu. */
+// Zapisy dziennika idą jeden po drugim, w kolejności wykonania. Bez tego usunięcie
+// wpisu mogłoby dotrzeć do serwera przed jego dodaniem. Zapis posiłku z wpisów też tu
+// jest: musi dotrzeć po wpisach, z których bierze produkty.
+const DIARY_SCOPE = { id: "diary" };
+
 export interface MealPutInput {
+  /** Podgląd na liście do czasu odpowiedzi serwera (puste `items`: bez podglądu). */
   meal: Meal;
+  /**
+   * Wpisy dziennika, z których serwer bierze produkty i ilości (22.11.2026). Telefon nie zna
+   * numeru produktu, który serwer zakłada dla szacunku AI, więc posiłek wskazuje wpisy.
+   */
+  entryIds?: string[];
 }
 
 export interface MealDeleteInput {
@@ -283,15 +294,20 @@ export interface MealDeleteInput {
 }
 
 queryClient.setMutationDefaults(mutationKeys.mealPut, {
-  mutationFn: ({ meal }: MealPutInput) =>
-    api.put<void>(`/api/meals/${meal.id}`, {
-      name: meal.name,
-      items: meal.items.map(({ food_id, amount }) => ({ food_id, amount })),
-    }),
-  onMutate: ({ meal }: MealPutInput) =>
+  scope: DIARY_SCOPE,
+  mutationFn: ({ meal, entryIds }: MealPutInput) =>
+    api.put<void>(
+      `/api/meals/${meal.id}`,
+      entryIds
+        ? { name: meal.name, entry_ids: entryIds }
+        : { name: meal.name, items: meal.items.map(({ food_id, amount }) => ({ food_id, amount })) },
+    ),
+  onMutate: ({ meal }: MealPutInput) => {
+    if (meal.items.length === 0) return;
     queryClient.setQueryData<Meal[]>(MEALS_QUERY_KEY, (old = []) =>
       [...old.filter((m) => m.id !== meal.id), meal].sort((a, b) => a.name.localeCompare(b.name)),
-    ),
+    );
+  },
   onSettled: () => queryClient.invalidateQueries({ queryKey: MEALS_QUERY_KEY }),
 });
 
@@ -330,9 +346,6 @@ export const diaryQueryKey = (date: string) => ["diary", date] as const;
 /** Wspólny początek kluczy zapisów dziennika: do liczenia kolejki i zgłaszania błędów. */
 export const DIARY_MUTATIONS = ["diary"] as const;
 
-// Zapisy dziennika idą jeden po drugim, w kolejności wykonania. Bez tego usunięcie
-// wpisu mogłoby dotrzeć do serwera przed jego dodaniem.
-const DIARY_SCOPE = { id: "diary" };
 
 /** Pełny wpis w stanie po zmianie. Serwer dostaje z niego tylko to, co potrzebne. */
 export interface DiaryPutInput {

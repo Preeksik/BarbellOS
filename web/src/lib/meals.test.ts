@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { DiaryEntry, Meal, Per100 } from "./api";
-import { copiedEntries, itemsFromEntries, mealEntries } from "./meals";
+import { copiedEntries, mealEntries } from "./meals";
 
 const NONE: Per100 = {
   kcal: null,
@@ -40,17 +40,6 @@ describe("mealEntries", () => {
     expect(entries[0].values.fiber_g).toBeNull(); // brak danych zostaje brakiem
     // Kolejność w dzienniku jak w zestawie.
     expect(entries[0].created_at < entries[1].created_at).toBe(true);
-  });
-});
-
-describe("itemsFromEntries", () => {
-  it("pomija wpisy bez produktu", () => {
-    const entry = (food_id: number | null, amount: number) =>
-      ({ food_id, amount }) as unknown as DiaryEntry;
-    expect(itemsFromEntries([entry(1, 300), entry(null, 120), entry(2, 50)])).toEqual([
-      { food_id: 1, amount: 300 },
-      { food_id: 2, amount: 50 },
-    ]);
   });
 });
 

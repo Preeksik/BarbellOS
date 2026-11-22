@@ -1,6 +1,8 @@
-# BarbellOS — dokumentacja techniczna v0.18
+# BarbellOS — dokumentacja techniczna v0.19
 
 Stan: 19.11.2026.
+
+Zmiany w v0.19: zapis posiłku z wyborem produktów i od razu po szacunku AI; posiłek może wskazać wpisy (`entry_ids`) zamiast produktów, a jego zapis idzie w kolejce za wpisami dziennika (4.9).
 
 Zmiany w v0.18: szacunek AI zakłada produkt (`origin = ai`), więc da się go zapisać w posiłku, wyszukać i dodać ponownie; dawne wpisy z AI dostały produkt w migracji `0011` (7.1, 4.9); kopiowanie posiłku z ostatnich dwóch tygodni („Poprzednie posiłki”, `copy_of`, źródło `copy`) (4.5).
 
@@ -358,7 +360,8 @@ Ekran „Dodaj do: [posiłek]” (z przycisku przy posiłku w Diecie): wyszukiwa
 
 Zestaw produktów z ilościami, np. „Śniadanie standard", dodawany do dnia jednym stuknięciem.
 
-- **Zapis:** w dzienniku przy posiłku (śniadanie, obiad…) przycisk „Zapisz jako posiłek" zapisuje jego produkty z ilościami. Od 22.11.2026 także składniki ze zdjęcia i opisu, bo szacunek AI jest produktem (7.1); wcześniej były pomijane.
+- **Zapis:** w dzienniku przy posiłku (śniadanie, obiad…) przycisk „Zapisz jako posiłek" zapisuje jego produkty z ilościami. Od 22.11.2026 także składniki ze zdjęcia i opisu, bo szacunek AI jest produktem (7.1); wcześniej były pomijane. Formularz pokazuje produkty posiłku z polami do odznaczenia (np. spaghetti bez zjedzonych przy okazji żelków). Ten sam formularz jest po „Dodaj do dnia” na ekranie AI, z nazwą podpowiedzianą ze składników.
+- **Posiłek z wpisów:** `PUT /api/meals/{id}` przyjmuje zamiast `items` listę `entry_ids`; serwer bierze produkty i ilości z tych wpisów, w podanej kolejności. Potrzebne, bo telefon nie zna numeru produktu, który serwer zakłada dla szacunku AI. Zapis posiłku jest w tej samej kolejce offline co wpisy dziennika (`DIARY_SCOPE`), więc dociera po nich także po powrocie sieci.
 - **Dodanie:** przy posiłku w Diecie stukasz „+ Dodaj”, a potem zestaw z listy „Zapisane posiłki”; trafia do tego posiłku. Powstają zwykłe wpisy dziennika, po jednym na produkt, ze źródłem `meal`. Działa bez sieci tak samo jak pojedynczy produkt. „Cofnij" usuwa właśnie dodane wpisy.
 - **Zestaw przechowuje produkty i ilości, nie wartości.** Wartości liczy i zamraża wpis dziennika w chwili dodania (rozdział 8), więc poprawka produktu działa od tej pory w przód, a dodane wcześniej wpisy się nie zmieniają. Kalorie zestawu na liście są liczone według produktów na dziś.
 - `GET /api/meals`, `PUT /api/meals/{uuid}` (nazwa i skład; powtórka zastępuje skład), `DELETE /api/meals/{uuid}` (wpisy w dzienniku zostają). Logika: `backend/app/core/meals.py`.

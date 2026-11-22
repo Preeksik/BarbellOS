@@ -1517,3 +1517,48 @@ button.estimate .muted {
   font-size: 0.85rem;
   font-weight: 400;
 }
+
+/* Wybór produktów przy zapisie posiłku (22.11.2026). */
+fieldset.pick {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+fieldset.pick legend {
+  padding: 0 0 6px;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+label.pickrow {
+  display: grid;
+  grid-template-columns: 24px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  border-top: 1px solid var(--border);
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+label.pickrow input {
+  width: 22px;
+  min-height: 0;
+  height: 22px;
+  margin: 0;
+  padding: 0;
+  accent-color: var(--green);
+}
+
+label.pickrow .name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+label.pickrow:not(.on) .name {
+  color: var(--muted);
+  text-decoration: line-through;
+}

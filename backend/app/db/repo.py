@@ -523,6 +523,12 @@ def delete_meal_entry(db: Session, entry_id: uuid.UUID) -> None:
         db.commit()
 
 
+def meal_entries_by_ids(db: Session, ids: list[uuid.UUID]) -> list[MealEntry]:
+    if not ids:
+        return []
+    return list(db.scalars(select(MealEntry).where(MealEntry.id.in_(ids))))
+
+
 def meal_entries_for_day(db: Session, day: date) -> list[MealEntry]:
     return list(
         db.scalars(select(MealEntry).where(MealEntry.date == day).order_by(MealEntry.created_at))

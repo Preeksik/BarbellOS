@@ -30,7 +30,10 @@ class MealItemIn(BaseModel):
 
 class MealIn(BaseModel):
     name: str = Field(max_length=200)
-    items: list[MealItemIn]
+    items: list[MealItemIn] = Field(default_factory=list)
+    # Zamiast `items`: wpisy dziennika, z których serwer bierze produkty i ilości (22.11.2026).
+    # Telefon nie zna numeru produktu, który serwer założył dla szacunku AI.
+    entry_ids: list[uuid.UUID] | None = None
 
 
 class MealItemOut(BaseModel):
@@ -80,7 +83,18 @@ def list_meals(db: Session = Depends(get_db)) -> list[MealOut]:
 @router.put("/{meal_id}", status_code=204)
 def put_meal(meal_id: uuid.UUID, body: MealIn, db: Session = Depends(get_db)) -> Response:
     """Tworzy zestaw albo zastępuje jego nazwę i skład. Identyfikator nadaje telefon."""
-    items = [(item.food_id, item.amount) for item in body.items]
+    if body.entry_ids is not None:
+        entries = {e.id: e for e in repo.meal_entries_by_ids(db, body.entry_ids)}
+        if missing_entries := [str(i) for i in body.entry_ids if i not in entries]:
+            raise HTTPException(404, f"Nie ma wpisów: {', '.join(missing_entries)}.")
+        # W kolejności wybranej na telefonie; wpis bez produktu (przed migracją 0011) odpada.
+        items = [
+            (entries[i].food_id, entries[i].amount)
+            for i in body.entry_ids
+            if entries[i].food_id is not None
+        ]
+    else:
+        items = [(item.food_id, item.amount) for item in body.items]
     if errors := meal_errors(body.name, items):
         raise HTTPException(422, " ".join(errors))
     known = {food.id for food in repo.foods_by_ids(db, [food_id for food_id, _ in items])}

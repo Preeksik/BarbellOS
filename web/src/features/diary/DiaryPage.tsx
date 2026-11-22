@@ -5,7 +5,6 @@ import {
   type DiaryEntry,
   type GoalKind,
   type MacroKey,
-  type Meal,
   type MealSlot,
   type Per100,
   type Plan,
@@ -18,19 +17,15 @@ import {
   MEAL_SLOTS,
   dayLabel,
   missingCounts,
-  scaleValues,
   shiftDay,
-  sumValues,
   toIsoDay,
   withAmount,
 } from "../../lib/diary";
-import { itemsFromEntries } from "../../lib/meals";
 import { INVALID, formatDecimal, parseDecimal } from "../../lib/number";
 import {
   DIARY_MUTATIONS,
   type DiaryDeleteInput,
   type DiaryPutInput,
-  type MealPutInput,
   PROFILE_QUERY_KEY,
   type TargetsPutInput,
   diaryQueryKey,
@@ -46,6 +41,7 @@ import {
   progressText,
 } from "../../lib/targets";
 import { formatGrams, formatKcal } from "../diet/macros";
+import { SaveMealForm } from "../diet/SaveMealForm";
 import { WeekView } from "./WeekView";
 
 const MAX_AMOUNT = 5000; // ta sama granica co na serwerze
@@ -69,6 +65,8 @@ export function DiaryPage({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingGoals, setEditingGoals] = useState(false);
   const [savingSlot, setSavingSlot] = useState<MealSlot | null>(null);
+  // Potwierdzenie „Zapisano" przy posiłku, który właśnie zapisano jako zestaw.
+  const [saved, setSaved] = useState<{ slot: MealSlot; name: string } | null>(null);
   const [view, setView] = useState<"day" | "week">("day");
   const diary = useQuery({
     queryKey: diaryQueryKey(day),
@@ -241,15 +239,25 @@ export function DiaryPage({
                 <SaveMealForm
                   defaultName={slot.label}
                   entries={slotEntries}
-                  onDone={() => setSavingSlot(null)}
+                  onDone={(name) => {
+                    setSavingSlot(null);
+                    setSaved(name ? { slot: slot.id, name } : null);
+                  }}
                 />
               ) : (
+                <>
+                {saved?.slot === slot.id && (
+                  <p className="status ok">
+                    Zapisano posiłek „{saved.name}": znajdziesz go w „+ Dodaj".
+                  </p>
+                )}
                 <div className="slotactions">
                   {addButton}
                   <button type="button" className="link" onClick={() => setSavingSlot(slot.id)}>
                     Zapisz jako posiłek
                   </button>
                 </div>
+                </>
               )}
             </section>
             );
@@ -594,60 +602,6 @@ function GoalsForm({
         </button>
         <button type="submit" className="primary">
           Zapisz cele
-        </button>
-      </div>
-    </form>
-  );
-}
-
-/** Zapisuje produkty z posiłku jako zestaw do dodawania jednym stuknięciem. */
-function SaveMealForm({
-  defaultName,
-  entries,
-  onDone,
-}: {
-  defaultName: string;
-  entries: DiaryEntry[];
-  onDone: () => void;
-}) {
-  const [name, setName] = useState(defaultName);
-  const save = useMutation<void, Error, MealPutInput>({ mutationKey: mutationKeys.mealPut });
-  const items = itemsFromEntries(entries);
-
-  function submit(event: FormEvent) {
-    event.preventDefault();
-    if (!name.trim() || items.length === 0) return;
-    const meal: Meal = {
-      id: crypto.randomUUID(),
-      name: name.trim(),
-      // Podgląd do czasu odpowiedzi serwera: wartości na 100 g odtworzone z wpisu.
-      items: entries
-        .filter((entry) => entry.food_id != null)
-        .map((entry) => ({
-          food_id: entry.food_id!,
-          food_name: entry.food_name,
-          amount: entry.amount,
-          unit: entry.unit,
-          per_100: scaleValues(entry.values, 100 / entry.amount),
-        })),
-      totals: sumValues(entries.filter((entry) => entry.food_id != null)),
-    };
-    save.mutate({ meal });
-    onDone();
-  }
-
-  return (
-    <form className="savemeal" onSubmit={submit}>
-      <label>
-        Nazwa posiłku ({items.length} {items.length === 1 ? "produkt" : "produkty"})
-        <input value={name} maxLength={120} onChange={(e) => setName(e.target.value)} />
-      </label>
-      <div className="row">
-        <button type="submit" className="primary" disabled={!name.trim() || items.length === 0}>
-          Zapisz
-        </button>
-        <button type="button" onClick={onDone}>
-          Anuluj
         </button>
       </div>
     </form>

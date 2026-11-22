@@ -15,6 +15,7 @@ import { MEAL_SLOTS, dayLabel, defaultSlot, toIsoDay } from "../../lib/diary";
 import { shrinkPhoto } from "../../lib/label";
 import { INVALID, formatDecimal, parseDecimal } from "../../lib/number";
 import { type DiaryPutInput, mutationKeys } from "../../lib/offline";
+import { SaveMealForm } from "./SaveMealForm";
 import { formatGrams, formatKcal } from "./macros";
 
 const CONFIDENCE: Record<string, string> = { low: "niepewne", medium: "", high: "" };
@@ -175,7 +176,10 @@ function DraftEditor({
   const [slot, setSlot] = useState<MealSlot>(
     () => initialSlot ?? defaultSlot(new Date().getHours()),
   );
-  const [added, setAdded] = useState<number | null>(null);
+  // Wpisy właśnie dodane do dnia: z nich można od razu zapisać posiłek (22.11.2026).
+  const [added, setAdded] = useState<DiaryEntry[] | null>(null);
+  const [savingMeal, setSavingMeal] = useState(false);
+  const [savedMeal, setSavedMeal] = useState<string | null>(null);
   // Funkcja zapisu jest w rejestrze lib/offline.ts: dodanie działa bez sieci.
   const put = useMutation<DiaryEntry, Error, DiaryPutInput>({ mutationKey: mutationKeys.diaryPut });
 
@@ -196,24 +200,46 @@ function DraftEditor({
   function save() {
     const inputs = draftEntries(draft, states, day, slot, new Date(), () => crypto.randomUUID());
     for (const input of inputs) put.mutate(input);
-    setAdded(inputs.length);
+    setAdded(inputs.map((input) => input.entry));
   }
 
   if (added != null) {
+    const n = added.length;
     return (
       <section className="card">
         <p className="status ok">
-          Dodano {added} {added === 1 ? "pozycję" : added < 5 ? "pozycje" : "pozycji"} ·{" "}
+          Dodano {n} {n === 1 ? "pozycję" : n < 5 ? "pozycje" : "pozycji"} ·{" "}
           {MEAL_SLOTS.find((s) => s.id === slot)?.label} · {formatKcal(totals.kcal)} kcal
         </p>
-        <div className="row">
-          <button type="button" className="primary" onClick={onShowDiary}>
-            Wróć do diety
+        {savedMeal ? (
+          <p className="status ok">
+            Zapisano posiłek „{savedMeal}": następnym razem dodasz go w „+ Dodaj" bez pytania AI.
+          </p>
+        ) : savingMeal ? (
+          <SaveMealForm
+            defaultName={mealName(added)}
+            entries={added}
+            onDone={(name) => {
+              setSavingMeal(false);
+              setSavedMeal(name);
+            }}
+          />
+        ) : (
+          <button type="button" onClick={() => setSavingMeal(true)}>
+            Zapisz jako posiłek
           </button>
-          <button type="button" onClick={onBack}>
-            Gotowe
-          </button>
-        </div>
+        )}
+        {/* W trakcie zapisu posiłku jedna główna akcja: „Zapisz" w formularzu. */}
+        {!savingMeal && (
+          <div className="row">
+            <button type="button" className="primary" onClick={onShowDiary}>
+              Wróć do diety
+            </button>
+            <button type="button" onClick={onBack}>
+              Gotowe
+            </button>
+          </div>
+        )}
       </section>
     );
   }
@@ -333,4 +359,10 @@ function DraftEditor({
       </div>
     </section>
   );
+}
+
+/** Podpowiedź nazwy posiłku z AI: nazwy składników, krótko („Spaghetti, leczo, mięso…"). */
+function mealName(entries: DiaryEntry[]): string {
+  const names = entries.map((entry) => entry.food_name).join(", ");
+  return names.length <= 60 ? names : `${names.slice(0, 59).trimEnd()}…`;
 }
