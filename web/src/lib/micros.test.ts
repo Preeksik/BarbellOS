@@ -14,6 +14,7 @@ function micro(extra: Partial<MicroWeek>): MicroWeek {
     share_trusted: 0.7,
     share_estimated: 0.15,
     share_missing: 0.15,
+    supplement_amount: 0,
     ...extra,
   };
 }
@@ -30,6 +31,13 @@ describe("pokrycie normy", () => {
     expect(coverageState(micro({ percent_rda: 20, share_missing: 0.6 }))).toBe("low-data");
     expect(coverageState(micro({ percent_rda: 20 }))).toBe("low");
     expect(coverageState(micro({ percent_rda: 90 }))).toBe("ok");
+    // Suplement pokrywa normę: brak danych o jedzeniu nie zmienia oceny.
+    expect(
+      coverageState(micro({ percent_rda: 110, share_missing: 0.6, supplement_amount: 400 })),
+    ).toBe("ok");
+    expect(
+      coverageState(micro({ percent_rda: 40, share_missing: 0.6, supplement_amount: 100 })),
+    ).toBe("low-data");
     // Sód ma górną granicę, a nie normę do osiągnięcia.
     expect(coverageState(micro({ nutrient_id: "sodium", percent_rda: 20 }))).toBe("ok");
   });

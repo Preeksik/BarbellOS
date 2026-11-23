@@ -96,6 +96,11 @@ export function WeekView({ day, targets }: { day: string; targets: Targets | nul
                   {state === "low-data" ? "za mało danych · " : ""}
                   {trustText(m)}
                 </span>
+                {m.supplement_amount > 0 && (
+                  <span className="fromsupp">
+                    w tym z suplementów {formatAmount(m.supplement_amount)} {m.unit} dziennie
+                  </span>
+                )}
               </li>
             );
           })}

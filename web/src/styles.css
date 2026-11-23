@@ -1762,3 +1762,70 @@ button.supp .name .muted {
 label.dose {
   flex: 0 0 38%;
 }
+
+/* Tydzień: część składnika z suplementów (24.11.2026). */
+.goal .fromsupp {
+  color: var(--green);
+  font-size: 0.8rem;
+}
+
+/* Skład dawki suplementu (24.11.2026). */
+fieldset.suppmicros {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+fieldset.suppmicros legend {
+  padding: 0 0 6px;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.micro-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 72px 68px 44px;
+  align-items: center;
+  gap: 6px;
+}
+
+.micro-row select,
+.micro-row input {
+  width: 100%;
+  min-width: 0;
+  padding-right: 6px;
+  padding-left: 8px;
+}
+
+.micro-row input {
+  text-align: right;
+}
+
+button.supp .suppmix {
+  display: block;
+  margin-top: 2px;
+  color: var(--green);
+  font-size: 0.8rem;
+  font-weight: 400;
+}
+
+.supplist button.change {
+  min-height: 44px;
+  padding: 4px 10px;
+  border: 0;
+  color: var(--green);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+/* W trybie edycji listy miejsce na „Zmień" i ✕ zamiast kropek tygodnia. */
+.supplist.editing .habit {
+  display: none;
+}
+
+.supplist.editing button.supp {
+  grid-template-columns: 32px 1fr;
+}

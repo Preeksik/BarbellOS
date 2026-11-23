@@ -215,6 +215,18 @@ class Supplement(Base):
     archived_at: Mapped[datetime | None] = mapped_column(TZDateTime)
 
 
+class SupplementNutrient(Base):
+    """Składnik jednej dawki suplementu (24.11.2026), w jednostce słownika (mg albo µg)."""
+
+    __tablename__ = "supplement_nutrient"
+
+    supplement_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("supplement.id", ondelete="CASCADE"), primary_key=True
+    )
+    nutrient_id: Mapped[str] = mapped_column(ForeignKey("nutrient.id"), primary_key=True)
+    amount: Mapped[float]
+
+
 class SupplementIntake(Base):
     """Suplement wzięty danego dnia. Wiersz jest = wzięty; klucz naturalny (dzień, suplement)."""
 

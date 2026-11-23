@@ -45,7 +45,7 @@ const IDB_KEY = "barbellos-query-client";
 // 4: profil ma tryb życia, kroki i treningi zamiast jednej „aktywności”.
 // 5: wpis dziennika ma źródło wartości i powiązanie z wywołaniem AI (etap 2).
 // 6: produkt ma dopasowanie do tabeli USDA (etap 6).
-const CACHE_VERSION = "6";
+const CACHE_VERSION = "7"; // 7: składniki suplementów w tygodniu (24.11.2026)
 const DAY_MS = 1000 * 60 * 60 * 24;
 const THIRTY_DAYS_MS = 30 * DAY_MS;
 // Czas trzymania nieużywanych danych w pamięci. Przeglądarka liczy opóźnienia na 32 bitach:
@@ -335,6 +335,8 @@ export interface SupplementPutInput {
   id: string;
   name: string;
   dose: string | null;
+  /** Skład dawki w jednostkach z opakowania; przelicza serwer (np. 2000 IU witaminy D). */
+  micros: { nutrient_id: string; amount: number; unit: string }[];
 }
 
 export interface SupplementDeleteInput {
@@ -372,8 +374,8 @@ function refreshSupplementsAfterLastWrite(): void {
 
 queryClient.setMutationDefaults(mutationKeys.supplementPut, {
   scope: SUPPLEMENTS_SCOPE,
-  mutationFn: ({ id, name, dose }: SupplementPutInput) =>
-    api.put<void>(`/api/supplements/${id}`, { name, dose }),
+  mutationFn: ({ id, name, dose, micros }: SupplementPutInput) =>
+    api.put<void>(`/api/supplements/${id}`, { name, dose, micros }),
   onMutate: ({ id, name, dose }: SupplementPutInput) =>
     previewSupplementDays((day) =>
       day.supplements.some((s) => s.id === id)
@@ -382,7 +384,15 @@ queryClient.setMutationDefaults(mutationKeys.supplementPut, {
             ...day,
             supplements: [
               ...day.supplements,
-              { id, name, dose, taken: false, streak: 0, last7: Array(7).fill(false) },
+              {
+                id,
+                name,
+                dose,
+                taken: false,
+                streak: 0,
+                last7: Array(7).fill(false),
+                micros: [],
+              },
             ],
           },
     ),

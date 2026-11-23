@@ -145,6 +145,8 @@ export interface SupplementItem {
   streak: number;
   /** Ostatnie 7 dni, od najstarszego. */
   last7: boolean[];
+  /** Skład jednej dawki w jednostkach słownika (mg albo µg). */
+  micros: { nutrient_id: string; amount: number }[];
 }
 
 export interface SupplementDay {
@@ -366,7 +368,10 @@ export interface MicroWeek {
   unit: string;
   group: "vitamin" | "mineral";
   rda: number | null;
+  /** Średnio na dzień z jedzenia i suplementów. */
   avg_amount: number;
+  /** W tym średnio na dzień z odhaczonych suplementów (24.11.2026). */
+  supplement_amount: number;
   percent_rda: number | null;
   /** Część kalorii tygodnia z wpisów z danymi z tabel lub etykiet. */
   share_trusted: number;

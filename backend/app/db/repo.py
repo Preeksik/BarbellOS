@@ -22,6 +22,8 @@ from app.db.models import (
     MealTemplate,
     MealTemplateItem,
     Nutrient,
+    SupplementIntake,
+    SupplementNutrient,
 )
 from app.off.client import FoodDraft
 
@@ -521,6 +523,30 @@ def delete_meal_entry(db: Session, entry_id: uuid.UUID) -> None:
     if entry is not None:
         db.delete(entry)
         db.commit()
+
+
+def supplement_doses(
+    db: Session, supplement_ids: Iterable[uuid.UUID] | None = None
+) -> dict[uuid.UUID, dict[str, float]]:
+    """Skład dawki suplementów: {suplement: {składnik: ilość}}. Bez listy: wszystkich."""
+    query = select(SupplementNutrient)
+    if supplement_ids is not None:
+        query = query.where(SupplementNutrient.supplement_id.in_(list(supplement_ids)))
+    doses: dict[uuid.UUID, dict[str, float]] = {}
+    for row in db.scalars(query):
+        doses.setdefault(row.supplement_id, {})[row.nutrient_id] = row.amount
+    return doses
+
+
+def supplement_intakes_between(db: Session, start: date, end: date) -> list[uuid.UUID]:
+    """Suplement przy każdym odhaczeniu w okresie (także usuniętych z listy: historia)."""
+    return list(
+        db.scalars(
+            select(SupplementIntake.supplement_id).where(
+                SupplementIntake.date >= start, SupplementIntake.date <= end
+            )
+        )
+    )
 
 
 def meal_entries_by_ids(db: Session, ids: list[uuid.UUID]) -> list[MealEntry]:

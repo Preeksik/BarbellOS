@@ -27,7 +27,9 @@ export function percent(share: number): string {
  * procent normy jest zaniżony i nie mówi nic o niedoborze.
  */
 export function coverageState(m: MicroWeek): "low-data" | "low" | "ok" {
-  if (m.share_missing > 0.5) return "low-data";
+  // Składnik pokryty w całości przez suplementy: brak danych o jedzeniu nie ma znaczenia.
+  const bySupplements = m.rda ? (m.supplement_amount ?? 0) / m.rda : 0;
+  if (m.share_missing > 0.5 && bySupplements < 1) return "low-data";
   if (m.percent_rda != null && m.percent_rda < 50 && m.nutrient_id !== "sodium") return "low";
   return "ok";
 }

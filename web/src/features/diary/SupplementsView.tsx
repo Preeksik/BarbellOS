@@ -1,16 +1,18 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { type FormEvent, useState } from "react";
+import { useState } from "react";
 import { type SupplementDay, api } from "../../lib/api";
 import { dayLabel, shiftDay, toIsoDay } from "../../lib/diary";
 import {
   type SupplementDayInput,
   type SupplementDeleteInput,
-  type SupplementPutInput,
   type SupplementYesterdayInput,
   mutationKeys,
   supplementsQueryKey,
 } from "../../lib/offline";
+import { formatAmount } from "../../lib/micros";
 import { toggled, yesterdayGain } from "../../lib/supplements";
+import { useNutrients } from "../diet/FoodMicros";
+import { SupplementForm } from "./SupplementForm";
 
 /**
  * Suplementacja w Diecie (23.11.2026): lista suplementów do odhaczania, „To co wczoraj",
@@ -19,6 +21,8 @@ import { toggled, yesterdayGain } from "../../lib/supplements";
 export function SupplementsView({ day }: { day: string }) {
   const today = toIsoDay(new Date());
   const [editing, setEditing] = useState(false);
+  const [changing, setChanging] = useState<string | null>(null);
+  const nutrients = useNutrients();
   const supplements = useQuery({
     queryKey: supplementsQueryKey(day),
     queryFn: () => api.get<SupplementDay>(`/api/supplements/day/${day}`),
@@ -82,7 +86,7 @@ export function SupplementsView({ day }: { day: string }) {
                   ? `To co ${previous}: odhaczone`
                   : `To co ${previous} (+${gain})`}
             </button>
-            <ul className="supplist">
+            <ul className={editing ? "supplist editing" : "supplist"}>
               {data.supplements.map((s) => (
                 <li key={s.id}>
                   <button
@@ -101,6 +105,16 @@ export function SupplementsView({ day }: { day: string }) {
                     <span className="name">
                       {s.name}
                       {s.dose && <span className="muted"> {s.dose}</span>}
+                      {s.micros.length > 0 && (
+                        <span className="suppmix">
+                          {s.micros
+                            .map((m) => {
+                              const n = nutrients.data?.find((x) => x.id === m.nutrient_id);
+                              return `${n?.name_pl ?? m.nutrient_id} ${formatAmount(m.amount)} ${n?.unit ?? ""}`;
+                            })
+                            .join(", ")}
+                        </span>
+                      )}
                     </span>
                     <span className="habit">
                       <span className="dots" aria-label={`Ostatnie 7 dni: ${s.last7.filter(Boolean).length} z 7`}>
@@ -114,71 +128,49 @@ export function SupplementsView({ day }: { day: string }) {
                     </span>
                   </button>
                   {editing && (
-                    <button
-                      type="button"
-                      className="forget"
-                      aria-label={`Usuń z listy: ${s.name}`}
-                      onClick={() => remove.mutate({ id: s.id })}
-                    >
-                      ✕
-                    </button>
+                    <>
+                      <button
+                        type="button"
+                        className="change"
+                        onClick={() => setChanging(s.id)}
+                      >
+                        Zmień
+                      </button>
+                      <button
+                        type="button"
+                        className="forget"
+                        aria-label={`Usuń z listy: ${s.name}`}
+                        onClick={() => remove.mutate({ id: s.id })}
+                      >
+                        ✕
+                      </button>
+                    </>
                   )}
                 </li>
               ))}
             </ul>
-            <button type="button" className="link" onClick={() => setEditing(!editing)}>
-              {editing ? "Gotowe" : "Usuń z listy"}
+            <button
+              type="button"
+              className="link"
+              onClick={() => {
+                setEditing(!editing);
+                setChanging(null);
+              }}
+            >
+              {editing ? "Gotowe" : "Edytuj listę"}
             </button>
           </>
         )}
       </section>
-      <AddSupplement />
+      {changing && data.supplements.some((s) => s.id === changing) ? (
+        <SupplementForm
+          key={changing}
+          current={data.supplements.find((s) => s.id === changing)}
+          onDone={() => setChanging(null)}
+        />
+      ) : (
+        <SupplementForm />
+      )}
     </>
-  );
-}
-
-/** Nowy suplement na liście. Identyfikator nadaje telefon (kolejka offline). */
-function AddSupplement() {
-  const [name, setName] = useState("");
-  const [dose, setDose] = useState("");
-  const put = useMutation<void, Error, SupplementPutInput>({
-    mutationKey: mutationKeys.supplementPut,
-  });
-
-  function submit(event: FormEvent) {
-    event.preventDefault();
-    if (!name.trim()) return;
-    put.mutate({ id: crypto.randomUUID(), name: name.trim(), dose: dose.trim() || null });
-    setName("");
-    setDose("");
-  }
-
-  return (
-    <form className="card" onSubmit={submit}>
-      <h2>Dodaj suplement</h2>
-      <div className="row">
-        <label>
-          Nazwa
-          <input
-            value={name}
-            maxLength={80}
-            placeholder="np. Kreatyna"
-            onChange={(e) => setName(e.target.value)}
-          />
-        </label>
-        <label className="dose">
-          Dawka
-          <input
-            value={dose}
-            maxLength={40}
-            placeholder="np. 5 g"
-            onChange={(e) => setDose(e.target.value)}
-          />
-        </label>
-      </div>
-      <button type="submit" disabled={!name.trim()}>
-        Dodaj do listy
-      </button>
-    </form>
   );
 }

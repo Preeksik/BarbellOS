@@ -1,6 +1,8 @@
-# BarbellOS — dokumentacja techniczna v0.21
+# BarbellOS — dokumentacja techniczna v0.22
 
 Stan: 19.11.2026.
+
+Zmiany w v0.22: skład dawki suplementu (np. witamina D 2000 IU) liczy się do pokrycia norm w widoku tygodnia; tabela `supplement_nutrient`, migracja `0013` (4.12, 4.11).
 
 Zmiany w v0.21: suplementacja w Diecie (przełącznik „Dzień / Tydzień / Suplementy”): lista suplementów, odhaczanie, „To co wczoraj”, seria dni i ostatni tydzień; tabele `supplement` i `supplement_intake`, migracja `0012` (4.12).
 
@@ -269,7 +271,8 @@ Trzecia opcja przełącznika w Diecie: „Dzień / Tydzień / Suplementy”. Sup
 - **Nawyk:** przy każdym suplemencie 7 kropek z ostatniego tygodnia i seria „X dni z rzędu” (`streak`, `last_days`). Rano, zanim dzisiejszy jest odhaczony, seria liczy się do wczoraj, żeby nie pokazywać zera. U góry „ile z ilu” na dany dzień.
 - **Lista:** `PUT /api/supplements/{uuid}` dodaje albo zmienia (UUID z telefonu), `DELETE` usuwa z listy, ale historia odhaczeń zostaje (`archived_at`); ponowne dodanie z tym samym identyfikatorem przywraca suplement.
 - **Offline:** cztery zapisy (`supplementPut`, `supplementDelete`, `supplementDay`, `supplementYesterday`) są w `web/src/lib/offline.ts` w jednej kolejce, żeby odhaczenie nowego suplementu dotarło po jego dodaniu. Podgląd do czasu odpowiedzi: `web/src/lib/supplements.ts`; serię i tydzień po zapisie liczy serwer.
-- Na później: dawki mikroskładników z suplementów (np. witamina D) w pokryciu norm tygodnia (4.11).
+- **Skład dawki** (od 24.11.2026): przy dodawaniu albo w „Edytuj listę” → „Zmień” można podać składniki jednej dawki z opakowania (`supplement_nutrient`, w jednostce słownika). Jednostki: mg, µg, a dla witaminy D także IU (1 µg = 40 IU, `core/supplements.py`, `to_native`); IU dla witamin A i E nie przyjmujemy, bo przelicznik zależy od formy. Dawka powyżej `MICRO_LIMITS` jest odrzucana jako literówka.
+- **W tygodniu** (4.11) każde odhaczenie z 7 dni dodaje dawkę; suma dzielona przez 7, a nie przez dni z zapisanym jedzeniem (`supplement_daily`), bo suplement brany codziennie daje pełną dawkę także w dniach bez wpisów. Średnia z suplementów dodaje się do średniej z jedzenia, nie zmienia udziałów kalorii; pole `supplement_amount` daje dopisek „w tym z suplementów … dziennie”. Składnik pokryty w całości przez suplementy nie dostaje oznaczenia „za mało danych”. Liczą się też suplementy usunięte z listy (historia odhaczeń).
 
 ### 4.11 Widok tygodnia
 

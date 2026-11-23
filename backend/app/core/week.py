@@ -33,6 +33,7 @@ class MicroCoverage:
     share_trusted: float  # część kalorii z wpisów z danymi z tabeli lub etykiety
     share_estimated: float  # część kalorii z wpisów z szacunkiem
     share_missing: float  # część kalorii z wpisów bez tego składnika
+    supplement_amount: float = 0.0  # w tym średnio na dzień z suplementów (24.11.2026)
 
 
 def day_totals(days: Iterable[date], entries: Iterable[Mapping]) -> list[DayTotal]:
@@ -58,12 +59,18 @@ def _share(part: float, whole: float) -> float:
 
 
 def micro_week(
-    entries: Iterable[Mapping], rda: Mapping[str, float | None], logged_days: int
+    entries: Iterable[Mapping],
+    rda: Mapping[str, float | None],
+    logged_days: int,
+    supplements: Mapping[str, float] | None = None,
 ) -> list[MicroCoverage]:
     """Pokrycie normy w tygodniu z podziałem kalorii według źródła danych.
 
     Wpis ma `kcal` i `micros` ({id: {"amount": float, "source": str}} albo None).
+    `supplements` to średnio na dzień z suplementów (`core.supplements.supplement_daily`):
+    dodaje się do średniej z jedzenia, nie zmienia udziałów kalorii.
     """
+    supplements = supplements or {}
     entries = list(entries)
     total_kcal = sum(e.get("kcal") or 0.0 for e in entries)
     out = []
@@ -78,7 +85,8 @@ def micro_week(
                 trusted += e.get("kcal") or 0.0
             else:
                 estimated += e.get("kcal") or 0.0
-        avg = amount / logged_days if logged_days else 0.0
+        from_supplements = supplements.get(nutrient_id, 0.0)
+        avg = (amount / logged_days if logged_days else 0.0) + from_supplements
         out.append(
             MicroCoverage(
                 nutrient_id=nutrient_id,
@@ -87,6 +95,7 @@ def micro_week(
                 share_trusted=_share(trusted, total_kcal),
                 share_estimated=_share(estimated, total_kcal),
                 share_missing=_share(total_kcal - trusted - estimated, total_kcal),
+                supplement_amount=from_supplements,
             )
         )
     return out

@@ -3,6 +3,8 @@
 import datetime as dt
 import uuid
 
+import pytest
+
 from app.core.supplements import as_yesterday, last_days, streak, supplement_errors
 
 D = dt.date(2026, 11, 23)
@@ -108,3 +110,84 @@ def test_validation_and_unknown_supplement(logged_in):
     unknown = {"taken_ids": [str(uuid.uuid4())]}
     assert logged_in.put("/api/supplements/day/2026-11-23", json=unknown).status_code == 404
     assert logged_in.get("/api/supplements/day/2026-11-23").json()["supplements"] == []
+
+
+# ============================================================ składniki dawki (24.11.2026)
+
+
+def test_to_native_units():
+    from app.core.supplements import to_native
+
+    assert to_native("vit_d", 2000, "IU", "µg") == 50  # 40 IU = 1 µg
+    assert to_native("magnesium", 400, "mg", "mg") == 400
+    assert to_native("vit_b12", 1, "mg", "µg") == 1000
+    assert to_native("vit_b12", 500, "mcg", "µg") == 500
+    assert to_native("zinc", 15000, "µg", "mg") == 15
+    for bad in (("vit_a", 5000, "IU", "µg"), ("zinc", 0, "mg", "mg"), ("zinc", 5, "g", "mg")):
+        with pytest.raises(ValueError):
+            to_native(*bad)
+
+
+def test_supplement_daily_divides_by_all_days():
+    from app.core.supplements import supplement_daily
+
+    doses = {"d3": {"vit_d": 50.0}, "mg": {"magnesium": 400.0}}
+    taken = ["d3"] * 7 + ["mg"] * 3 + ["usuniety"]
+    daily = supplement_daily(taken, doses, 7)
+    assert daily == {"vit_d": 50.0, "magnesium": pytest.approx(400 * 3 / 7)}
+    assert supplement_daily(taken, doses, 0) == {}
+
+
+def _seed_nutrients(db_factory):
+    from app.db.models import Nutrient
+
+    with db_factory() as db:
+        for nid, name, unit, grp, rda in (
+            ("vit_d", "Witamina D", "µg", "vitamin", 5),
+            ("magnesium", "Magnez", "mg", "mineral", 375),
+        ):
+            if db.get(Nutrient, nid) is None:
+                db.add(Nutrient(id=nid, name_pl=name, unit=unit, grp=grp, rda=rda))
+        db.commit()
+
+
+def test_supplement_doses_count_in_week_coverage(logged_in, db_factory):
+    _seed_nutrients(db_factory)
+    d3 = str(uuid.uuid4())
+    body = {"name": "Witamina D3", "dose": "2000 IU",
+            "micros": [{"nutrient_id": "vit_d", "amount": 2000, "unit": "IU"}]}  # fmt: skip
+    assert logged_in.put(f"/api/supplements/{d3}", json=body).status_code == 204
+    day = logged_in.get("/api/supplements/day/2026-11-24").json()
+    assert day["supplements"][0]["micros"] == [{"nutrient_id": "vit_d", "amount": 50.0}]
+
+    for d in ("2026-11-18", "2026-11-20", "2026-11-22", "2026-11-23", "2026-11-24"):
+        logged_in.put(f"/api/supplements/day/{d}", json={"taken_ids": [d3]})
+    # Jedzenie zapisane tylko jednego dnia: suplement liczy się na wszystkie 7 dni.
+    est = {"name": "kawa", "per_100": {"kcal": 39}}
+    logged_in.put(
+        f"/api/diary/entries/{uuid.uuid4()}",
+        json={"date": "2026-11-24", "meal_slot": "lunch", "amount": 100, "estimate": est,
+              "source": "text"},
+    )  # fmt: skip
+    week = logged_in.get("/api/diary/week/2026-11-24").json()
+    vit_d = next(m for m in week["micros"] if m["nutrient_id"] == "vit_d")
+    assert vit_d["supplement_amount"] == pytest.approx(50 * 5 / 7)
+    assert vit_d["avg_amount"] == pytest.approx(50 * 5 / 7)  # kawa nie ma witaminy D
+    assert vit_d["percent_rda"] == pytest.approx(50 * 5 / 7 / 5 * 100)
+
+
+def test_supplement_dose_validation(logged_in, db_factory):
+    _seed_nutrients(db_factory)
+    sid = str(uuid.uuid4())
+
+    def put(micro):
+        return logged_in.put(f"/api/supplements/{sid}", json={"name": "X", "micros": [micro]})
+
+    too_much = {"nutrient_id": "vit_d", "amount": 100000, "unit": "IU"}  # > 300 µg
+    assert put(too_much).status_code == 422
+    assert put({"nutrient_id": "nieznany", "amount": 1, "unit": "mg"}).status_code == 422
+    assert put({"nutrient_id": "magnesium", "amount": 400, "unit": "IU"}).status_code == 422
+    assert put({"nutrient_id": "magnesium", "amount": 400, "unit": "mg"}).status_code == 204
+    # Zapis bez składników czyści skład.
+    logged_in.put(f"/api/supplements/{sid}", json={"name": "X", "micros": []})
+    assert logged_in.get("/api/supplements/day/2026-11-24").json()["supplements"][0]["micros"] == []

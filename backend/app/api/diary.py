@@ -24,6 +24,7 @@ from app.core.diary import (
 )
 from app.core.micros import clean_micros
 from app.core.nutrients import MACRO_KEYS, macro_errors
+from app.core.supplements import supplement_daily
 from app.core.week import MIN_MICROS, average, micro_gaps, micro_week
 from app.core.week import day_totals as day_totals_range
 from app.db import repo
@@ -291,7 +292,8 @@ class MicroWeekOut(BaseModel):
     unit: str
     group: str  # vitamin | mineral
     rda: float | None
-    avg_amount: float
+    avg_amount: float  # z jedzenia i suplementów
+    supplement_amount: float  # w tym z suplementów (24.11.2026)
     percent_rda: float | None
     share_trusted: float
     share_estimated: float
@@ -411,10 +413,15 @@ def get_week(end: dt.date, db: Session = Depends(get_db)) -> WeekOut:
     )
     logged = sum(1 for d in days if d.entries > 0)
     dictionary = {n.id: n for n in repo.nutrients(db)}
+    # Suplementy odhaczone w tych 7 dniach: średnio na dzień, doliczane do jedzenia.
+    from_supplements = supplement_daily(
+        repo.supplement_intakes_between(db, start, end), repo.supplement_doses(db), WEEK_DAYS
+    )
     coverage = micro_week(
         ({"kcal": e.kcal, "micros": e.micros} for e in entries),
         {nid: n.rda for nid, n in dictionary.items()},
         logged,
+        from_supplements,
     )
     return WeekOut(
         start=start,

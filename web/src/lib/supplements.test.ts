@@ -9,6 +9,7 @@ const item = (id: string, taken = false) => ({
   taken,
   streak: 0,
   last7: [false, false, false, false, false, false, false],
+  micros: [],
 });
 
 const DAY: SupplementDay = {
