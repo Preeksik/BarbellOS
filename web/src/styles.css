@@ -690,7 +690,7 @@ th.sub,
   padding: 0;
 }
 
-.segmented label:focus-within {
+.segmented label:has(input:focus-visible) {
   outline: 2px solid var(--text);
   outline-offset: 2px;
 }
@@ -1660,4 +1660,105 @@ button.copyday svg {
 
 .calendar button.picked::after {
   background: var(--on-chalk);
+}
+
+/* Suplementacja (23.11.2026): duże pola do odhaczania, kropki tygodnia, seria dni. */
+button.yesterday {
+  margin-bottom: 4px;
+}
+
+.supplist {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.supplist li {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.supplist li + li {
+  border-top: 1px solid var(--border);
+}
+
+button.supp {
+  display: grid;
+  flex: 1;
+  grid-template-columns: 32px 1fr auto;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  min-height: 60px;
+  padding: 8px 0;
+  border: 0;
+  border-radius: 0;
+  text-align: left;
+}
+
+button.supp .tick {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: 2px solid var(--border);
+  border-radius: 50%;
+}
+
+button.supp.on .tick {
+  border-color: var(--green);
+  background: var(--green);
+  color: var(--on-chalk);
+}
+
+button.supp .tick svg {
+  width: 18px;
+  height: 18px;
+}
+
+button.supp .name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-weight: 500;
+}
+
+button.supp .name .muted {
+  font-weight: 400;
+}
+
+.habit {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.habit .dots {
+  display: flex;
+  gap: 3px;
+}
+
+.habit .dots i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--surface-2);
+}
+
+.habit .dots i.on {
+  background: var(--green);
+}
+
+.habit .streak {
+  color: var(--muted);
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+label.dose {
+  flex: 0 0 38%;
 }

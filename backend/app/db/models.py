@@ -202,6 +202,31 @@ class UserProfile(Base):
     updated_at: Mapped[datetime] = mapped_column(TZDateTime, default=utcnow, onupdate=utcnow)
 
 
+class Supplement(Base):
+    """Suplement z listy użytkownika (23.11.2026). Usunięty zostaje w historii (`archived_at`)."""
+
+    __tablename__ = "supplement"
+
+    # UUID nadaje telefon: dodanie suplementu może czekać w kolejce offline.
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True)
+    name: Mapped[str] = mapped_column(String(80))
+    dose: Mapped[str | None] = mapped_column(String(40))  # np. „2000 IU", „5 g", „1 kapsułka"
+    created_at: Mapped[datetime] = mapped_column(TZDateTime, default=utcnow)
+    archived_at: Mapped[datetime | None] = mapped_column(TZDateTime)
+
+
+class SupplementIntake(Base):
+    """Suplement wzięty danego dnia. Wiersz jest = wzięty; klucz naturalny (dzień, suplement)."""
+
+    __tablename__ = "supplement_intake"
+
+    date: Mapped[date] = mapped_column(Date, primary_key=True)
+    supplement_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("supplement.id", ondelete="CASCADE"), primary_key=True
+    )
+    created_at: Mapped[datetime] = mapped_column(TZDateTime, default=utcnow)
+
+
 class MealTemplate(Base):
     """Zapisany posiłek: zestaw produktów z ilościami, dodawany do dnia jednym stuknięciem.
 

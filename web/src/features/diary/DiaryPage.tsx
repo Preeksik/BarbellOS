@@ -42,6 +42,7 @@ import {
 } from "../../lib/targets";
 import { formatGrams, formatKcal } from "../diet/macros";
 import { SaveMealForm } from "../diet/SaveMealForm";
+import { SupplementsView } from "./SupplementsView";
 import { WeekView } from "./WeekView";
 
 const MAX_AMOUNT = 5000; // ta sama granica co na serwerze
@@ -67,7 +68,7 @@ export function DiaryPage({
   const [savingSlot, setSavingSlot] = useState<MealSlot | null>(null);
   // Potwierdzenie „Zapisano" przy posiłku, który właśnie zapisano jako zestaw.
   const [saved, setSaved] = useState<{ slot: MealSlot; name: string } | null>(null);
-  const [view, setView] = useState<"day" | "week">("day");
+  const [view, setView] = useState<"day" | "week" | "supplements">("day");
   const diary = useQuery({
     queryKey: diaryQueryKey(day),
     queryFn: () => api.get<DiaryDay>(`/api/diary/${day}`),
@@ -129,7 +130,8 @@ export function DiaryPage({
         {(
           [
             ["day", "Dzień"],
-            ["week", "Tydzień (7 dni)"],
+            ["week", "Tydzień"],
+            ["supplements", "Suplementy"],
           ] as const
         ).map(([id, label]) => (
           <label key={id} className={view === id ? "active" : ""}>
@@ -151,7 +153,9 @@ export function DiaryPage({
         </section>
       )}
 
-      {view === "week" ? (
+      {view === "supplements" ? (
+        <SupplementsView day={day} />
+      ) : view === "week" ? (
         <WeekView day={day} targets={targets.data ?? null} />
       ) : diary.data ? (
         <>

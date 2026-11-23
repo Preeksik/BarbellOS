@@ -31,10 +31,12 @@ import {
   type Probe,
   type Profile,
   type ProfileResponse,
+  type SupplementDay,
   type Targets,
   api,
 } from "./api";
 import { emptyDay, withEntry, withoutEntry } from "./diary";
+import { likeYesterday, withTaken } from "./supplements";
 
 const IDB_KEY = "barbellos-query-client";
 // Zwiększ po zmianie kształtu odpowiedzi API: stara kopia w telefonie zostanie odrzucona
@@ -118,6 +120,10 @@ export const mutationKeys = {
   mealPut: ["meals", "put"] as const,
   mealDelete: ["meals", "delete"] as const,
   profilePut: ["profile", "put"] as const,
+  supplementPut: ["supplements", "put"] as const,
+  supplementDelete: ["supplements", "delete"] as const,
+  supplementDay: ["supplements", "day"] as const,
+  supplementYesterday: ["supplements", "yesterday"] as const,
 };
 
 export interface ProbeInput {
@@ -316,6 +322,102 @@ queryClient.setMutationDefaults(mutationKeys.mealDelete, {
   onMutate: ({ id }: MealDeleteInput) =>
     queryClient.setQueryData<Meal[]>(MEALS_QUERY_KEY, (old = []) => old.filter((m) => m.id !== id)),
   onSettled: () => queryClient.invalidateQueries({ queryKey: MEALS_QUERY_KEY }),
+});
+
+// ---------- suplementacja (23.11.2026) ----------
+
+export const supplementsQueryKey = (day: string) => ["supplements", day] as const;
+const SUPPLEMENT_MUTATIONS = ["supplements"] as const;
+// Jedna kolejka: odhaczenie nowego suplementu musi dotrzeć po jego dodaniu.
+const SUPPLEMENTS_SCOPE = { id: "supplements" };
+
+export interface SupplementPutInput {
+  id: string;
+  name: string;
+  dose: string | null;
+}
+
+export interface SupplementDeleteInput {
+  id: string;
+}
+
+export interface SupplementDayInput {
+  date: string;
+  takenIds: string[];
+}
+
+export interface SupplementYesterdayInput {
+  date: string;
+}
+
+/** Zmiana wszystkich zapamiętanych dni (lista suplementów jest wspólna). */
+function previewSupplementDays(change: (day: SupplementDay) => SupplementDay): void {
+  queryClient.setQueriesData<SupplementDay>({ queryKey: ["supplements"] }, (old) =>
+    old ? change(old) : old,
+  );
+}
+
+function previewSupplementDay(date: string, change: (day: SupplementDay) => SupplementDay): void {
+  queryClient.setQueryData<SupplementDay>(supplementsQueryKey(date), (old) =>
+    old ? change(old) : old,
+  );
+}
+
+/** Serię dni i tydzień liczy serwer: pobieramy je po ostatnim zapisie z kolejki. */
+function refreshSupplementsAfterLastWrite(): void {
+  if (queryClient.isMutating({ mutationKey: SUPPLEMENT_MUTATIONS }) <= 1) {
+    void queryClient.invalidateQueries({ queryKey: ["supplements"] });
+  }
+}
+
+queryClient.setMutationDefaults(mutationKeys.supplementPut, {
+  scope: SUPPLEMENTS_SCOPE,
+  mutationFn: ({ id, name, dose }: SupplementPutInput) =>
+    api.put<void>(`/api/supplements/${id}`, { name, dose }),
+  onMutate: ({ id, name, dose }: SupplementPutInput) =>
+    previewSupplementDays((day) =>
+      day.supplements.some((s) => s.id === id)
+        ? { ...day, supplements: day.supplements.map((s) => (s.id === id ? { ...s, name, dose } : s)) }
+        : {
+            ...day,
+            supplements: [
+              ...day.supplements,
+              { id, name, dose, taken: false, streak: 0, last7: Array(7).fill(false) },
+            ],
+          },
+    ),
+  onSettled: refreshSupplementsAfterLastWrite,
+});
+
+queryClient.setMutationDefaults(mutationKeys.supplementDelete, {
+  scope: SUPPLEMENTS_SCOPE,
+  mutationFn: ({ id }: SupplementDeleteInput) => api.delete(`/api/supplements/${id}`),
+  onMutate: ({ id }: SupplementDeleteInput) =>
+    previewSupplementDays((day) => ({
+      ...day,
+      supplements: day.supplements.filter((s) => s.id !== id),
+      taken_ids: day.taken_ids.filter((sid) => sid !== id),
+      yesterday_ids: day.yesterday_ids.filter((sid) => sid !== id),
+    })),
+  onSettled: refreshSupplementsAfterLastWrite,
+});
+
+queryClient.setMutationDefaults(mutationKeys.supplementDay, {
+  scope: SUPPLEMENTS_SCOPE,
+  mutationFn: ({ date, takenIds }: SupplementDayInput) =>
+    api.put<void>(`/api/supplements/day/${date}`, { taken_ids: takenIds }),
+  onMutate: ({ date, takenIds }: SupplementDayInput) =>
+    previewSupplementDay(date, (day) => withTaken(day, takenIds)),
+  onSettled: refreshSupplementsAfterLastWrite,
+});
+
+queryClient.setMutationDefaults(mutationKeys.supplementYesterday, {
+  scope: SUPPLEMENTS_SCOPE,
+  mutationFn: ({ date }: SupplementYesterdayInput) =>
+    api.post<void>(`/api/supplements/day/${date}/as-yesterday`),
+  onMutate: ({ date }: SupplementYesterdayInput) =>
+    previewSupplementDay(date, (day) => withTaken(day, likeYesterday(day))),
+  onSettled: refreshSupplementsAfterLastWrite,
 });
 
 // ---------- profil ----------

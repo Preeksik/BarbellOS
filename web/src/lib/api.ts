@@ -135,6 +135,25 @@ export interface DiaryEntry {
 
 export type MacroTotals = Record<MacroKey, number>;
 
+/** Suplement na dany dzień (`GET /api/supplements/day/{dzień}`, 23.11.2026). */
+export interface SupplementItem {
+  id: string;
+  name: string;
+  dose: string | null;
+  taken: boolean;
+  /** Dni z rzędu do tego dnia (bez dziś, jeśli jeszcze nie wzięty). */
+  streak: number;
+  /** Ostatnie 7 dni, od najstarszego. */
+  last7: boolean[];
+}
+
+export interface SupplementDay {
+  date: string;
+  supplements: SupplementItem[];
+  taken_ids: string[];
+  yesterday_ids: string[];
+}
+
 /** Posiłek z ostatnich dwóch tygodni do skopiowania (`GET /api/diary/recent-meals/{dzień}`). */
 export interface RecentMeal {
   date: string;

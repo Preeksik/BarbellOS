@@ -1,6 +1,8 @@
-# BarbellOS — dokumentacja techniczna v0.20
+# BarbellOS — dokumentacja techniczna v0.21
 
 Stan: 19.11.2026.
+
+Zmiany w v0.21: suplementacja w Diecie (przełącznik „Dzień / Tydzień / Suplementy”): lista suplementów, odhaczanie, „To co wczoraj”, seria dni i ostatni tydzień; tabele `supplement` i `supplement_intake`, migracja `0012` (4.12).
 
 Zmiany w v0.20: „Kopiuj posiłek z innego dnia” z mini-kalendarzem (`GET /api/diary/month/{RRRR-MM}`) (4.5).
 
@@ -257,6 +259,17 @@ Produkt sprawdzony bez pewnego wyniku dostaje `fdc_checked_at` i nie jest wyszuk
 W interfejsie: makro, sól i nasycone jako liczby; mikroskładniki jako pokrycie normy z informacją, skąd pochodzą dane (4.11). To wystarcza do wykrycia stałego niedoboru, nie do liczenia miligramów.
 
 Lista **[ZAŁOŻENIE]**: witaminy A, D, E, K, C, B1, B2, B3, B6, B12, foliany; wapń, żelazo, magnez, cynk, potas, sód, fosfor, selen, jod.
+
+### 4.12 Suplementacja (od 23.11.2026)
+
+Trzecia opcja przełącznika w Diecie: „Dzień / Tydzień / Suplementy”. Suplement to pozycja z listy (nazwa i dawka tekstem, np. „2000 IU”, „5 g”), a nie produkt w dzienniku: nie liczy się do kalorii.
+
+- **Odhaczanie:** duże pole przy każdym suplemencie. Stan dnia zapisuje się w całości (`PUT /api/supplements/day/{dzień}` z listą wziętych), więc powtórka z kolejki niczego nie psuje.
+- **„To co wczoraj”** (`POST /api/supplements/day/{dzień}/as-yesterday`): odhacza to, co wzięte dzień wcześniej, niczego nie odznaczając (`core/supplements.py`, `as_yesterday`). Przycisk pokazuje, ile doda, i jest nieaktywny, gdy nie ma czego dodać.
+- **Nawyk:** przy każdym suplemencie 7 kropek z ostatniego tygodnia i seria „X dni z rzędu” (`streak`, `last_days`). Rano, zanim dzisiejszy jest odhaczony, seria liczy się do wczoraj, żeby nie pokazywać zera. U góry „ile z ilu” na dany dzień.
+- **Lista:** `PUT /api/supplements/{uuid}` dodaje albo zmienia (UUID z telefonu), `DELETE` usuwa z listy, ale historia odhaczeń zostaje (`archived_at`); ponowne dodanie z tym samym identyfikatorem przywraca suplement.
+- **Offline:** cztery zapisy (`supplementPut`, `supplementDelete`, `supplementDay`, `supplementYesterday`) są w `web/src/lib/offline.ts` w jednej kolejce, żeby odhaczenie nowego suplementu dotarło po jego dodaniu. Podgląd do czasu odpowiedzi: `web/src/lib/supplements.ts`; serię i tydzień po zapisie liczy serwer.
+- Na później: dawki mikroskładników z suplementów (np. witamina D) w pokryciu norm tygodnia (4.11).
 
 ### 4.11 Widok tygodnia
 
