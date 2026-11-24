@@ -17,7 +17,7 @@ from app.core.targets import (
     goals_to_rows,
     rows_to_goals,
 )
-from app.off.client import RateLimiter, parse_search
+from app.off.client import RateLimiter, parse_search, search_query
 
 EAN = "5900000000015"  # serek z conftest: 97 kcal, B 11 na 100 g
 EMPTY_GOALS = dict.fromkeys(GOAL_KINDS)
@@ -222,6 +222,33 @@ def test_parse_search_keeps_only_usable_hits():
     assert hits[0].kcal == 58
     assert hits[1].kcal == pytest.approx(50)  # z kJ
     assert parse_search({}, is_valid_ean) == []
+
+
+def test_parse_search_reads_kcal_from_nutriscore_and_strips_brand_prefix():
+    # Tak odpowiada search-a-licious od listopada 2026: bez `nutriments`, marka z „xx:".
+    payload = {
+        "hits": [
+            {
+                "code": "5900531000423",
+                "product_name_pl": "Tost Pszenny",
+                "brands": ["xx:Pano"],
+                "nutriscore_data": {
+                    "components": {"negative": [{"id": "energy", "unit": "kJ", "value": 1017.4}]}
+                },
+            },
+            {"code": "4006381333931", "product_name": "Bez danych", "brands": "pl:Marka"},
+        ]
+    }
+    hits = parse_search(payload, is_valid_ean)
+    assert [(h.name, h.brand) for h in hits] == [("Tost Pszenny", "Pano"), ("Bez danych", "Marka")]
+    assert hits[0].kcal == pytest.approx(243.2, abs=0.1)
+    assert hits[1].kcal is None
+
+
+def test_search_query_filters_country():
+    assert search_query("chleb tostowy", "en:poland") == 'chleb tostowy countries:"en:poland"'
+    assert search_query('ser "gouda"', "en:poland") == 'ser  gouda countries:"en:poland"'
+    assert search_query("chleb", None) == "chleb"
 
 
 def test_search_off_returns_hits_without_saving_them(logged_in, off_search, off_calls):

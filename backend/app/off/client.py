@@ -148,7 +148,13 @@ class SearchHit:
     unit: str
 
 
-SEARCH_FIELDS = "code,product_name,product_name_pl,brands,quantity,product_quantity_unit,nutriments"
+# `nutriments` search-a-licious przestał zwracać (sprawdzone 24.11.2026); kalorie są też
+# w `nutriscore_data` (energia w kJ), więc pobieramy oba.
+SEARCH_FIELDS = (
+    "code,product_name,product_name_pl,brands,quantity,product_quantity_unit,nutriments,"
+    "nutriscore_data"
+)
+_LANG_PREFIX = re.compile(r"^[a-z]{2}:")
 
 
 def _first_text(value) -> str | None:
@@ -157,7 +163,18 @@ def _first_text(value) -> str | None:
         value = value[0] if value else None
     if not isinstance(value, str):
         return None
-    return value.split(",")[0].strip() or None
+    # search-a-licious podaje marki z przedrostkiem języka („xx:Pano"): bez niego.
+    return _LANG_PREFIX.sub("", value.split(",")[0].strip()).strip() or None
+
+
+def _nutriscore_kcal(product: dict) -> float | None:
+    """Kalorie z danych Nutri-Score (energia w kJ), gdy brak pola `nutriments`."""
+    components = ((product.get("nutriscore_data") or {}).get("components") or {}).get("negative")
+    for component in components or []:
+        if component.get("id") == "energy" and (kj := _num(component.get("value"))) is not None:
+            unit = str(component.get("unit") or "kJ").lower()
+            return kj if unit == "kcal" else kj / KJ_PER_KCAL
+    return None
 
 
 def parse_search(payload: dict, is_valid_barcode) -> list[SearchHit]:
@@ -174,6 +191,8 @@ def parse_search(payload: dict, is_valid_barcode) -> list[SearchHit]:
         kcal = _num(nutriments.get("energy-kcal_100g"))
         if kcal is None and (kj := _num(nutriments.get("energy_100g"))) is not None:
             kcal = kj / KJ_PER_KCAL
+        if kcal is None:
+            kcal = _nutriscore_kcal(product)
         hits.append(
             SearchHit(
                 barcode=code,
@@ -186,18 +205,32 @@ def parse_search(payload: dict, is_valid_barcode) -> list[SearchHit]:
     return hits
 
 
+def search_query(query: str, country: str | None) -> str:
+    """Zapytanie search-a-licious z filtrem kraju sprzedaży (np. „en:poland")."""
+    query = query.replace('"', " ").strip()
+    return f'{query} countries:"{country}"' if country else query
+
+
 def search_products(
-    query: str, base_url: str, user_agent: str, page_size: int = 20, timeout: float = 10.0
+    query: str,
+    base_url: str,
+    user_agent: str,
+    page_size: int = 20,
+    country: str | None = None,
+    timeout: float = 10.0,
 ) -> dict:
     """Wyszukiwanie pełnotekstowe przez search-a-licious (https://search.openfoodfacts.org).
 
     Stare API v2 nie ma wyszukiwania po nazwie. Limit OFF: 10 wyszukiwań na minutę
-    z jednego adresu, więc wywołuje się to na przycisk, nie przy każdym znaku.
+    z jednego adresu, więc wywołuje się to po pauzie w pisaniu, nie przy każdym znaku.
+    Od 24.11.2026: tylko produkty sprzedawane w `country` (rynek polski), od najczęściej
+    skanowanych (`popularity_key`), czyli Pano z Biedronki przed rzadkimi wpisami.
     """
     response = httpx.get(
         f"{base_url}/search",
         params=[
-            ("q", query),
+            ("q", search_query(query, country)),
+            ("sort_by", "-popularity_key"),
             ("langs", "pl"),
             ("langs", "en"),
             ("page_size", str(page_size)),

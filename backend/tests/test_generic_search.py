@@ -12,28 +12,21 @@ from app.services import generic_search
 # ====================================================================== core
 
 
-def test_order_hits_puts_the_vegetable_before_chips_and_spices():
+def test_order_hits_keeps_popularity_order():
+    # Baza oddaje wyniki od najczęściej skanowanych w Polsce: tę kolejność zostawiamy.
     hits = [
-        ("Chipsy o smaku papryki", "Lay's", 536),
-        ("Papryka słodka mielona", "Kamis", 289),
-        ("Papryka czerwona", None, 31),
-        ("Mieszanka warzyw z papryką", None, 40),
-        ("Czerwona oranżada", None, 40),
+        ("Tost Pszenny", "Pano", 243),  # „tost" pasuje do „tostowy"
+        ("Chleb tostowy", "Carrefour", 254),
+        ("Bułki maślane", "Lidl", 330),  # żadnego słowa z zapytania w nazwie: na koniec
+        ("Chleb tostowy pszenny z masłem", "Lidl", None),  # brak kcal nie przesuwa
     ]
-    # Krótsza nazwa zaczynająca się od zapytania wyżej; „papryką" bez ogonków to „papryka".
-    # Chipsy „o smaku papryki" i oranżada nie mają słowa „papryka": odpadają.
-    assert order_hits("papryka", hits) == [2, 1, 3]
-    # Oba słowa przed jednym; pierwsze słowo (rzeczownik) przed drugim.
-    assert order_hits("papryka czerwona", hits) == [2, 1, 3, 4]
+    assert order_hits("chleb tostowy", hits) == [0, 1, 3, 2]
 
 
-def test_order_hits_ignores_empty_query():
-    assert order_hits("  ", [("Papryka", None, 30)]) == []
-
-
-def test_order_hits_drops_results_without_kcal():
-    hits = [("Papryka czerwona", None, None), ("Papryka żółta", None, 27)]
-    assert order_hits("papryka", hits) == [1]
+def test_order_hits_never_drops_results():
+    hits = [("Masło extra", "Mlekovita", None), ("Ziemniaczki smak masło z solą", "Lorenz", 535)]
+    assert order_hits("masło", hits) == [0, 1]
+    assert order_hits("  ", hits) == [0, 1]
 
 
 def test_generic_candidates_need_kcal_and_a_good_name():

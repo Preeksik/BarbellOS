@@ -29,6 +29,8 @@ class Settings(BaseSettings):
     off_base_url: str = "https://world.openfoodfacts.org"
     # Wyszukiwanie po nazwie (search-a-licious). Stare API nie ma wyszukiwania pełnotekstowego.
     off_search_url: str = "https://search.openfoodfacts.org"
+    # Kraj sprzedaży w wyszukiwarce (24.11.2026: rynek polski). Puste = wszystkie kraje.
+    off_search_country: str = "en:poland"
 
     # USDA FoodData Central: witaminy i minerały produktów podstawowych (etap 6).
     # DEMO_KEY działa bez rejestracji, ale tylko ok. 10 zapytań na godzinę.

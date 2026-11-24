@@ -72,36 +72,28 @@ def rank(query: str, candidates: Iterable[Candidate], limit: int = 30) -> list[i
     return [food_id for _, _, food_id in scored[:limit]]
 
 
-def order_hits(query: str, hits: Iterable[tuple[str, str | None, float | None]]) -> list[int]:
-    """Kolejność wyników z dużej bazy produktów (19.11.2026): indeksy od najlepszego.
+def _word_match(query_word: str, name_words: list[str]) -> bool:
+    """Słowo zapytania pasuje do nazwy: zaczyna jej słowo albo (od 4 liter) jest jego
+    rozwinięciem, więc „tostowy" pasuje do „Tost", a „papryka" do „Papryka"."""
+    return any(
+        w.startswith(query_word) or (len(w) >= 4 and query_word.startswith(w)) for w in name_words
+    )
 
-    Baza stawia wysoko wszystko, co ma słowo gdziekolwiek („papryka" -> chipsy, przyprawa,
-    „papryka czerwona" -> oranżada czerwona). Tutaj liczy się nazwa:
-    - bez kalorii wynik odpada (w dzienniku jest bezużyteczny),
-    - odpada też wynik bez żadnego słowa zapytania w nazwie,
-    - wyżej: wszystkie słowa zapytania, potem pierwsze słowo (zwykle rzeczownik), potem
-      nazwa od niego zaczynająca się, potem krótsza nazwa (samo warzywo przed daniem z nim).
-    Słowo pasuje, gdy zaczyna słowo nazwy, bez polskich znaków („papryką" to „papryka").
+
+def order_hits(query: str, hits: Iterable[tuple[str, str | None, float | None]]) -> list[int]:
+    """Kolejność wyników z dużej bazy produktów: indeksy od najlepszego (24.11.2026).
+
+    Baza oddaje wyniki od najczęściej skanowanych w Polsce i ta kolejność jest dobra
+    („masło" -> Masło extra, „chleb tostowy" -> Pano, Carrefour). Przesuwamy w dół tylko
+    wyniki bez żadnego słowa zapytania w nazwie (baza dopasowała je po czymś innym).
+    Brak kalorii nie przesuwa: karta produktu pobiera pełne dane po kodzie kreskowym.
+    Niczego nie odrzucamy.
     """
     query_words = words(query)
-    if not query_words:
-        return []
-    scored: list[tuple[bool, bool, bool, int, int]] = []
-    for index, (name, _brand, kcal) in enumerate(hits):
-        if kcal is None:
-            continue
+    scored = []
+    for index, (name, _brand, _kcal) in enumerate(hits):
         name_words = words(name)
-        found = [any(w.startswith(q) for w in name_words) for q in query_words]
-        if not any(found):
-            continue
-        scored.append(
-            (
-                not all(found),
-                not found[0],
-                not name_words[0].startswith(query_words[0]),
-                len(name_words),
-                index,
-            )
-        )
+        matched = any(_word_match(q, name_words) for q in query_words)
+        scored.append((bool(query_words) and not matched, index))
     scored.sort()
-    return [item[-1] for item in scored]
+    return [index for _, index in scored]

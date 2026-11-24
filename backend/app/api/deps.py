@@ -55,7 +55,11 @@ def get_off_searcher(settings: Settings = Depends(get_settings)) -> OffSearcher:
     # 50 zamiast 20: wyniki bez kalorii i nietrafione odpadają (`core.search.order_hits`),
     # a liczba zapytań do bazy (limit na minutę) się nie zmienia.
     return lambda query: search_products(
-        query, settings.off_search_url, settings.off_user_agent, page_size=50
+        query,
+        settings.off_search_url,
+        settings.off_user_agent,
+        page_size=50,
+        country=settings.off_search_country or None,
     )
 
 

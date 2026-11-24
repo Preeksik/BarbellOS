@@ -345,7 +345,11 @@ function SearchResults({
   const known = new Set(foods.map((food) => food.barcode).filter(Boolean));
   const knownBasic = new Set(foods.filter((f) => !f.barcode).map((f) => f.fdc_id));
   const hits = (big.data ?? []).filter((hit) => !known.has(hit.barcode));
-  const basics = (basic.data ?? []).filter((hit) => !knownBasic.has(hit.fdc_id));
+  // Produkty podstawowe z tabel: przy wynikach z polskich sklepów najwyżej 3, żeby nie
+  // spychały marek w dół (24.11.2026); bez nich (np. „sałata lodowa") wszystkie.
+  const basics = (basic.data ?? [])
+    .filter((hit) => !knownBasic.has(hit.fdc_id))
+    .slice(0, (big.data ?? []).length > 0 ? 3 : undefined);
   const waitingForBig =
     big.isFetching || basic.isFetching || (wide == null && query.length >= WIDE_QUERY);
   const nothing =
