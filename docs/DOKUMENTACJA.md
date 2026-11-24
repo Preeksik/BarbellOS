@@ -1,6 +1,8 @@
-# BarbellOS — dokumentacja techniczna v0.23
+# BarbellOS — dokumentacja techniczna v0.24
 
-Stan: 19.11.2026.
+Stan: 24.11.2026.
+
+Zmiany w v0.24: przy dodawaniu produktu z porcją (np. kromka 23 g) licznik porcji z − i + obok gramów; do dziennika trafiają gramy (4.5).
 
 Zmiany w v0.23: wyszukiwarka nastawiona na rynek polski: tylko produkty sprzedawane w Polsce, od najczęściej skanowanych; kalorie z danych Nutri-Score, bo search-a-licious przestał zwracać `nutriments`; kolejność bazy zostaje, nic nie jest odrzucane (4.8).
 
@@ -321,6 +323,7 @@ Wynik etapu 0: zeskanowane produkty są w Open Food Facts, ale wartości bywają
 Dzień składa się z pięciu posiłków: śniadanie, II śniadanie, obiad, podwieczorek, kolacja. Wpis to produkt, ilość (g albo ml) i posiłek. Od 19.11.2026 wszystkie posiłki są zawsze widoczne (pusty jako jedna linijka) i każdy ma przycisk „+ Dodaj”, który otwiera dodawanie od razu do tego posiłku. Osobnej zakładki „Dodaj” nie ma; dodawanie jest stanem zakładki „Dieta”, nie adresem (AGENTS.md, zasada 11).
 
 - `PUT /api/diary/entries/{id}` dodaje wpis albo go zmienia. Identyfikator UUID nadaje telefon, więc powtórzona wysyłka nie tworzy duplikatu.
+- **Liczba porcji** (od 24.11.2026): gdy produkt ma porcję (`serving_g`), pod polem ilości jest licznik „Porcje po 23 g” z − i + oraz polem do wpisania, np. 6 kromek zamiast 138 g. Licznik i gramy są połączone w obie strony, przyciski przechodzą do całych porcji i nie schodzą poniżej jednej, a wpisać można też pół porcji. Do dziennika trafia ilość w gramach, więc serwer i wpis się nie zmieniają (`web/src/lib/portions.ts`).
 - Przy dodaniu wartości porcji są liczone z produktu i zamrażane. Przy zmianie ilości zamrożone wartości są **skalowane**, a nie liczone od nowa: wpis nadal odpowiada produktowi z chwili dodania.
 - `DELETE /api/diary/entries/{id}` usuwa wpis; usunięcie nieistniejącego wpisu też kończy się powodzeniem.
 - `GET /api/diary/{data}` zwraca wpisy, sumę dnia i sumy posiłków. Brak danych we wpisie liczy się w sumie jak zero.
