@@ -19,3 +19,5 @@ Identyfikatory muszą zgadzać się z mapowaniem pól Open Food Facts w `backend
 Plik zawiera osobiste maksy i cele, dlatego domyślnie nie trafia do publicznego repo. Bez niego aplikacja działa, a polecenie `seed` plan pomija. Żeby go opublikować, usuń odpowiednią linię z `.gitignore`.
 
 Opis pól jest w samym pliku, w sekcji `field_guide`.
+
+Od 25.11.2026 plik odpowiada żywej wersji planu z artefaktu (zmiany do 22.11.2026). Nowe pole ćwiczenia `fixed_kg` to stały ciężar z planu, który ma pierwszeństwo przed procentem TM (tygodnie sprzed zmiany maksów). Na serwer plan trafia przez „Wczytaj plan z pliku” w zakładce Trening, bo plik nie jest w repo.

@@ -387,3 +387,99 @@ export interface Week {
   average: MacroTotals | null;
   micros: MicroWeek[];
 }
+
+// ---------- trening (etap 4) ----------
+
+/** Wpis jednego ćwiczenia sesji (jak w starym pliku planu: jeden na ćwiczenie). */
+export interface TrainingEntry {
+  kg: number | null;
+  reps: number | null;
+  rpe: number | null;
+  done: boolean;
+  ok: "y" | "n" | null;
+}
+
+export interface TrainingExercise {
+  index: number;
+  name: string;
+  lift: "S" | "B" | "D" | null;
+  kind: "sets" | "single" | "acc" | "att";
+  tier: "main" | "var" | "acc";
+  sets: number | null;
+  reps: string | null;
+  percent_tm: number | null;
+  rpe: string | null;
+  weight_hint: string | null;
+  attempt: number | null;
+  cue: string | null;
+  load: number | null;
+  plates: number[] | null;
+  entry: TrainingEntry;
+  e1rm: number | null;
+  last: { kg: number; reps: number | null; rpe: number | null; date: string; gym: string } | null;
+}
+
+export type SessionStatus = "none" | "part" | "done";
+
+export interface TrainingSession {
+  key: string;
+  code: string;
+  title: string;
+  date: string;
+  minutes: number | null;
+  days_before_meet: number | null;
+  holiday: string | null;
+  note: string | null;
+  status: SessionStatus;
+  gym: string | null;
+  bodyweight: number | null;
+  log_note: string | null;
+  exercises: TrainingExercise[];
+}
+
+export interface TrainingWeek {
+  index: number;
+  n: number;
+  key: string;
+  block_name: string;
+  focus: string | null;
+  start: string;
+  end: string;
+  repeat_of: number | null;
+  phase: number;
+  tm: Record<"S" | "B" | "D", number>;
+  banner: { phase_name: string; suggestions: { lift: "S" | "B" | "D"; kg: number }[] } | null;
+  sessions: TrainingSession[];
+  gyms: string[];
+}
+
+export interface TrainingWeekSummary {
+  index: number;
+  n: number;
+  key: string;
+  block_name: string;
+  plate: number | null;
+  label: string | null;
+  start: string;
+  end: string;
+  repeat_of: number | null;
+  done: number;
+  total: number;
+}
+
+export interface TrainingSeason {
+  plan_name: string | null;
+  headline: string | null;
+  countdowns: { days: number; label: string }[];
+  position: { week: number; day: number; rest: boolean } | null;
+  current_week: number | null;
+  weeks: TrainingWeekSummary[];
+}
+
+export interface TrainingImportResult {
+  plan_name: string;
+  weeks: number;
+  sessions: number;
+  imported_sessions: number;
+  skipped: string[];
+}

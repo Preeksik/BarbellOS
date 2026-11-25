@@ -1,6 +1,8 @@
-# BarbellOS — dokumentacja techniczna v0.24
+# BarbellOS — dokumentacja techniczna v0.25
 
-Stan: 24.11.2026.
+Stan: 25.11.2026.
+
+Zmiany w v0.25: zakładka „Trening” (etap 4, część 1): oś sezonu, tydzień, dni i sesja z wpisami przez kolejkę offline; kalendarz, statusy, „ostatnio” i sugestie TM w `core/season.py`; import planu i dziennika ze starego pliku (5.3, 5.4).
 
 Zmiany w v0.24: przy dodawaniu produktu z porcją (np. kromka 23 g) licznik porcji z − i + obok gramów; do dziennika trafiają gramy (4.5).
 
@@ -486,6 +488,31 @@ ustawienia:   { tm: { "<faza>": { S, B, D } }, meet, adj: { ins, rem }, collars,
 3. Jednorazowa migracja dotychczasowych wpisów z dziennika do Postgresa.
 4. Nowe względem obecnego pliku: masa ciała z modułu 3 zamiast ręcznego wpisu, powiązanie sesji z tętnem z opaski, dane dla Coacha.
 
+**Źródło prawdy (25.11.2026).** Przenosimy żywą wersję planu z artefaktu (zmiany do 22.11.2026), a nie plik z 11.11: inne maksy fazy 1 (167,5 / 125 / 205 kg), stałe ciężary w tygodniach 1–4 (pole `fixed_kg`, „ciężary sprzed zmiany maksów”), mniej ćwiczeń od tygodnia 5 i dwa nowe ćwiczenia. Stary dziennik odwołuje się do numerów ćwiczeń z tej wersji, więc inna wersja planu przesunęłaby wpisy. `seed/plan_amp_2027.json` powstaje z artefaktu skryptem, który zamienia skrócone pola (`n`, `l`, `k`, `kg`…) na pełne nazwy; poprzednia wersja pliku leży w `exports/` (poza repo).
+
+### 5.4 Zakładka „Trening” (od 25.11.2026)
+
+Część 1: codzienne logowanie. Układ jak w starym pliku, w tokenach „Kredy”.
+
+- **Oś sezonu**: rząd krążków, po jednym na tydzień, w kolorze intensywności z planu (5 rozładowanie, 10 akumulacja, 15 siła i taper, 20 intensyfikacja, 25 peak, test, start). Stuknięcie otwiera tydzień. Nad osią numer tygodnia, blok i odliczanie do testu i do zawodów.
+- **Sesja po otwarciu**: kolejna po ostatniej zapisanej (treningi bywają przesunięte względem kalendarza); zapisana w ciągu 8 godzin zostaje na ekranie, a gdy kolejna jest dalej niż 6 dni od dziś, wraca kalendarz (dzisiejsza albo najbliższa, z dopiskiem „Dziś wolne”). Wybór tygodnia i dnia to stan, nie adres (AGENTS.md, zasada 11).
+- **Ćwiczenie**: zalecenie z planu, ciężar (z TM fazy albo `fixed_kg`, przy singlu „≈”), talerze na stronę z zaciskami albo bez, wskazówka techniczna, przy akcesoriach „Ostatnio” (najpierw z tej samej siłowni). Wpis to kg, powtórzenia i RPE na całe ćwiczenie, jak w starym pliku. „Odhacz” przy serii bez ciężaru wpisuje ciężar z planu. e1RM pokazuje się po zapisie (liczy serwer).
+- **Podejścia** (test, zawody): ciężar, RPE i „zaliczone / spalone”. Arkusz z podpowiedzią podejść i trzeciego podejścia dochodzi w części 2.
+- **Sesja**: siłownia (podpowiedzi z dziennika), masa ciała rano, notatka.
+- **Pierwszy tydzień fazy**: karta z obecnymi TM i podpowiedzią z dziennika (zaliczone podejścia, a bez nich single z RPE ≥ 7 z poprzedniej fazy, w dół do 2,5 kg). Zmiana TM w części 2 (zakładka „Maksy”).
+- Bez planu w bazie zakładka prosi o plik. „Wczytaj plan z pliku” na dole przyjmuje sam plan albo `{ plan, settings, logs }` (dziennik i ustawienia w formacie starego pliku). Sesje z pliku zastępują te same sesje w bazie, pozostałe zostają, więc import można powtórzyć. Plik z planem i dziennikiem jest osobisty i nie trafia do repo.
+
+API (`backend/app/api/training.py`, logika w `core/season.py` i `core/training.py`):
+
+- `GET /api/training/season?today=` — oś sezonu, nagłówek, sesja do pokazania; bez planu `plan_name: null`.
+- `GET /api/training/week/{indeks}` — tydzień z sesjami, ciężarami, talerzami, e1RM, „ostatnio”, kartą nowej fazy i listą siłowni.
+- `PUT /api/training/sessions/{klucz}/entries/{indeks}` — wpis ćwiczenia w całości (pusty usuwa); `PUT /api/training/sessions/{klucz}` — siłownia, masa ciała, notatka. Oba idempotentne, przez kolejkę offline (`trainingEntry`, `trainingSession`, jedna kolejka `training`).
+- `PUT /api/training/plan` — import (wymaga sieci).
+
+Zgodność z oryginałem: kalendarz, statusy, punkty e1RM, sugestie TM, „ostatnio”, siłownie, ciężary wszystkich pozycji i wybór sesji porównane z kodem JavaScript żywego planu na prawdziwym dzienniku, w czterech scenariuszach (także z dodanym i usuniętym tygodniem): zero różnic. Testy w repo używają sztucznego planu (`backend/tests/training_plan.py`).
+
+Część 2 (dalej): zakładki sezonu, maksów (TM, wykres e1RM, kalkulator), startu (arkusz podejść, data zawodów i dopasowanie długości planu) oraz zasady.
+
 ## 6. Moduł 3 — Regeneracja
 
 ### 6.1 Skąd dane
@@ -676,8 +703,9 @@ coach_note(id PK, date, scope, text, ai_run_id)       -- 'day' | 'week'
 ```
 backend/
   app/
-    api/          auth.py, health.py, diet.py, diary.py, targets.py, meals.py, profile.py, ai.py, probe.py, deps.py
-    core/         training.py, nutrients.py, diary.py, label.py, targets.py, search.py, meals.py, profile.py,
+    api/          auth.py, health.py, diet.py, diary.py, targets.py, meals.py, supplements.py, training.py,
+                  profile.py, ai.py, probe.py, deps.py
+    core/         training.py, season.py, nutrients.py, diary.py, label.py, targets.py, search.py, meals.py, profile.py,
                   meal_draft.py, ai_cost.py, micros.py, week.py,
                   energy.py, readiness.py,
                   health_ingest.py, barcode.py                        ← czysta logika z testami
@@ -715,7 +743,7 @@ CLAUDE.md         import @AGENTS.md + rzeczy specyficzne dla Claude Code
 | **1. Dieta** | Skan → OFF → baza, zdjęcie etykiety (jedyna funkcja AI w tym etapie, przeniesiona z etapu 2 po próbie C), wyszukiwarka, własne produkty, posiłki, cele, widok dnia. Kroki: `docs/etap-1.md` | Przez tydzień logujesz tu zamiast w Fitatu |
 | **2. AI w diecie** | Zdjęcie posiłku, opis tekstowy, licznik kosztów (dostawca Claude, gdy pojawi się klucz). Kroki: `docs/etap-2.md` | Posiłek na mieście w mniej niż 30 sekund |
 | **3. Regeneracja** | Pełny skrót, import, trend wagi, wskaźnik regeneracji, adaptacyjne TDEE. **Przeniesiony na koniec** (decyzja z 18.11.2026: opaska będzie później); adaptacyjne zapotrzebowanie z trendu wagi może wejść wcześniej, z ręcznym wpisem wagi | Rano widzisz stan regeneracji (start, gdy opaska dotrze) |
-| **4. Trening** | Przeniesienie planu i dziennika, migracja wpisów | Trenujesz z nowej aplikacji, stary plik idzie do archiwum |
+| **4. Trening** | Przeniesienie planu i dziennika, migracja wpisów. Kroki: `docs/etap-4.md` | Trenujesz z nowej aplikacji, stary plik idzie do archiwum |
 | **5. Coach** | Podsumowanie dnia i tygodnia | Podsumowanie mówi coś, czego sam byś nie zauważył |
 | **6. Mikroskładniki** | Dopasowanie do tabel USDA, dziedziczenie, szacunek AI jako zapas, widok tygodnia (zrobione przed etapem 3). Kroki: `docs/etap-6.md` | Pokrycie witamin i minerałów z oznaczeniem pewności |
 

@@ -33,6 +33,8 @@ import {
   type ProfileResponse,
   type SupplementDay,
   type Targets,
+  type TrainingEntry,
+  type TrainingWeek,
   api,
 } from "./api";
 import { emptyDay, withEntry, withoutEntry } from "./diary";
@@ -124,6 +126,8 @@ export const mutationKeys = {
   supplementDelete: ["supplements", "delete"] as const,
   supplementDay: ["supplements", "day"] as const,
   supplementYesterday: ["supplements", "yesterday"] as const,
+  trainingEntry: ["training", "entry"] as const,
+  trainingSession: ["training", "session"] as const,
 };
 
 export interface ProbeInput {
@@ -428,6 +432,70 @@ queryClient.setMutationDefaults(mutationKeys.supplementYesterday, {
   onMutate: ({ date }: SupplementYesterdayInput) =>
     previewSupplementDay(date, (day) => withTaken(day, likeYesterday(day))),
   onSettled: refreshSupplementsAfterLastWrite,
+});
+
+// ---------- trening (etap 4) ----------
+
+export const trainingSeasonKey = (today: string) => ["training", "season", today] as const;
+export const trainingWeekKey = (index: number) => ["training", "week", index] as const;
+const TRAINING_MUTATIONS = ["training"] as const;
+// Jedna kolejka: wpisy jednej sesji docierają w kolejności wpisywania.
+const TRAINING_SCOPE = { id: "training" };
+
+export interface TrainingEntryInput {
+  /** Indeks tygodnia w sezonie: który widok podglądać do czasu wysłania. */
+  week: number;
+  session: string;
+  index: number;
+  entry: TrainingEntry;
+}
+
+export interface TrainingSessionInput {
+  week: number;
+  session: string;
+  gym: string | null;
+  bodyweight: number | null;
+  note: string | null;
+}
+
+/** Wpis widać od razu, także bez sieci; status, e1RM i „ostatnio" liczy serwer. */
+function previewTrainingWeek(
+  week: number,
+  session: string,
+  change: (s: TrainingWeek["sessions"][number]) => TrainingWeek["sessions"][number],
+): void {
+  queryClient.setQueryData<TrainingWeek>(trainingWeekKey(week), (old) =>
+    old
+      ? { ...old, sessions: old.sessions.map((s) => (s.key === session ? change(s) : s)) }
+      : old,
+  );
+}
+
+function refreshTrainingAfterLastWrite(): void {
+  if (queryClient.isMutating({ mutationKey: TRAINING_MUTATIONS }) <= 1) {
+    void queryClient.invalidateQueries({ queryKey: ["training"] });
+  }
+}
+
+queryClient.setMutationDefaults(mutationKeys.trainingEntry, {
+  scope: TRAINING_SCOPE,
+  mutationFn: ({ session, index, entry }: TrainingEntryInput) =>
+    api.put<void>(`/api/training/sessions/${session}/entries/${index}`, entry),
+  onMutate: ({ week, session, index, entry }: TrainingEntryInput) =>
+    previewTrainingWeek(week, session, (s) => ({
+      ...s,
+      exercises: s.exercises.map((e) => (e.index === index ? { ...e, entry } : e)),
+    })),
+  onSettled: refreshTrainingAfterLastWrite,
+});
+
+queryClient.setMutationDefaults(mutationKeys.trainingSession, {
+  scope: TRAINING_SCOPE,
+  mutationFn: ({ session, gym, bodyweight, note }: TrainingSessionInput) =>
+    api.put<void>(`/api/training/sessions/${session}`, { gym, bodyweight, note }),
+  onMutate: ({ week, session, gym, bodyweight, note }: TrainingSessionInput) =>
+    previewTrainingWeek(week, session, (s) => ({ ...s, gym, bodyweight, log_note: note })),
+  onSettled: refreshTrainingAfterLastWrite,
 });
 
 // ---------- profil ----------

@@ -5,6 +5,7 @@ import { AddPage } from "./features/diet/AddPage";
 import { HealthPage } from "./features/health/HealthPage";
 import { LoginForm } from "./features/home/LoginForm";
 import { ProfilePage } from "./features/profile/ProfilePage";
+import { TrainingPage } from "./features/training/TrainingPage";
 import { type MealSlot, type Session, api } from "./lib/api";
 import { applyUpdate, useUpdateReady } from "./lib/appUpdate";
 import { toIsoDay } from "./lib/diary";
@@ -14,6 +15,7 @@ import { toIsoDay } from "./lib/diary";
 // Dodawanie jedzenia nie jest osobną zakładką: otwiera się z posiłku w Diecie (19.11.2026).
 const TABS = [
   { id: "diet", label: "Dieta" },
+  { id: "training", label: "Trening" },
   { id: "health", label: "Zdrowie" },
   { id: "profile", label: "Profil" },
 ] as const;
@@ -28,6 +30,8 @@ const TAB_ICONS: Record<TabId, ReactNode> = {
       <path d="M17 21V3c-2 1-3 4-3 8h3" />
     </>
   ),
+  // Sztanga z boku: gryf i talerze (etap 4).
+  training: <path d="M6 7v10M3 10v4M18 7v10M21 10v4M6 12h12" />,
   health: <path d="M3 12h4l2-5 4 10 2-5h6" />,
   profile: (
     <>
@@ -91,6 +95,7 @@ export function App() {
                   onOpenProfile={() => openTab("profile")}
                 />
               ))}
+            {tab === "training" && <TrainingPage />}
             {tab === "health" && <HealthPage />}
             {tab === "profile" && <ProfilePage />}
           </>
