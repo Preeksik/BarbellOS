@@ -7,6 +7,8 @@ Specyfikacja: `docs/DOKUMENTACJA.md`, rozdział 5 (5.3, 5.4).
 | Kalendarz sezonu, statusy, „ostatnio”, sugestie TM, wybór sesji (`core/season.py`) | kod gotowy 25.11.2026; zgodny z oryginałem na prawdziwym dzienniku (zero różnic) |
 | Zakładka „Trening”: oś sezonu, tydzień, dni, sesja, wpisy przez kolejkę offline | kod gotowy 25.11.2026 |
 | Import planu i dziennika ze starego pliku | kod gotowy 25.11.2026 |
+| Sprzęt w Profilu: talerze 25 / 20 kg, zaciski | kod gotowy 25.11.2026 |
+| Animacje techniki: boje ze sztangą i warianty | kod gotowy 25.11.2026 |
 | Zakładki sezonu, maksów, startu i zasady; arkusz podejść; data zawodów | część 2 |
 
 ## Przeniesienie planu i dziennika
@@ -30,3 +32,6 @@ Plan i dziennik są osobiste, więc nie ma ich w repo. Plik do importu leży lok
 8. **Bez zasięgu:** włącz tryb samolotowy, wpisz serię i odhacz ją, zamknij aplikację przesunięciem w górę. Otwórz ponownie (nadal bez sieci): wpis jest, na górze „niewysłane”. Włącz sieć: znacznik znika, a po odświeżeniu widać e1RM.
 9. Sąsiednie tygodnie działają bez sieci, jeśli były otwarte z siecią (aplikacja pobiera je od razu).
 10. Tydzień 10 (test): sekcja „Podejścia” z ciężarem, RPE i przyciskami ✓ / ✕; drugie stuknięcie zdejmuje ocenę.
+11. Profil → „Trening” → „20 kg”: wróć do Treningu, talerze przy ćwiczeniach liczą się z dwudziestek (np. 142,5 kg = 20+20+20+1,25 na stronę). Przełącz z powrotem na 25 kg. „2 × 2,5 kg” przy zaciskach zmniejsza talerze o 2,5 kg na stronę.
+12. Przy przysiadzie, ławie, martwym i ich wariantach „Pokaż technikę”: ludzik płynnie robi ruch, pod spodem nazwa fazy („pauza 2 s”, „siad na piny”). Stuknięcie w obrazek zatrzymuje. Sprawdź, czy animacja nie przycina przewijania i czy działa w trybie samolotowym.
+13. Ustawienia → Dostępność → Ruch → „Ogranicz ruch”: animacja startuje zatrzymana w dolnej pozycji, „Odtwórz” ją uruchamia.

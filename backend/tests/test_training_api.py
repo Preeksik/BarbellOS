@@ -163,3 +163,24 @@ def test_attempts_and_holiday(logged_in):
 
 def test_training_requires_login(client):
     assert client.get("/api/training/season", params={"today": TODAY}).status_code == 401
+
+
+def test_equipment_changes_plates(logged_in):
+    assert logged_in.get("/api/training/equipment").json() == {
+        "plates_25": True,
+        "collars": False,
+        "has_plan": False,
+    }
+    assert logged_in.put("/api/training/equipment", json={"plates_25": False}).status_code == 404
+    put_plan(logged_in)
+    sets = logged_in.get("/api/training/week/0").json()["sessions"][0]["exercises"][1]
+    assert sets["load"] == 125 and sets["plates"] == [25, 25, 2.5]
+
+    body = {"plates_25": False, "collars": True}
+    assert logged_in.put("/api/training/equipment", json=body).status_code == 204
+    assert logged_in.get("/api/training/equipment").json() == {**body, "has_plan": True}
+    sets = logged_in.get("/api/training/week/0").json()["sessions"][0]["exercises"][1]
+    assert sets["plates"] == [20, 20, 10]  # (125 − 20 − 5) / 2 = 50 kg na stronę
+    # Ponowny import planu nie zmienia sprzętu.
+    put_plan(logged_in)
+    assert logged_in.get("/api/training/equipment").json()["plates_25"] is False

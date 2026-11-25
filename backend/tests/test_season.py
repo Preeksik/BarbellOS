@@ -48,6 +48,8 @@ def test_plates_for():
     assert s.plates_for(20) == []
     assert s.plates_for(17.5) is None
     assert s.plates_for(102.5, collars=True) == [25, 10, 2.5, 1.25]
+    # Siłownia bez talerzy 25 kg: te same kilogramy z dwudziestek.
+    assert s.plates_for(195, largest=20) == [20, 20, 20, 20, 5, 2.5]
 
 
 def test_planned_load_prefers_fixed_kg():

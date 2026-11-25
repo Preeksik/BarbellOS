@@ -34,6 +34,7 @@ import {
   type SupplementDay,
   type Targets,
   type TrainingEntry,
+  type TrainingEquipment,
   type TrainingWeek,
   api,
 } from "./api";
@@ -128,6 +129,7 @@ export const mutationKeys = {
   supplementYesterday: ["supplements", "yesterday"] as const,
   trainingEntry: ["training", "entry"] as const,
   trainingSession: ["training", "session"] as const,
+  trainingEquipment: ["training", "equipment"] as const,
 };
 
 export interface ProbeInput {
@@ -495,6 +497,24 @@ queryClient.setMutationDefaults(mutationKeys.trainingSession, {
     api.put<void>(`/api/training/sessions/${session}`, { gym, bodyweight, note }),
   onMutate: ({ week, session, gym, bodyweight, note }: TrainingSessionInput) =>
     previewTrainingWeek(week, session, (s) => ({ ...s, gym, bodyweight, log_note: note })),
+  onSettled: refreshTrainingAfterLastWrite,
+});
+
+export const TRAINING_EQUIPMENT_KEY = ["training", "equipment"] as const;
+
+export interface TrainingEquipmentInput {
+  plates_25: boolean;
+  collars: boolean;
+}
+
+// Talerze przelicza serwer: po wysłaniu odświeżają się tygodnie treningu.
+queryClient.setMutationDefaults(mutationKeys.trainingEquipment, {
+  scope: TRAINING_SCOPE,
+  mutationFn: (body: TrainingEquipmentInput) => api.put<void>("/api/training/equipment", body),
+  onMutate: (body: TrainingEquipmentInput) =>
+    queryClient.setQueryData<TrainingEquipment>(TRAINING_EQUIPMENT_KEY, (old) =>
+      old ? { ...old, ...body } : old,
+    ),
   onSettled: refreshTrainingAfterLastWrite,
 });
 

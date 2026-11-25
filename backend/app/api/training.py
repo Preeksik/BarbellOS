@@ -53,6 +53,17 @@ class SessionIn(BaseModel):
     note: str | None = Field(default=None, max_length=5000)
 
 
+class EquipmentIn(BaseModel):
+    """Sprzęt na siłowni: od niego zależą talerze na stronę sztangi."""
+
+    plates_25: bool = True  # bez talerzy 25 kg liczymy od 20 kg
+    collars: bool = False  # zaciski 2 × 2,5 kg
+
+
+class EquipmentOut(EquipmentIn):
+    has_plan: bool
+
+
 class LastOut(BaseModel):
     kg: float
     reps: float | None
@@ -267,7 +278,13 @@ def _exercise_out(data: Loaded, week: core.WeekSlot, slot: core.SessionSlot, i: 
         # Wskazówka z planu dla tej pozycji ma pierwszeństwo przed ogólną (jak w starym pliku).
         "cue": ex.get("note") or cue,
         "load": load,
-        "plates": core.plates_for(load, data.settings.collars) if load is not None else None,
+        "plates": (
+            core.plates_for(
+                load, data.settings.collars, 25 if data.settings.plates_25 is not False else 20
+            )
+            if load is not None
+            else None
+        ),
         "entry": EntryOut(
             kg=core.number(entry.get("kg")),
             reps=core.number(entry.get("reps")),
@@ -489,6 +506,32 @@ def put_session(key: str, body: SessionIn, db: Session = Depends(get_db)) -> Res
     row.bodyweight = body.bodyweight
     row.note = (body.note or "").strip() or None
     row.updated_at = utcnow()
+    db.commit()
+    return Response(status_code=204)
+
+
+@router.get("/equipment", response_model=EquipmentOut)
+def get_equipment(db: Session = Depends(get_db)) -> EquipmentOut:
+    plan = db.scalars(select(Plan).order_by(Plan.id)).first()
+    settings = db.get(PlanSettings, plan.id) if plan else None
+    return EquipmentOut(
+        has_plan=plan is not None,
+        plates_25=settings.plates_25 if settings else True,
+        collars=settings.collars if settings else False,
+    )
+
+
+@router.put("/equipment", status_code=204)
+def put_equipment(body: EquipmentIn, db: Session = Depends(get_db)) -> Response:
+    """Talerze 25 kg i zaciski w całości. Powtórka niczego nie zmienia."""
+    plan = db.scalars(select(Plan).order_by(Plan.id)).first()
+    if plan is None:
+        raise HTTPException(404, "Najpierw wgraj plan treningowy.")
+    settings = db.get(PlanSettings, plan.id)
+    if settings is None:
+        settings = PlanSettings(plan_id=plan.id, tm={}, adj={})
+        db.add(settings)
+    settings.plates_25, settings.collars = body.plates_25, body.collars
     db.commit()
     return Response(status_code=204)
 

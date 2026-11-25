@@ -154,13 +154,16 @@ def tm_value(plan: Mapping, overrides: Mapping | None, phase: int, lift: str) ->
     return tm_for(phase, lift, tm["phase_1"], tm.get("default_increment_by_phase") or {}, overrides)
 
 
-def plates_for(total_kg: float, collars: bool = False) -> list[float] | None:
-    """Talerze na jedną stronę sztangi (od największego). Za mało na sztangę: None."""
+def plates_for(total_kg: float, collars: bool = False, largest: float = 25) -> list[float] | None:
+    """Talerze na jedną stronę sztangi (od największego). Za mało na sztangę: None.
+
+    `largest`: największy talerz na siłowni (np. 20 kg, gdy nie ma 25 kg).
+    """
     side = (total_kg - BAR_KG - (COLLARS_KG if collars else 0)) / 2
     if side < -1e-9:
         return None
     plates = []
-    for plate in PLATES_KG:
+    for plate in (p for p in PLATES_KG if p <= largest):
         while side >= plate - 1e-9:
             plates.append(plate)
             side -= plate

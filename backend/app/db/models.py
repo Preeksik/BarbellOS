@@ -11,7 +11,7 @@ from __future__ import annotations
 import uuid
 from datetime import UTC, date, datetime
 
-from sqlalchemy import JSON, Date, DateTime, ForeignKey, String, Text, Uuid, func
+from sqlalchemy import JSON, Date, DateTime, ForeignKey, String, Text, Uuid, func, true
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from sqlalchemy.types import TypeDecorator
@@ -287,6 +287,8 @@ class PlanSettings(Base):
     meet_date: Mapped[date | None] = mapped_column(Date)
     adj: Mapped[dict] = mapped_column(JsonType, default=dict)  # {"ins": [...], "rem": [...]}
     collars: Mapped[bool] = mapped_column(default=False)
+    # Największy talerz na siłowni (25.11.2026): bez 25 kg talerze liczą się od 20 kg.
+    plates_25: Mapped[bool] = mapped_column(default=True, server_default=true())
 
 
 class SessionLog(Base):

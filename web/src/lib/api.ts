@@ -476,6 +476,13 @@ export interface TrainingSeason {
   weeks: TrainingWeekSummary[];
 }
 
+/** Sprzęt na siłowni: od niego zależą talerze na stronę sztangi. */
+export interface TrainingEquipment {
+  plates_25: boolean;
+  collars: boolean;
+  has_plan: boolean;
+}
+
 export interface TrainingImportResult {
   plan_name: string;
   weeks: number;

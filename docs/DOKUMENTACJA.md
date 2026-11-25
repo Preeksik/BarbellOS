@@ -1,6 +1,8 @@
-# BarbellOS — dokumentacja techniczna v0.25
+# BarbellOS — dokumentacja techniczna v0.26
 
 Stan: 25.11.2026.
+
+Zmiany w v0.26: w Profilu największy talerz na siłowni (25 albo 20 kg) i zaciski; kolumna `plan_settings.plates_25`, migracja `0014`. Animacje techniki dla bojów ze sztangą i ich wariantów (5.5).
 
 Zmiany w v0.25: zakładka „Trening” (etap 4, część 1): oś sezonu, tydzień, dni i sesja z wpisami przez kolejkę offline; kalendarz, statusy, „ostatnio” i sugestie TM w `core/season.py`; import planu i dziennika ze starego pliku (5.3, 5.4).
 
@@ -499,6 +501,7 @@ Część 1: codzienne logowanie. Układ jak w starym pliku, w tokenach „Kredy�
 - **Ćwiczenie**: zalecenie z planu, ciężar (z TM fazy albo `fixed_kg`, przy singlu „≈”), talerze na stronę z zaciskami albo bez, wskazówka techniczna, przy akcesoriach „Ostatnio” (najpierw z tej samej siłowni). Wpis to kg, powtórzenia i RPE na całe ćwiczenie, jak w starym pliku. „Odhacz” przy serii bez ciężaru wpisuje ciężar z planu. e1RM pokazuje się po zapisie (liczy serwer).
 - **Podejścia** (test, zawody): ciężar, RPE i „zaliczone / spalone”. Arkusz z podpowiedzią podejść i trzeciego podejścia dochodzi w części 2.
 - **Sesja**: siłownia (podpowiedzi z dziennika), masa ciała rano, notatka.
+- **Sprzęt** (Profil → „Trening”, od 25.11.2026): największy talerz na siłowni, 25 kg (domyślnie) albo 20 kg (np. siłownia bez dwudziestek piątek), i zaciski 2 × 2,5 kg. Talerze na stronę liczy serwer z tych ustawień (`GET/PUT /api/training/equipment`, zapis przez kolejkę offline). Import planu ich nie zmienia.
 - **Pierwszy tydzień fazy**: karta z obecnymi TM i podpowiedzią z dziennika (zaliczone podejścia, a bez nich single z RPE ≥ 7 z poprzedniej fazy, w dół do 2,5 kg). Zmiana TM w części 2 (zakładka „Maksy”).
 - Bez planu w bazie zakładka prosi o plik. „Wczytaj plan z pliku” na dole przyjmuje sam plan albo `{ plan, settings, logs }` (dziennik i ustawienia w formacie starego pliku). Sesje z pliku zastępują te same sesje w bazie, pozostałe zostają, więc import można powtórzyć. Plik z planem i dziennikiem jest osobisty i nie trafia do repo.
 
@@ -512,6 +515,14 @@ API (`backend/app/api/training.py`, logika w `core/season.py` i `core/training.p
 Zgodność z oryginałem: kalendarz, statusy, punkty e1RM, sugestie TM, „ostatnio”, siłownie, ciężary wszystkich pozycji i wybór sesji porównane z kodem JavaScript żywego planu na prawdziwym dzienniku, w czterech scenariuszach (także z dodanym i usuniętym tygodniem): zero różnic. Testy w repo używają sztucznego planu (`backend/tests/training_plan.py`).
 
 Część 2 (dalej): zakładki sezonu, maksów (TM, wykres e1RM, kalkulator), startu (arkusz podejść, data zawodów i dopasowanie długości planu) oraz zasady.
+
+### 5.5 Animacje techniki (od 25.11.2026)
+
+Przy ćwiczeniu „Pokaż technikę” otwiera animowanego ludzika z boku i 3–5 punktów techniki. Na razie boje ze sztangą i warianty z planu: przysiad (też z pauzą 2 s, tempo 3-1-0, z pinów), wyciskanie z pauzą, T&G, z pauzą 3 s, Larsen, spoto, wąskim chwytem, martwy ciąg (też z pauzą pod kolanem) i RDL. Akcesoria dojdą później.
+
+- Animacje są własne, rysowane w kodzie (SVG), bez obcych grafik i licencji, i działają bez sieci.
+- Pozy liczy prosta mechanika (`web/src/features/training/technique/skeleton.ts`): kości mają stałą długość, sztanga zostaje nad środkiem stopy, a kolano, biodro i łokieć wyznacza kinematyka odwrotna dwóch kości. Warianty różnią się przebiegiem czasu (pauzy, tempo) i sceną (ławka, piny), a nie rysunkiem (`moves.ts`). To prezentacja, nie obliczenia treningowe.
+- Ćwiczenie trafia do animacji po nazwie z planu. Stuknięcie w obrazek zatrzymuje pętlę; przy ograniczeniu ruchu w telefonie animacja startuje zatrzymana w dolnej pozycji.
 
 ## 6. Moduł 3 — Regeneracja
 
@@ -679,7 +690,7 @@ meal_template_item(meal_id, position, food_id, amount,   -- skład: produkty i i
                    PRIMARY KEY(meal_id, position))
 
 plan(id PK, name, data JSONB)                    -- zawartość plan_amp_2027.json
-plan_settings(plan_id PK, tm JSONB, meet_date, adj JSONB, collars)
+plan_settings(plan_id PK, tm JSONB, meet_date, adj JSONB, collars, plates_25)
 session_log(plan_id, session_key, gym, bodyweight, note, updated_at,
             PRIMARY KEY(plan_id, session_key))   -- np. 't03-D2'
 set_log(plan_id, session_key, ex_index, kg, reps, rpe, done, ok,

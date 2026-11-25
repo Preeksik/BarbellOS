@@ -36,6 +36,8 @@ import {
   toggledDone,
   toggledOk,
 } from "../../lib/training";
+import { TechniqueFigure } from "./technique/TechniqueFigure";
+import { moveFor } from "./technique/moves";
 
 const LIFT_NAMES = { S: "przysiad", B: "ława", D: "martwy" } as const;
 const LIFT_TITLES = { S: "Przysiad", B: "Ława", D: "Martwy ciąg" } as const;
@@ -502,6 +504,8 @@ function ExerciseCard({
 }) {
   const entry = useEntryWriter(week, session, ex);
   const tag = tierLabel(ex.tier);
+  const move = moveFor(ex.name);
+  const [showTechnique, setShowTechnique] = useState(false);
   const id = `${session.key}-${ex.index}`;
   return (
     <article className={["card", "ex", `ex-${ex.tier}`, ex.entry.done ? "done" : ""].join(" ")}>
@@ -527,6 +531,17 @@ function ExerciseCard({
       </div>
       {ex.load != null && <Plates plates={ex.plates} />}
       {ex.cue && <p className="cue">{ex.cue}</p>}
+      {move && (
+        <button
+          type="button"
+          className="link technique-toggle"
+          aria-expanded={showTechnique}
+          onClick={() => setShowTechnique(!showTechnique)}
+        >
+          {showTechnique ? "Ukryj technikę" : "Pokaż technikę"}
+        </button>
+      )}
+      {move && showTechnique && <TechniqueFigure move={move} name={ex.name} />}
       {ex.last && (
         <p className="last">
           Ostatnio:{" "}

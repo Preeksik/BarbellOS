@@ -9,6 +9,7 @@ import {
   type ProfileResponse,
   type Sex,
   type Targets,
+  type TrainingEquipment,
   api,
 } from "../../lib/api";
 import { toIsoDay } from "../../lib/diary";
@@ -16,7 +17,9 @@ import { INVALID, formatDecimal, parseDecimal } from "../../lib/number";
 import {
   PROFILE_QUERY_KEY,
   type ProfilePutInput,
+  TRAINING_EQUIPMENT_KEY,
   type TargetsPutInput,
+  type TrainingEquipmentInput,
   mutationKeys,
 } from "../../lib/offline";
 import { GOAL_ROWS, KIND_HINT } from "../../lib/targets";
@@ -114,6 +117,8 @@ export function ProfilePage() {
 
       <AiUsageCard />
 
+      <EquipmentCard />
+
       <ThemeCard />
 
       <details className="card diagnostics">
@@ -121,6 +126,64 @@ export function ProfilePage() {
         <HomePage />
       </details>
     </>
+  );
+}
+
+/**
+ * Sprzęt na siłowni (25.11.2026): bez talerzy 25 kg talerze na stronę liczą się od 20 kg,
+ * a zaciski dokładają 2 × 2,5 kg. Domyślnie są talerze 25 kg i nie ma zacisków.
+ */
+function EquipmentCard() {
+  const equipment = useQuery({
+    queryKey: TRAINING_EQUIPMENT_KEY,
+    queryFn: () => api.get<TrainingEquipment>("/api/training/equipment"),
+  });
+  const put = useMutation<void, Error, TrainingEquipmentInput>({
+    mutationKey: mutationKeys.trainingEquipment,
+  });
+  const data = equipment.data;
+  if (!data?.has_plan) return null;
+  const choose = (patch: Partial<TrainingEquipmentInput>) =>
+    put.mutate({ plates_25: data.plates_25, collars: data.collars, ...patch });
+  return (
+    <section className="card">
+      <h2>Trening</h2>
+      <fieldset className="segmented">
+        <legend>Największy talerz na siłowni</legend>
+        {[
+          { value: true, label: "25 kg" },
+          { value: false, label: "20 kg" },
+        ].map(({ value, label }) => (
+          <label key={label} className={data.plates_25 === value ? "active" : ""}>
+            <input
+              type="radio"
+              name="plates25"
+              checked={data.plates_25 === value}
+              onChange={() => choose({ plates_25: value })}
+            />
+            {label}
+          </label>
+        ))}
+      </fieldset>
+      <fieldset className="segmented">
+        <legend>Zaciski</legend>
+        {[
+          { value: false, label: "Bez zacisków" },
+          { value: true, label: "2 × 2,5 kg" },
+        ].map(({ value, label }) => (
+          <label key={label} className={data.collars === value ? "active" : ""}>
+            <input
+              type="radio"
+              name="collars"
+              checked={data.collars === value}
+              onChange={() => choose({ collars: value })}
+            />
+            {label}
+          </label>
+        ))}
+      </fieldset>
+      <p className="muted">Od tego zależą talerze na stronę przy każdym ćwiczeniu.</p>
+    </section>
   );
 }
 
