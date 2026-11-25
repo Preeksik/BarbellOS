@@ -33,5 +33,5 @@ Plan i dziennik są osobiste, więc nie ma ich w repo. Plik do importu leży lok
 9. Sąsiednie tygodnie działają bez sieci, jeśli były otwarte z siecią (aplikacja pobiera je od razu).
 10. Tydzień 10 (test): sekcja „Podejścia” z ciężarem, RPE i przyciskami ✓ / ✕; drugie stuknięcie zdejmuje ocenę.
 11. Profil → „Trening” → „20 kg”: wróć do Treningu, talerze przy ćwiczeniach liczą się z dwudziestek (np. 142,5 kg = 20+20+20+1,25 na stronę). Przełącz z powrotem na 25 kg. „2 × 2,5 kg” przy zaciskach zmniejsza talerze o 2,5 kg na stronę.
-12. Przy przysiadzie, ławie, martwym i ich wariantach „Pokaż technikę”: ludzik płynnie robi ruch, pod spodem nazwa fazy („pauza 2 s”, „siad na piny”). Stuknięcie w obrazek zatrzymuje. Sprawdź, czy animacja nie przycina przewijania i czy działa w trybie samolotowym.
+12. Przy przysiadzie, ławie, martwym i ich wariantach przycisk „Technika”: ludzik płynnie robi ruch, pod spodem nazwa fazy („pauza 2 s”, „siad na piny”). Stuknięcie w obrazek zatrzymuje. Sprawdź, czy animacja nie przycina przewijania i czy działa w trybie samolotowym.
 13. Ustawienia → Dostępność → Ruch → „Ogranicz ruch”: animacja startuje zatrzymana w dolnej pozycji, „Odtwórz” ją uruchamia.

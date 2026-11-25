@@ -518,7 +518,7 @@ Część 2 (dalej): zakładki sezonu, maksów (TM, wykres e1RM, kalkulator), sta
 
 ### 5.5 Animacje techniki (od 25.11.2026)
 
-Przy ćwiczeniu „Pokaż technikę” otwiera animowanego ludzika z boku i 3–5 punktów techniki. Na razie boje ze sztangą i warianty z planu: przysiad (też z pauzą 2 s, tempo 3-1-0, z pinów), wyciskanie z pauzą, T&G, z pauzą 3 s, Larsen, spoto, wąskim chwytem, martwy ciąg (też z pauzą pod kolanem) i RDL. Akcesoria dojdą później.
+Przy ćwiczeniu przycisk „Technika” (z ikoną ludzika) otwiera animowanego ludzika z boku i 3–5 punktów techniki. Na razie boje ze sztangą i warianty z planu: przysiad (też z pauzą 2 s, tempo 3-1-0, z pinów), wyciskanie z pauzą, T&G, z pauzą 3 s, Larsen, spoto, wąskim chwytem, martwy ciąg (też z pauzą pod kolanem) i RDL. Akcesoria dojdą później.
 
 - Animacje są własne, rysowane w kodzie (SVG), bez obcych grafik i licencji, i działają bez sieci.
 - Pozy liczy prosta mechanika (`web/src/features/training/technique/skeleton.ts`): kości mają stałą długość, sztanga zostaje nad środkiem stopy, a kolano, biodro i łokieć wyznacza kinematyka odwrotna dwóch kości. Warianty różnią się przebiegiem czasu (pauzy, tempo) i sceną (ławka, piny), a nie rysunkiem (`moves.ts`). To prezentacja, nie obliczenia treningowe.

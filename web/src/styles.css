@@ -2167,14 +2167,14 @@ button.totoday {
   font-weight: 500;
 }
 
-.plates {
+.barplates {
   display: flex;
   align-items: center;
   gap: 3px;
   height: 46px;
 }
 
-.plates .pl {
+.barplates .pl {
   flex: 0 0 auto;
   width: 11px;
   height: calc(44px * var(--h, 1));
@@ -2182,11 +2182,11 @@ button.totoday {
   background: var(--plate);
 }
 
-.plates .pl.p2 {
+.barplates .pl.p2 {
   box-shadow: inset 0 0 0 1px var(--muted);
 }
 
-.plates .pltxt {
+.barplates .pltxt {
   margin-left: 10px;
   color: var(--muted);
   font-size: 0.85rem;
@@ -2310,6 +2310,25 @@ button.donebtn.on svg {
 }
 
 /* Animacja techniki (25.11.2026): ludzik w kolorze tekstu, talerz czerwony za nim. */
+/* Przycisk animacji: zwykły przycisk z ikoną ludzika, nie link. */
+button.techbtn {
+  align-self: flex-start;
+  gap: 8px;
+  min-height: 40px;
+  padding: 6px 14px 6px 10px;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+button.techbtn svg {
+  width: 20px;
+  height: 20px;
+}
+
+button.techbtn[aria-expanded="true"] {
+  border-color: var(--text);
+}
+
 .technique {
   display: flex;
   flex-direction: column;

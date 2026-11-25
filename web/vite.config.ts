@@ -1,3 +1,4 @@
+/// <reference types="vitest/config" />
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
@@ -41,6 +42,8 @@ export default defineConfig({
       },
     }),
   ],
+  // Testy czytają styles.css jako tekst (src/styles.test.ts); domyślnie Vitest podaje pusty CSS.
+  test: { css: { include: [/styles\.css/] } },
   server: {
     // Lokalnie frontend (5173) woła backend (8000) pod tym samym adresem co w produkcji.
     proxy: { "/api": "http://localhost:8000" },

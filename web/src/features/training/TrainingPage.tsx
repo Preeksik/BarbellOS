@@ -484,7 +484,7 @@ function Plates({ plates }: { plates: number[] | null }) {
   const text = platesText(plates);
   if (text == null || plates == null) return null;
   return (
-    <div className="plates" role="img" aria-label={`Na stronę: ${text}`}>
+    <div className="barplates" role="img" aria-label={`Na stronę: ${text}`}>
       {plates.map((p, i) => (
         <span key={i} className={`pl p${String(p).replace(".", "")}`} />
       ))}
@@ -534,11 +534,23 @@ function ExerciseCard({
       {move && (
         <button
           type="button"
-          className="link technique-toggle"
+          className="techbtn"
           aria-expanded={showTechnique}
           onClick={() => setShowTechnique(!showTechnique)}
         >
-          {showTechnique ? "Ukryj technikę" : "Pokaż technikę"}
+          <svg
+            aria-hidden="true"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={2}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <circle cx="12" cy="4.5" r="2" />
+            <path d="M12 7v6M8 10l4 1 4-1M12 13l-3 7M12 13l3 7" />
+          </svg>
+          {showTechnique ? "Zwiń technikę" : "Technika"}
         </button>
       )}
       {move && showTechnique && <TechniqueFigure move={move} name={ex.name} />}
