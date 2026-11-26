@@ -21,3 +21,5 @@ Plik zawiera osobiste maksy i cele, dlatego domyślnie nie trafia do publicznego
 Opis pól jest w samym pliku, w sekcji `field_guide`.
 
 Od 25.11.2026 plik odpowiada żywej wersji planu z artefaktu (zmiany do 22.11.2026). Nowe pole ćwiczenia `fixed_kg` to stały ciężar z planu, który ma pierwszeństwo przed procentem TM (tygodnie sprzed zmiany maksów). Na serwer plan trafia przez „Wczytaj plan z pliku” w zakładce Trening, bo plik nie jest w repo.
+
+Od 26.11.2026 plik ma też pole `notes` (teksty osobiste: zasady, cele, start, opisy sezonu) i parametry części 2 (`attempts.fallback_phase`, `attempts.default_bodyweight`, `meet_date_adjustment.spring_weeks` i `relative_days`, `meta.meet_name`, `meta.meet_date_range`). Bez nich zakładki działają, tylko bez tych tekstów, a zmiana daty zawodów zwraca błąd.

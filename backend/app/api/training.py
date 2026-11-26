@@ -18,8 +18,9 @@ from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app.api.deps import require_user
+from app.core import meet
 from app.core import season as core
-from app.core.training import round_to_step
+from app.core.training import attempts_for, round_to_step
 from app.db.models import Plan, PlanSettings, SessionLog, SetLog, utcnow
 from app.db.session import get_db
 
@@ -92,6 +93,36 @@ class ExerciseOut(BaseModel):
     last: LastOut | None  # akcesoria: ostatni wpis tego ćwiczenia
 
 
+class ThirdHint(BaseModel):
+    """Trzecie podejście po drugim: failed | rules | need_rpe | limit | next."""
+
+    kind: Literal["failed", "rules", "need_rpe", "limit", "next"]
+    kg: float | None = None
+    rpe: float | None = None
+
+
+class SheetLift(BaseModel):
+    lift: str
+    max: float  # maks do podejść (zaokrąglony do 2,5 kg)
+    from_singles: bool  # z singli albo z TM fazy zastępczej
+    fallback_phase: int
+    first: float
+    second: float
+    third: tuple[float, float]  # przedział trzeciego podejścia
+    hint: ThirdHint
+
+
+class SheetOut(BaseModel):
+    """Arkusz podejść na teście albo zawodach: plan, podpowiedzi i wynik."""
+
+    context: Literal["test", "meet"]
+    lifts: list[SheetLift]
+    best: dict[str, float | None]
+    total: float | None
+    gl: float | None
+    bodyweight: float
+
+
 class SessionOut(BaseModel):
     key: str
     code: str
@@ -106,6 +137,7 @@ class SessionOut(BaseModel):
     bodyweight: float | None
     log_note: str | None  # notatka użytkownika
     exercises: list[ExerciseOut]
+    sheet: SheetOut | None = None  # tylko sesje z podejściami
 
 
 class TmSuggestion(BaseModel):
@@ -148,6 +180,7 @@ class WeekSummary(BaseModel):
     repeat_of: int | None
     done: int
     total: int
+    holidays: list[str]  # święta w dniach treningowych tego tygodnia
 
 
 class Countdown(BaseModel):
@@ -161,6 +194,14 @@ class Position(BaseModel):
     rest: bool  # dziś wolne, pokazany najbliższy trening
 
 
+class SeasonGroup(BaseModel):
+    """Opis części sezonu (np. jesień do testu) z pliku planu."""
+
+    title: str
+    text: str
+    last_week: int | None = None  # ostatni tydzień tej części; brak = do końca
+
+
 class SeasonOut(BaseModel):
     plan_name: str | None  # None: planu jeszcze nie wgrano
     headline: str | None
@@ -168,6 +209,7 @@ class SeasonOut(BaseModel):
     position: Position | None
     current_week: int | None
     weeks: list[WeekSummary]
+    groups: list[SeasonGroup] = []
 
 
 class ImportIn(BaseModel):
@@ -220,6 +262,23 @@ class Loaded:
     @cached_property
     def gyms(self) -> list[str]:
         return core.known_gyms(self.season, self.logs)
+
+    @cached_property
+    def points(self) -> list[core.LiftPoint]:
+        return core.lift_points(self.season, self.logs)
+
+    def default_bodyweight(self, context: str) -> float:
+        defaults = (self.plan.get("attempts") or {}).get("default_bodyweight") or {}
+        weight_class = (self.plan.get("meta") or {}).get("weight_class_kg")
+        return float(defaults.get(context) or weight_class or meet.DEFAULT_BODYWEIGHT)
+
+    def context_max(self, context: str, lift: str) -> tuple[float, bool, int]:
+        """Maks do podejść: (wartość, czy z singli, faza zastępcza)."""
+        attempts = self.plan.get("attempts") or {}
+        weeks = (attempts.get("context_weeks") or {}).get(context) or []
+        phase = int((attempts.get("fallback_phase") or {}).get(context) or 1)
+        value, from_singles = meet.context_max(self.points, weeks, self.tm(phase, lift), lift)
+        return value, from_singles, phase
 
     def tm(self, phase: int, lift: str) -> float:
         return core.tm_value(self.plan, self.settings.tm, phase, lift)
@@ -316,6 +375,51 @@ def _session_out(data: Loaded, week: core.WeekSlot, slot: core.SessionSlot) -> S
         exercises=[
             ExerciseOut(**_exercise_out(data, week, slot, i, ex)) for i, ex in enumerate(exercises)
         ],
+        sheet=_sheet(data, slot) if any(e.get("kind") == "att" for e in exercises) else None,
+    )
+
+
+def _sheet(data: Loaded, slot: core.SessionSlot) -> SheetOut:
+    """Arkusz podejść (`renderSheet`): plan z maksu, trzecie po drugim, wynik i GL."""
+    context: Literal["test", "meet"] = "test" if slot.day["code"] == "TEST" else "meet"
+    exercises = slot.day.get("exercises") or []
+    log = data.logs.get(slot.key) or {}
+    entries = log.get("entries") or {}
+    lifts = []
+    for lift in core.LIFTS:
+        value, from_singles, phase = data.context_max(context, lift)
+        plan = attempts_for(value, lift)
+        second = next(
+            (
+                i
+                for i, e in enumerate(exercises)
+                if e.get("kind") == "att" and e.get("lift") == lift and e.get("attempt") == 2
+            ),
+            None,
+        )
+        hint = meet.third_hint(entries.get(second) if second is not None else None, lift)
+        lifts.append(
+            SheetLift(
+                lift=lift,
+                max=round_to_step(value),
+                from_singles=from_singles,
+                fallback_phase=phase,
+                first=plan["first"],
+                second=plan["second"],
+                third=plan["third"],
+                hint=ThirdHint(**hint),
+            )
+        )
+    result = meet.sheet_result(
+        exercises, entries, core.number(log.get("bodyweight")), data.default_bodyweight(context)
+    )
+    return SheetOut(
+        context=context,
+        lifts=lifts,
+        best=result["best"],
+        total=result["total"],
+        gl=result["gl"],
+        bodyweight=result["bodyweight"],
     )
 
 
@@ -430,8 +534,18 @@ def get_season(today: dt.date, db: Session = Depends(get_db)) -> SeasonOut:
                     for s in w.sessions
                 ),
                 total=len(w.sessions),
+                holidays=[
+                    name
+                    for s in w.sessions
+                    if (name := (data.plan.get("holidays") or {}).get(s.date.isoformat()))
+                ],
             )
             for i, w in enumerate(data.season)
+        ],
+        groups=[
+            SeasonGroup(**g)
+            for g in ((data.plan.get("notes") or {}).get("season") or [])
+            if isinstance(g, Mapping) and g.get("title")
         ],
     )
 

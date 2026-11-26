@@ -6,6 +6,9 @@ import {
   entryTexts,
   fmt,
   kgPlaceholder,
+  ladderText,
+  rangeText,
+  thirdHintText,
   longDay,
   platesText,
   prescription,
@@ -111,5 +114,33 @@ describe("wpis z formularza", () => {
     expect(toggledOk(EMPTY, "y").ok).toBe("y");
     expect(toggledOk({ ...EMPTY, ok: "y" }, "y").ok).toBeNull();
     expect(toggledOk({ ...EMPTY, ok: "y" }, "n").ok).toBe("n");
+  });
+});
+
+describe("arkusz podejść", () => {
+  it("podpowiada trzecie podejście jak stary plan", () => {
+    const hint = (kind: "failed" | "rules" | "need_rpe" | "limit" | "next", kg = 0, rpe = 0) => ({
+      kind,
+      kg,
+      rpe,
+    });
+    expect(thirdHintText(hint("next", 180, 8), "S")).toEqual({
+      text: "3. podejście: 180 kg (drugie na RPE 8).",
+      strong: "180 kg",
+    });
+    expect(thirdHintText(hint("rules"), "B").text).toBe(
+      "3. podejście wybierasz po drugim: RPE ≤ 7,5 → +5 kg, RPE 8 → +5 kg, RPE 9 → +2,5 kg.",
+    );
+    expect(thirdHintText(hint("rules"), "D").text).toContain("+10 kg, RPE 8 → +7,5 kg");
+    expect(thirdHintText(hint("limit", 125), "B").text).toBe(
+      "3. podejście: 125 kg było na granicy. +2,5 kg tylko przy pewnej technice.",
+    );
+    expect(thirdHintText(hint("failed"), "S").text).toContain("powtórz ciężar drugiego");
+    expect(thirdHintText(hint("need_rpe"), "S").text).toContain("wpisz RPE drugiego");
+  });
+
+  it("formatuje rozgrzewkę i przedział", () => {
+    expect(ladderText([[20, 8], [62.5, 5]])).toBe("20×8 · 62,5×5");
+    expect(rangeText([172.5, 177.5])).toBe("172,5–177,5");
   });
 });

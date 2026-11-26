@@ -3,7 +3,7 @@
  * z serwera; tu jest tylko zamiana na tekst i zebranie wpisu z pól formularza.
  */
 
-import type { TrainingEntry, TrainingExercise } from "./api";
+import type { Lift, ThirdHint, TrainingEntry, TrainingExercise } from "./api";
 import { INVALID, parseDecimal } from "./number";
 
 const WEEKDAYS = ["Nd", "Pon", "Wt", "Śr", "Czw", "Pt", "Sob"];
@@ -133,4 +133,45 @@ export function platesText(plates: number[] | null): string | null {
 /** „dzień" / „dni" */
 export function daysWord(n: number): string {
   return n === 1 ? "dzień" : "dni";
+}
+
+export const LIFT_SHORT: Record<Lift, string> = { S: "Przysiad", B: "Ława", D: "Martwy" };
+
+/**
+ * Podpowiedź trzeciego podejścia jak w starym planie. `strong` to ciężar do pogrubienia
+ * (tylko gdy jest gotowa propozycja).
+ */
+export function thirdHintText(hint: ThirdHint, lift: Lift): { text: string; strong?: string } {
+  const bench = lift === "B";
+  switch (hint.kind) {
+    case "failed":
+      return { text: "3. podejście: powtórz ciężar drugiego, jeśli błąd był techniczny." };
+    case "need_rpe":
+      return { text: "3. podejście: wpisz RPE drugiego, podpowiem ciężar." };
+    case "limit":
+      return {
+        text: `3. podejście: ${fmt(hint.kg)} kg było na granicy. +2,5 kg tylko przy pewnej technice.`,
+      };
+    case "next":
+      return {
+        text: `3. podejście: ${fmt(hint.kg)} kg (drugie na RPE ${fmt(hint.rpe)}).`,
+        strong: `${fmt(hint.kg)} kg`,
+      };
+    default:
+      return {
+        text: `3. podejście wybierasz po drugim: RPE ≤ 7,5 → +${bench ? 5 : 10} kg, RPE 8 → +${
+          bench ? "5" : "7,5"
+        } kg, RPE 9 → +2,5 kg.`,
+      };
+  }
+}
+
+/** Rozgrzewka: „20×8 · 62,5×5 · …". */
+export function ladderText(steps: [number, number][]): string {
+  return steps.map(([kg, reps]) => `${fmt(kg)}×${reps}`).join(" · ");
+}
+
+/** Przedział trzeciego podejścia: „172,5–177,5". */
+export function rangeText([low, high]: [number, number]): string {
+  return `${fmt(low)}–${fmt(high)}`;
 }

@@ -1,6 +1,8 @@
-# BarbellOS — dokumentacja techniczna v0.26
+# BarbellOS — dokumentacja techniczna v0.27
 
-Stan: 25.11.2026.
+Stan: 26.11.2026.
+
+Zmiany w v0.27: część 2 treningu: podzakładki Sezon, Maksy (cele, TM z sugestiami, wykres e1RM, kalkulator), Start (podejścia, rozgrzewka, data zawodów z dopasowaniem planu, wyniki) i Zasady; arkusz podejść w sesji testu i zawodów; „Zastosuj” na karcie nowego bloku; logika w `core/meet.py`, teksty osobiste w pliku planu (`notes`) (5.4, 5.6).
 
 Zmiany w v0.26: w Profilu największy talerz na siłowni (25 albo 20 kg) i zaciski; kolumna `plan_settings.plates_25`, migracja `0014`. Animacje techniki dla bojów ze sztangą i ich wariantów (5.5).
 
@@ -499,10 +501,10 @@ Część 1: codzienne logowanie. Układ jak w starym pliku, w tokenach „Kredy�
 - **Oś sezonu**: rząd krążków, po jednym na tydzień, w kolorze intensywności z planu (5 rozładowanie, 10 akumulacja, 15 siła i taper, 20 intensyfikacja, 25 peak, test, start). Stuknięcie otwiera tydzień. Nad osią numer tygodnia, blok i odliczanie do testu i do zawodów.
 - **Sesja po otwarciu**: kolejna po ostatniej zapisanej (treningi bywają przesunięte względem kalendarza); zapisana w ciągu 8 godzin zostaje na ekranie, a gdy kolejna jest dalej niż 6 dni od dziś, wraca kalendarz (dzisiejsza albo najbliższa, z dopiskiem „Dziś wolne”). Wybór tygodnia i dnia to stan, nie adres (AGENTS.md, zasada 11).
 - **Ćwiczenie**: zalecenie z planu, ciężar (z TM fazy albo `fixed_kg`, przy singlu „≈”), talerze na stronę z zaciskami albo bez, wskazówka techniczna, przy akcesoriach „Ostatnio” (najpierw z tej samej siłowni). Wpis to kg, powtórzenia i RPE na całe ćwiczenie, jak w starym pliku. „Odhacz” przy serii bez ciężaru wpisuje ciężar z planu. e1RM pokazuje się po zapisie (liczy serwer).
-- **Podejścia** (test, zawody): ciężar, RPE i „zaliczone / spalone”. Arkusz z podpowiedzią podejść i trzeciego podejścia dochodzi w części 2.
+- **Arkusz podejść** (test, zawody, od 26.11.2026): przy każdym podejściu ciężar z planu (z maksu do podejść), ciężar, RPE i „zaliczone / spalone”; pod bojem podpowiedź trzeciego podejścia po drugim; na dole najlepsze zaliczone, suma i punkty IPF GL (masa ciała z sesji, bez wpisu domyślna z planu).
 - **Sesja**: siłownia (podpowiedzi z dziennika), masa ciała rano, notatka.
 - **Sprzęt** (Profil → „Trening”, od 25.11.2026): największy talerz na siłowni, 25 kg (domyślnie) albo 20 kg (np. siłownia bez dwudziestek piątek), i zaciski 2 × 2,5 kg. Talerze na stronę liczy serwer z tych ustawień (`GET/PUT /api/training/equipment`, zapis przez kolejkę offline). Import planu ich nie zmienia.
-- **Pierwszy tydzień fazy**: karta z obecnymi TM i podpowiedzią z dziennika (zaliczone podejścia, a bez nich single z RPE ≥ 7 z poprzedniej fazy, w dół do 2,5 kg). Zmiana TM w części 2 (zakładka „Maksy”).
+- **Pierwszy tydzień fazy**: karta z obecnymi TM i podpowiedzią z dziennika (zaliczone podejścia, a bez nich single z RPE ≥ 7 z poprzedniej fazy, w dół do 2,5 kg). „Zastosuj” wpisuje podpowiedź jako TM fazy.
 - Bez planu w bazie zakładka prosi o plik. „Wczytaj plan z pliku” na dole przyjmuje sam plan albo `{ plan, settings, logs }` (dziennik i ustawienia w formacie starego pliku). Sesje z pliku zastępują te same sesje w bazie, pozostałe zostają, więc import można powtórzyć. Plik z planem i dziennikiem jest osobisty i nie trafia do repo.
 
 API (`backend/app/api/training.py`, logika w `core/season.py` i `core/training.py`):
@@ -514,7 +516,24 @@ API (`backend/app/api/training.py`, logika w `core/season.py` i `core/training.p
 
 Zgodność z oryginałem: kalendarz, statusy, punkty e1RM, sugestie TM, „ostatnio”, siłownie, ciężary wszystkich pozycji i wybór sesji porównane z kodem JavaScript żywego planu na prawdziwym dzienniku, w czterech scenariuszach (także z dodanym i usuniętym tygodniem): zero różnic. Testy w repo używają sztucznego planu (`backend/tests/training_plan.py`).
 
-Część 2 (dalej): zakładki sezonu, maksów (TM, wykres e1RM, kalkulator), startu (arkusz podejść, data zawodów i dopasowanie długości planu) oraz zasady.
+### 5.6 Sezon, Maksy, Start, Zasady (od 26.11.2026)
+
+Podzakładki pod osią sezonu, jak w starym pliku (stan, nie adres).
+
+- **Sezon**: wszystkie tygodnie w częściach z pliku planu (np. jesień do testu, wiosna do zawodów): kolor intensywności, daty, blok, test, zawody, powtórki i święta, zrobione sesje. Stuknięcie otwiera tydzień.
+- **Maksy**: cele z sumą i punktami GL oraz wierszem „Teraz (z singli)”; TM każdego bloku do wpisania (puste = wartość z planu, ręczne oznaczone), przy sugestii przycisk „z dziennika: …” i „Zastosuj sugestie”; wykres e1RM w czasie (jedna kropka na bój i dzień, kreski testu i zawodów, stuknięcie pokazuje wartości z dnia; kolory z talerzy, linia martwego w ciemnym motywie `--chart-d` po walidacji palety) z tabelą; kalkulator e1RM (powtórzenia 1–6, RPE 6–10, liczy serwer, wymaga sieci).
+- **Start**: test i zawody: maks do podejść (najlepszy e1RM z singli z RPE ≥ 8 z tygodni kontekstu, bez nich TM fazy zastępczej), trzy podejścia z sumą, rozgrzewka pod otwarcie, przycisk do arkusza. Data zawodów: po zmianie serwer dopasowuje długość planu (najpierw cofa wcześniejsze zmiany w tygodniach, które nie minęły, potem dodaje powtórkę albo usuwa tydzień z `prefer_weeks`, najwyżej 4 tygodnie). Wymaga sieci. Tabela wyników: wynik bazowy, test, zawody.
+- **Zasady**: tekst planu (jak czytać trening, skala RPE, sprzęt…).
+
+Teksty osobiste (cele, waga startowa, lista pakowania, zasady) są w pliku planu w polu `notes` jako akapity, listy i tabele, bez HTML. Parametry: `attempts.fallback_phase`, `attempts.default_bodyweight`, `meet_date_adjustment.spring_weeks` i `relative_days`, `meta.meet_name`, `meta.meet_date_range`. Wszystko wyciągnięte ze starego pliku tym samym konwerterem co plan.
+
+API (`backend/app/api/training_plan.py`, logika w `core/meet.py`):
+
+- `GET /api/training/maxes`, `PUT /api/training/tm/{faza}` (TM fazy w całości; wartość równa domyślnej nie zostaje zapisana ręcznie; przez kolejkę offline, `trainingTm`), `GET /api/training/calculator?kg=&reps=&rpe=`.
+- `GET /api/training/start`, `PUT /api/training/meet` (`{date, today}`; błąd 422 z powodem, gdy dopasowanie jest niemożliwe), `GET /api/training/rules`.
+- W tygodniu sesja z podejściami ma `sheet`, tydzień w sezonie `holidays`, sezon `groups`. Nowe pola są opcjonalne dla starszej kopii w telefonie, więc `CACHE_VERSION` zostaje.
+
+Zgodność z oryginałem: maks do podejść, podejścia, rozgrzewka, arkusz i GL, trzecie podejście, kalkulator, domyślne TM, wiersz „Teraz” i dopasowanie do daty (osiem dat zawodów, w tym cofanie zmian i błędy) porównane z kodem JavaScript żywego planu na prawdziwym dzienniku dla trzech dat „dziś” (listopad, marzec, kwiecień): zero różnic.
 
 ### 5.5 Animacje techniki (od 25.11.2026)
 

@@ -184,3 +184,94 @@ def test_equipment_changes_plates(logged_in):
     # Ponowny import planu nie zmienia sprzętu.
     put_plan(logged_in)
     assert logged_in.get("/api/training/equipment").json()["plates_25"] is False
+
+
+# ---------------------------------------------------------------- część 2
+
+
+def test_maxes_and_manual_tm(logged_in):
+    put_plan(logged_in, logs=OLD_LOGS)
+    maxes = logged_in.get("/api/training/maxes").json()
+    assert [g["label"] for g in maxes["goals"]] == [
+        "Zeszły rok",
+        "Realnie",
+    ]  # bez „Teraz”: tylko przysiad
+    assert maxes["goals_intro"][0]["text"] == "Wstęp."
+    phase2 = maxes["phases"][1]
+    assert (phase2["phase"], phase2["first_week"], phase2["last_week"]) == (2, 2, 3)
+    squat = phase2["lifts"][0]
+    assert (squat["value"], squat["default"], squat["manual"], squat["suggestion"]) == (
+        165,
+        165,
+        False,
+        172.5,
+    )
+    assert maxes["points"][0]["e1rm_rounded"] == 172.5
+
+    assert logged_in.put("/api/training/tm/2", json={"S": 172.5}).status_code == 204
+    assert logged_in.get("/api/training/week/1").json()["tm"]["S"] == 172.5
+    squat = logged_in.get("/api/training/maxes").json()["phases"][1]["lifts"][0]
+    assert (squat["value"], squat["manual"], squat["suggestion"]) == (172.5, True, None)
+    # Puste pola wracają do wartości z planu.
+    assert logged_in.put("/api/training/tm/2", json={}).status_code == 204
+    assert logged_in.get("/api/training/week/1").json()["tm"]["S"] == 165
+    assert logged_in.put("/api/training/tm/9", json={}).status_code == 404
+
+
+def test_calculator(logged_in):
+    response = logged_in.get("/api/training/calculator", params={"kg": 150, "reps": 1, "rpe": 8})
+    assert response.json() == {"e1rm": 162.5, "tm": 162.5}
+    bad = logged_in.get("/api/training/calculator", params={"kg": 150, "reps": 8, "rpe": 8})
+    assert bad.status_code == 422 and bad.json()["detail"] == "Powtórzenia 1–6, RPE 6–10."
+
+
+def test_start_and_meet_date(logged_in):
+    put_plan(logged_in, logs=OLD_LOGS)
+    start = logged_in.get("/api/training/start").json()
+    assert start["test"]["date"] == "2026-11-10" and start["test"]["week_index"] is None
+    squat = start["test"]["attempts"]["rows"][0]
+    # Test: single z t01 (160 na RPE 8 → e1RM 173,5).
+    assert (squat["max"], squat["from_singles"], squat["first"], squat["second"]) == (
+        172.5,
+        True,
+        157.5,
+        167.5,
+    )
+    meet = start["meet"]
+    assert (meet["name"], meet["date"], meet["week_index"]) == ("Zawody testowe", "2026-11-29", 2)
+    assert meet["attempts"]["rows"][1]["from_singles"] is False  # ława z TM fazy 2
+    assert meet["intro"][0]["text"] == "Wpisz datę."
+    assert start["meet_default"] is True
+    assert start["adjustment"] == "Plan ułożony bez zmian długości."
+    assert start["results"][0]["label"] == "Zeszły rok" and start["results"][0]["baseline"]
+    assert start["results"][-1]["empty"] is True
+
+    body = {"date": "2026-12-06", "today": "2026-10-20"}
+    assert logged_in.put("/api/training/meet", json=body).status_code == 204
+    start = logged_in.get("/api/training/start").json()
+    assert start["meet_default"] is False and start["meet"]["date"] == "2026-12-06"
+    assert "dodatkowy tydzień 3 (powtórka tygodnia 2" in start["adjustment"]
+    season = logged_in.get("/api/training/season", params={"today": TODAY}).json()
+    assert [w["key"] for w in season["weeks"]] == ["t01", "t02", "t02b", "t03"]
+
+    outside = logged_in.put(
+        "/api/training/meet", json={"date": "2027-03-01", "today": "2026-10-20"}
+    )
+    assert outside.status_code == 422
+    late = logged_in.put("/api/training/meet", json={"date": "2026-12-13", "today": "2026-12-01"})
+    assert late.status_code == 422
+
+
+def test_rules_season_groups_and_sheet(logged_in):
+    put_plan(logged_in)
+    rules = logged_in.get("/api/training/rules").json()["sections"]
+    assert [s["title"] for s in rules] == ["Jak czytać trening"]  # zepsuta sekcja pominięta
+    season = logged_in.get("/api/training/season", params={"today": TODAY}).json()
+    assert season["groups"][0] == {"title": "Jesień", "text": "Do testu.", "last_week": 2}
+    url = "/api/training/sessions/t03-AMP/entries/1"
+    assert logged_in.put(url, json={"kg": 175, "ok": "y", "rpe": 8}).status_code == 204
+    sheet = logged_in.get("/api/training/week/2").json()["sessions"][1]["sheet"]
+    assert sheet["context"] == "meet" and sheet["bodyweight"] == 74
+    assert sheet["lifts"][0]["hint"] == {"kind": "next", "kg": 182.5, "rpe": 8}
+    assert sheet["best"]["S"] == 175 and sheet["total"] is None
+    assert logged_in.get("/api/training/week/0").json()["sessions"][0]["sheet"] is None

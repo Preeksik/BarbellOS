@@ -1,6 +1,6 @@
 # Etap 4: trening
 
-Specyfikacja: `docs/DOKUMENTACJA.md`, rozdział 5 (5.3, 5.4).
+Specyfikacja: `docs/DOKUMENTACJA.md`, rozdział 5 (5.3–5.6).
 
 | Część | Stan |
 |---|---|
@@ -9,7 +9,7 @@ Specyfikacja: `docs/DOKUMENTACJA.md`, rozdział 5 (5.3, 5.4).
 | Import planu i dziennika ze starego pliku | kod gotowy 25.11.2026 |
 | Sprzęt w Profilu: talerze 25 / 20 kg, zaciski | kod gotowy 25.11.2026 |
 | Animacje techniki: boje ze sztangą i warianty | kod gotowy 25.11.2026 |
-| Zakładki sezonu, maksów, startu i zasady; arkusz podejść; data zawodów | część 2 |
+| Część 2: Sezon, Maksy, Start, Zasady; arkusz podejść; data zawodów; „Zastosuj” TM | kod gotowy 26.11.2026; zgodny z oryginałem (zero różnic) |
 
 ## Przeniesienie planu i dziennika
 
@@ -31,7 +31,12 @@ Plan i dziennik są osobiste, więc nie ma ich w repo. Plik do importu leży lok
 7. Siłownia: stuknij podpowiedź; masa ciała i notatka zapisują się po wyjściu z pola. Zamknij aplikację i otwórz ponownie: wszystko zostaje.
 8. **Bez zasięgu:** włącz tryb samolotowy, wpisz serię i odhacz ją, zamknij aplikację przesunięciem w górę. Otwórz ponownie (nadal bez sieci): wpis jest, na górze „niewysłane”. Włącz sieć: znacznik znika, a po odświeżeniu widać e1RM.
 9. Sąsiednie tygodnie działają bez sieci, jeśli były otwarte z siecią (aplikacja pobiera je od razu).
-10. Tydzień 10 (test): sekcja „Podejścia” z ciężarem, RPE i przyciskami ✓ / ✕; drugie stuknięcie zdejmuje ocenę.
+10. Tydzień 10 (test): arkusz „Podejścia”: przy numerze ciężar z planu, pola kg i RPE, ✓ / ✕ (drugie stuknięcie zdejmuje ocenę). Po zaliczonym drugim z RPE pod bojem pojawia się ciężar trzeciego, po trzech zaliczonych bojach suma i punkty GL.
 11. Profil → „Trening” → „20 kg”: wróć do Treningu, talerze przy ćwiczeniach liczą się z dwudziestek (np. 142,5 kg = 20+20+20+1,25 na stronę). Przełącz z powrotem na 25 kg. „2 × 2,5 kg” przy zaciskach zmniejsza talerze o 2,5 kg na stronę.
 12. Przy przysiadzie, ławie, martwym i ich wariantach przycisk „Technika”: ludzik płynnie robi ruch, pod spodem nazwa fazy („pauza 2 s”, „siad na piny”). Stuknięcie w obrazek zatrzymuje. Sprawdź, czy animacja nie przycina przewijania i czy działa w trybie samolotowym.
 13. Ustawienia → Dostępność → Ruch → „Ogranicz ruch”: animacja startuje zatrzymana w dolnej pozycji, „Odtwórz” ją uruchamia.
+14. Podzakładki pod osią: Trening, Sezon, Maksy, Start, Zasady. Sezon: stuknięcie tygodnia otwiera go w Treningu.
+15. Maksy: zmień TM jednego boju w bloku i wyjdź z pola: pojawia się „wpisane ręcznie”, a ciężary w tygodniach tego bloku się zmieniają. Wyczyść pole: wraca wartość z planu. Wykres: stuknij, pod nim wartości z tego dnia. Kalkulator: 150 kg × 1 na RPE 8 daje ok. 162,5 kg.
+16. Start: tabele podejść i rozgrzewki dla testu i zawodów, „Otwórz arkusz testu” przenosi do tygodnia 10. Zmiana daty zawodów (np. 29.05) dopisuje „Dopasowanie do daty: dodatkowy tydzień …”, a oś sezonu ma więcej krążków. Wróć do 15.05: dopasowanie znika.
+17. Zasady: cały tekst ze starego pliku (skala RPE jako tabela).
+18. Bez sieci: zmiana TM czeka w kolejce i wysyła się po powrocie; zmiana daty zawodów i kalkulator mówią, że potrzebują połączenia.

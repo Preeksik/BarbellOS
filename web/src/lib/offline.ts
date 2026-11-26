@@ -130,6 +130,7 @@ export const mutationKeys = {
   trainingEntry: ["training", "entry"] as const,
   trainingSession: ["training", "session"] as const,
   trainingEquipment: ["training", "equipment"] as const,
+  trainingTm: ["training", "tm"] as const,
 };
 
 export interface ProbeInput {
@@ -497,6 +498,26 @@ queryClient.setMutationDefaults(mutationKeys.trainingSession, {
     api.put<void>(`/api/training/sessions/${session}`, { gym, bodyweight, note }),
   onMutate: ({ week, session, gym, bodyweight, note }: TrainingSessionInput) =>
     previewTrainingWeek(week, session, (s) => ({ ...s, gym, bodyweight, log_note: note })),
+  onSettled: refreshTrainingAfterLastWrite,
+});
+
+export const TRAINING_MAXES_KEY = ["training", "maxes"] as const;
+export const TRAINING_START_KEY = ["training", "start"] as const;
+export const TRAINING_RULES_KEY = ["training", "rules"] as const;
+
+export interface TrainingTmInput {
+  phase: number;
+  /** TM fazy w całości; brak = wartość z planu. */
+  values: { S: number | null; B: number | null; D: number | null };
+}
+
+// Nowe TM przeliczają ciężary w całym planie: po wysłaniu odświeża się cały trening.
+// Nowe pola odpowiedzi (arkusz, święta, opisy sezonu) są opcjonalne, więc starsza kopia
+// w telefonie działa dalej i CACHE_VERSION zostaje (podbicie skasowałoby kolejkę zapisów).
+queryClient.setMutationDefaults(mutationKeys.trainingTm, {
+  scope: TRAINING_SCOPE,
+  mutationFn: ({ phase, values }: TrainingTmInput) =>
+    api.put<void>(`/api/training/tm/${phase}`, values),
   onSettled: refreshTrainingAfterLastWrite,
 });
 

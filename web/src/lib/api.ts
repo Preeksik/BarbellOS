@@ -435,6 +435,34 @@ export interface TrainingSession {
   bodyweight: number | null;
   log_note: string | null;
   exercises: TrainingExercise[];
+  /** Arkusz podejść (test, zawody). Brak w starszej kopii z pamięci telefonu. */
+  sheet?: TrainingSheet | null;
+}
+
+export type Lift = "S" | "B" | "D";
+
+export interface ThirdHint {
+  kind: "failed" | "rules" | "need_rpe" | "limit" | "next";
+  kg: number | null;
+  rpe: number | null;
+}
+
+export interface TrainingSheet {
+  context: "test" | "meet";
+  lifts: {
+    lift: Lift;
+    max: number;
+    from_singles: boolean;
+    fallback_phase: number;
+    first: number;
+    second: number;
+    third: [number, number];
+    hint: ThirdHint;
+  }[];
+  best: Record<Lift, number | null>;
+  total: number | null;
+  gl: number | null;
+  bodyweight: number;
 }
 
 export interface TrainingWeek {
@@ -465,6 +493,7 @@ export interface TrainingWeekSummary {
   repeat_of: number | null;
   done: number;
   total: number;
+  holidays?: string[];
 }
 
 export interface TrainingSeason {
@@ -474,6 +503,97 @@ export interface TrainingSeason {
   position: { week: number; day: number; rest: boolean } | null;
   current_week: number | null;
   weeks: TrainingWeekSummary[];
+  /** Opisy części sezonu z pliku planu (np. jesień do testu). */
+  groups?: { title: string; text: string; last_week: number | null }[];
+}
+
+// Teksty z pliku planu: akapity, listy (z pogrubionym początkiem) i tabele.
+export interface NoteBlock {
+  type: "p" | "list" | "table";
+  text: string | null;
+  items: { lead: string | null; text: string }[];
+  head: string[];
+  rows: string[][];
+}
+
+export interface NoteSection {
+  title: string | null;
+  blocks: NoteBlock[];
+}
+
+export interface TrainingMaxes {
+  goals_title: string;
+  goals_intro: NoteBlock[];
+  goals: { label: string; S: number; B: number; D: number; total: number; gl: number; baseline: boolean }[];
+  goals_after: NoteSection[];
+  tm_intro: NoteBlock[];
+  phases: {
+    phase: number;
+    name: string;
+    first_week: number;
+    last_week: number;
+    start: string;
+    total: number;
+    lifts: { lift: Lift; value: number; default: number; manual: boolean; suggestion: number | null }[];
+  }[];
+  points: {
+    date: string;
+    lift: Lift;
+    kg: number;
+    rpe: number;
+    e1rm: number;
+    e1rm_rounded: number;
+    kind: "single" | "att";
+  }[];
+  start_date: string;
+  test_date: string | null;
+  meet_date: string;
+  meet_name: string;
+}
+
+export interface AttemptPlan {
+  rows: {
+    lift: Lift;
+    max: number;
+    from_singles: boolean;
+    fallback_phase: number;
+    first: number;
+    second: number;
+    third: [number, number];
+  }[];
+  total_first: number;
+  total_second: number;
+  total_third: [number, number];
+  ladders: { lift: Lift; steps: [number, number][]; opener: number }[];
+}
+
+export interface StartCard {
+  name: string;
+  date: string;
+  week_index: number | null;
+  intro: NoteBlock[];
+  after_table: NoteBlock[];
+  after_ladder: NoteSection[];
+  attempts: AttemptPlan;
+}
+
+export interface TrainingStart {
+  test: StartCard | null;
+  meet: StartCard;
+  meet_default: boolean;
+  meet_range: [string, string] | null;
+  adjustment: string;
+  results: {
+    label: string;
+    S: number | null;
+    B: number | null;
+    D: number | null;
+    total: number | null;
+    gl: number | null;
+    baseline: boolean;
+    empty: boolean;
+  }[];
+  results_note: NoteBlock[];
 }
 
 /** Sprzęt na siłowni: od niego zależą talerze na stronę sztangi. */

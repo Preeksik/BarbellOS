@@ -17,6 +17,43 @@ PLAN = {
         "start_date": "2026-10-26",
         "test_date": "2026-11-10",
         "default_meet_date": "2026-11-29",
+        "spring_block_start": "2026-10-26",
+        "meet_name": "Zawody testowe",
+        "meet_date_range": ["2026-11-15", "2026-12-20"],
+        "weight_class_kg": 74,
+    },
+    "attempts": {
+        "context_weeks": {"test": ["t01"], "meet": ["t02"]},
+        "fallback_phase": {"test": 1, "meet": 2},
+        "default_bodyweight": {"test": 75, "meet": 74, "goals": 74},
+    },
+    # Cztery zwykłe tygodnie przy domyślnej dacie: wtedy plan nie zmienia długości.
+    "meet_date_adjustment": {"prefer_weeks": ["t02", "t01"], "spring_weeks": 4, "relative_days": 3},
+    "goals": [
+        {
+            "label": "Zeszły rok",
+            "S": 150,
+            "B": 105,
+            "D": 190,
+            "bodyweight_kg": 73.6,
+            "baseline": True,
+        },
+        {"label": "Realnie", "S": 187.5, "B": 135, "D": 227.5},
+    ],
+    "notes": {
+        "rules": [
+            {
+                "title": "Jak czytać trening",
+                "blocks": [{"type": "list", "items": [{"text": "RPE."}]}],
+            },
+            {"title": "Zepsuta sekcja", "blocks": [{"type": "obrazek"}]},
+        ],
+        "maxes": {"goals_title": "Cele", "goals_intro": [{"type": "p", "text": "Wstęp."}]},
+        "start": {"meet_intro": [{"type": "p", "text": "Wpisz datę."}]},
+        "season": [
+            {"title": "Jesień", "text": "Do testu.", "last_week": 2},
+            {"title": "Wiosna", "text": "Start."},
+        ],
     },
     "training_max": {
         "phase_1": {"S": 160, "B": 120, "D": 200},

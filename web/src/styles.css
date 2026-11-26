@@ -18,6 +18,7 @@
   --on-chalk: #16181a; /* tekst na kredowym przycisku */
   --plate-red: #e85d52;
   --plate-blue: #5b93e0;
+  --chart-d: #c49416; /* linia martwego na wykresie (26.11.2026, walidator palety) */
   --plate-yellow: #e8b830;
   /* Te same talerze jako tekst (litery B/W/T): jaśniejsze, żeby miały kontrast 4,5:1. */
   --plate-red-text: #f2766b;
@@ -55,6 +56,7 @@
   --plate-red: #d9433a;
   --plate-blue: #3a74c9;
   --plate-yellow: #b88a00;
+  --chart-d: #b88a00;
   --plate-red-text: #b8322a;
   --plate-blue-text: #2c62b0;
   --plate-yellow-text: #865f00;
@@ -78,6 +80,7 @@
     --plate-red: #d9433a;
     --plate-blue: #3a74c9;
     --plate-yellow: #b88a00;
+    --chart-d: #b88a00;
     --plate-red-text: #b8322a;
     --plate-blue-text: #2c62b0;
     --plate-yellow-text: #865f00;
@@ -2400,4 +2403,405 @@ button.techbtn[aria-expanded="true"] {
 
 .technique .points li + li {
   margin-top: 4px;
+}
+
+/* ---------- etap 4, część 2: sezon, maksy, start, zasady (26.11.2026) ---------- */
+
+.subnav {
+  margin-bottom: 16px;
+}
+
+.subnav label {
+  padding-right: 2px;
+  padding-left: 2px;
+  font-size: 0.85rem;
+}
+
+.weeklist {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.weeklist li + li {
+  border-top: 1px solid var(--border);
+}
+
+button.weekrow {
+  display: grid;
+  grid-template-columns: 8px 58px 84px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 48px;
+  padding: 6px 0;
+  border: 0;
+  border-radius: 0;
+  text-align: left;
+}
+
+button.weekrow.now {
+  font-weight: 600;
+}
+
+.weekrow .swatch {
+  width: 8px;
+  height: 28px;
+  border-radius: 2px;
+  background: var(--plate);
+}
+
+.weekrow .wn {
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.weekrow .wdates,
+.weekrow .wblock small {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.weekrow .wblock {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  font-size: 0.9rem;
+}
+
+.weekrow .wdone {
+  color: var(--muted);
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+}
+
+.weekrow .wdone.full {
+  color: var(--green);
+  font-weight: 600;
+}
+
+/* Teksty z pliku planu i tabele liczb. */
+.notesection h2,
+.notesection h3 {
+  margin: 8px 0 6px;
+}
+
+.notesection p,
+.card .notelist {
+  margin: 0 0 8px;
+}
+
+.notelist {
+  padding-left: 18px;
+}
+
+.notelist li + li {
+  margin-top: 6px;
+}
+
+.tablewrap {
+  overflow-x: auto;
+}
+
+.numtable,
+.notetable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.numtable th,
+.numtable td,
+.notetable th,
+.notetable td {
+  padding: 7px 4px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+}
+
+.numtable td {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 600;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.numtable td.text {
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  font-weight: 400;
+  text-align: left;
+  white-space: normal;
+}
+
+.numtable thead th {
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.numtable thead th + th {
+  text-align: right;
+}
+
+.numtable tbody th small {
+  display: block;
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 400;
+}
+
+.numtable tr.base td,
+.numtable tr.base th {
+  color: var(--muted);
+}
+
+.numtable tr.sumrow th,
+.numtable tr.sumrow td {
+  border-bottom: 0;
+  font-weight: 700;
+}
+
+/* Maksy treningowe: blok po bloku, trzy pola obok siebie. */
+.tmphase {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 0;
+  border-top: 1px solid var(--border);
+}
+
+.tmhead {
+  display: flex;
+  flex-direction: column;
+}
+
+.tmcells {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.tmcell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.tmcell label {
+  gap: 4px;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.tmcell input {
+  width: 100%;
+  min-width: 0;
+  padding: 10px 6px;
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  font-weight: 600;
+  text-align: center;
+}
+
+button.suggest {
+  min-height: 36px;
+  padding: 4px 8px;
+  border-color: var(--green);
+  color: var(--green);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+button.suggest.all {
+  align-self: flex-start;
+  min-height: 40px;
+  font-size: 0.9rem;
+}
+
+/* Wykres e1RM: linie bojów w kolorach talerzy, siatka i osie stonowane. */
+.chart svg {
+  display: block;
+  width: 100%;
+  touch-action: pan-y;
+}
+
+.chart .legend {
+  display: flex;
+  gap: 16px;
+  margin: 0 0 6px;
+  padding: 0;
+  list-style: none;
+  font-size: 0.85rem;
+}
+
+.chart .k-S,
+.chart .s-S {
+  --series: var(--plate-red);
+}
+
+.chart .k-B,
+.chart .s-B {
+  --series: var(--plate-blue);
+}
+
+.chart .k-D,
+.chart .s-D {
+  --series: var(--chart-d);
+}
+
+.chart .legend i {
+  display: inline-block;
+  width: 14px;
+  height: 3px;
+  margin-right: 6px;
+  border-radius: 2px;
+  background: var(--series);
+  vertical-align: middle;
+}
+
+.chart polyline,
+.chart line.key {
+  fill: none;
+  stroke: var(--series);
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+
+.chart circle {
+  fill: var(--series);
+  stroke: var(--surface);
+  stroke-width: 2;
+}
+
+.chart .grid {
+  stroke: var(--border);
+  stroke-width: 1;
+}
+
+.chart .event {
+  stroke: var(--muted);
+  stroke-dasharray: 3 3;
+}
+
+.chart .cross {
+  stroke: var(--text);
+  stroke-width: 1;
+}
+
+.chart text {
+  fill: var(--muted);
+  font-family: var(--font-body);
+  font-size: 10px;
+}
+
+.chart text.vlabel {
+  fill: var(--text);
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.chartnote {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.calc {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.calc label {
+  gap: 4px;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.calc input {
+  width: 100%;
+  min-width: 0;
+  text-align: center;
+}
+
+.calcout {
+  font-size: 1.05rem;
+}
+
+.calcout strong {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+}
+
+.ladders {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 0.9rem;
+}
+
+.ladders li + li {
+  margin-top: 4px;
+}
+
+.meetdate {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.meetdate input {
+  max-width: 220px;
+}
+
+/* Arkusz podejść: ciężar z planu przy numerze, podpowiedź trzeciego pod bojem. */
+.attempts .attlift + .attlift {
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.attempts .attlift h3 .muted {
+  margin-left: 6px;
+}
+
+.attempts .att {
+  grid-template-columns: 78px minmax(0, 1fr) 56px 44px 44px;
+  gap: 6px;
+}
+
+.att .attn small {
+  display: block;
+  color: var(--muted);
+  font-family: var(--font-body);
+  font-size: 0.72rem;
+  font-weight: 400;
+  white-space: nowrap;
+}
+
+.attempts .third {
+  margin: 0 0 8px;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.attempts .third strong {
+  color: var(--text);
+}
+
+.sheettotal {
+  margin: 0;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.sheettotal strong {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+}
+
+.rules .notesection + .notesection {
+  padding-top: 4px;
 }

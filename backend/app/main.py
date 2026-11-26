@@ -20,6 +20,7 @@ from app.api import (
     supplements,
     targets,
     training,
+    training_plan,
 )
 from app.config import Settings, get_settings
 
@@ -57,6 +58,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         meals,
         supplements,
         training,
+        training_plan,
         profile,
         ai,
         probe,

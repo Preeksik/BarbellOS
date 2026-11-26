@@ -1,8 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type ChangeEvent, useEffect, useRef, useState } from "react";
 import {
+  type Lift,
+  type NoteSection,
   type TrainingExercise,
   type TrainingImportResult,
+  type TrainingSheet,
   type TrainingSeason,
   type TrainingSession,
   type TrainingWeek,
@@ -11,8 +14,10 @@ import {
 import { toIsoDay } from "../../lib/diary";
 import { parseDecimal } from "../../lib/number";
 import {
+  TRAINING_RULES_KEY,
   type TrainingEntryInput,
   type TrainingSessionInput,
+  type TrainingTmInput,
   mutationKeys,
   trainingSeasonKey,
   trainingWeekKey,
@@ -31,17 +36,33 @@ import {
   prescription,
   repsPlaceholder,
   rpeText,
+  rangeText,
   shortDay,
+  thirdHintText,
   tierLabel,
   toggledDone,
   toggledOk,
 } from "../../lib/training";
+import { MaxesView } from "./MaxesView";
+import { NoteSections } from "./Notes";
+import { SeasonList } from "./SeasonList";
+import { StartView } from "./StartView";
 import { TechniqueFigure } from "./technique/TechniqueFigure";
 import { moveFor } from "./technique/moves";
 
 const LIFT_NAMES = { S: "przysiad", B: "ława", D: "martwy" } as const;
 const LIFT_TITLES = { S: "Przysiad", B: "Ława", D: "Martwy ciąg" } as const;
 const WRITE_DELAY_MS = 900; // zapis po pauzie w pisaniu, a od razu po wyjściu z pola
+
+// Podzakładki treningu jak w starym planie. Stan, nie adres (AGENTS.md, zasada 11).
+const VIEWS = [
+  { id: "plan", label: "Trening" },
+  { id: "season", label: "Sezon" },
+  { id: "maxes", label: "Maksy" },
+  { id: "start", label: "Start" },
+  { id: "rules", label: "Zasady" },
+] as const;
+type View = (typeof VIEWS)[number]["id"];
 
 const fetchWeek = (index: number) => api.get<TrainingWeek>(`/api/training/week/${index}`);
 
@@ -59,6 +80,7 @@ export function TrainingPage() {
   });
   // Wybrany tydzień i dzień. Bez wyboru: to, co podpowiada serwer (kolejna sesja).
   const [picked, setPicked] = useState<{ week: number; day: number } | null>(null);
+  const [view, setView] = useState<View>("plan");
   const data = season.data;
   const position = picked ?? (data?.position ? { week: data.position.week, day: data.position.day } : null);
   const weekIndex = position?.week ?? 0;
@@ -95,7 +117,10 @@ export function TrainingPage() {
   if (!data.plan_name || !position) return <PlanImport first />;
 
   const atSuggested = !picked || (data.position && picked.week === data.position.week && picked.day === data.position.day);
-  const goWeek = (i: number) => setPicked({ week: i, day: 0 });
+  const goWeek = (i: number) => {
+    setPicked({ week: i, day: 0 });
+    setView("plan");
+  };
 
   return (
     <>
@@ -119,7 +144,26 @@ export function TrainingPage() {
         <SeasonAxis season={data} selected={weekIndex} onPick={goWeek} />
       </section>
 
-      {week.data ? (
+      <fieldset className="segmented subnav">
+        <legend className="visually-hidden">Widok treningu</legend>
+        {VIEWS.map((v) => (
+          <label key={v.id} className={view === v.id ? "active" : ""}>
+            <input
+              type="radio"
+              name="training-view"
+              checked={view === v.id}
+              onChange={() => setView(v.id)}
+            />
+            {v.label}
+          </label>
+        ))}
+      </fieldset>
+
+      {view === "season" && <SeasonList season={data} onOpen={goWeek} />}
+      {view === "maxes" && <MaxesView />}
+      {view === "start" && <StartView onOpenWeek={goWeek} />}
+      {view === "rules" && <RulesView />}
+      {view !== "plan" ? null : week.data ? (
         <WeekView
           week={week.data}
           dayIndex={Math.min(position.day, week.data.sessions.length - 1)}
@@ -143,8 +187,38 @@ export function TrainingPage() {
         </section>
       )}
 
-      <PlanImport />
+      {view === "plan" && <PlanImport />}
     </>
+  );
+}
+
+/** Zakładka „Zasady": tekst z pliku planu (jak czytać trening, RPE, sprzęt…). */
+function RulesView() {
+  const rules = useQuery({
+    queryKey: TRAINING_RULES_KEY,
+    queryFn: () => api.get<{ sections: NoteSection[] }>("/api/training/rules"),
+  });
+  if (!rules.data) {
+    return (
+      <section className="card">
+        <p className={rules.error ? "error" : "muted"}>
+          {rules.error?.message ??
+            (rules.fetchStatus === "paused" ? "Brak połączenia." : "Wczytuję zasady…")}
+        </p>
+      </section>
+    );
+  }
+  if (rules.data.sections.length === 0) {
+    return (
+      <section className="card">
+        <p className="muted">Ten plan nie ma opisanych zasad.</p>
+      </section>
+    );
+  }
+  return (
+    <section className="card rules">
+      <NoteSections sections={rules.data.sections} as="h2" />
+    </section>
   );
 }
 
@@ -242,22 +316,7 @@ function WeekView({
         </button>
       )}
 
-      {week.banner && (
-        <section className="card banner">
-          <p>
-            <strong>Nowy blok: {week.banner.phase_name}.</strong> Ciężary liczę z TM:{" "}
-            {(["S", "B", "D"] as const).map((l) => `${LIFT_NAMES[l]} ${fmt(week.tm[l])}`).join(", ")}{" "}
-            kg.
-          </p>
-          <p className="muted">
-            {week.banner.suggestions.length > 0
-              ? `Z Twojego dziennika wychodzi: ${week.banner.suggestions
-                  .map((s) => `${LIFT_NAMES[s.lift]} ${fmt(s.kg)} kg`)
-                  .join(", ")}.`
-              : "Plan podpowie wyższe TM, gdy pozwolą na to single z poprzedniego bloku."}
-          </p>
-        </section>
-      )}
+      {week.banner && <PhaseBanner week={week} />}
 
       {rest && <p className="rest">Dziś wolne. Poniżej najbliższy trening.</p>}
 
@@ -282,6 +341,39 @@ function WeekView({
 
       {session && <SessionView key={session.key} week={week} session={session} />}
     </>
+  );
+}
+
+/** Pierwszy tydzień nowej fazy: obecne TM i sugestie z dziennika do zastosowania. */
+function PhaseBanner({ week }: { week: TrainingWeek }) {
+  const put = useMutation<void, Error, TrainingTmInput>({ mutationKey: mutationKeys.trainingTm });
+  const banner = week.banner;
+  if (!banner) return null;
+  const apply = () => {
+    // Pozostałe boje z obecnym TM: serwer zapamięta tylko to, co różni się od planu.
+    const values = { ...week.tm } as TrainingTmInput["values"];
+    for (const s of banner.suggestions) values[s.lift] = s.kg;
+    put.mutate({ phase: week.phase, values });
+  };
+  return (
+    <section className="card banner">
+      <p>
+        <strong>Nowy blok: {banner.phase_name}.</strong> Ciężary liczę z TM:{" "}
+        {(["S", "B", "D"] as const).map((l) => `${LIFT_NAMES[l]} ${fmt(week.tm[l])}`).join(", ")} kg.
+      </p>
+      <p className="muted">
+        {banner.suggestions.length > 0
+          ? `Z Twojego dziennika wychodzi: ${banner.suggestions
+              .map((s) => `${LIFT_NAMES[s.lift]} ${fmt(s.kg)} kg`)
+              .join(", ")}.`
+          : "Plan podpowie wyższe TM, gdy pozwolą na to single z poprzedniego bloku."}
+      </p>
+      {banner.suggestions.length > 0 && (
+        <button type="button" className="primary" onClick={apply}>
+          Zastosuj
+        </button>
+      )}
+    </section>
   );
 }
 
@@ -310,7 +402,12 @@ function SessionView({ week, session }: { week: TrainingWeek; session: TrainingS
         <GymField week={week} session={session} />
       </section>
 
-      {attempts.length > 0 && <Attempts week={week} session={session} attempts={attempts} />}
+      {attempts.length > 0 &&
+        (session.sheet ? (
+          <AttemptSheet week={week} session={session} sheet={session.sheet} />
+        ) : (
+          <Attempts week={week} session={session} attempts={attempts} />
+        ))}
       {session.exercises
         .filter((e) => e.kind !== "att")
         .map((ex) => (
@@ -655,25 +752,93 @@ function Attempts({
   );
 }
 
+/**
+ * Arkusz podejść (test, zawody), jak w starym planie: przy każdym podejściu ciężar z planu,
+ * pod bojem podpowiedź trzeciego po drugim, na dole najlepsze zaliczone, suma i punkty GL.
+ */
+function AttemptSheet({
+  week,
+  session,
+  sheet,
+}: {
+  week: TrainingWeek;
+  session: TrainingSession;
+  sheet: TrainingSheet;
+}) {
+  const best = (["S", "B", "D"] as Lift[]).map((l) => fmt(sheet.best[l])).join(" / ");
+  return (
+    <section className="card attempts">
+      <h2>Podejścia</h2>
+      {sheet.lifts.map((lift) => {
+        const hint = thirdHintText(lift.hint, lift.lift);
+        const plans = [fmt(lift.first), fmt(lift.second), rangeText(lift.third)];
+        return (
+          <div key={lift.lift} className="attlift">
+            <h3>
+              {LIFT_TITLES[lift.lift]} <span className="muted">maks ≈ {fmt(lift.max)}</span>
+            </h3>
+            {session.exercises
+              .filter((e) => e.kind === "att" && e.lift === lift.lift)
+              .map((ex) => (
+                <AttemptRow
+                  key={ex.index}
+                  week={week}
+                  session={session}
+                  ex={ex}
+                  plan={plans[(ex.attempt ?? 1) - 1] ?? ""}
+                />
+              ))}
+            <p className="third">
+              {hint.strong ? (
+                <>
+                  {hint.text.split(hint.strong)[0]}
+                  <strong>{hint.strong}</strong>
+                  {hint.text.split(hint.strong)[1]}
+                </>
+              ) : (
+                hint.text
+              )}
+            </p>
+          </div>
+        );
+      })}
+      <p className="sheettotal">
+        {sheet.total != null ? (
+          <>
+            {best}: <strong>{fmt(sheet.total)} kg</strong>, {fmt(Math.round((sheet.gl ?? 0) * 100) / 100)} pkt
+            GL
+          </>
+        ) : (
+          `Najlepsze zaliczone: ${best}. Suma pojawi się po trzech zaliczonych bojach.`
+        )}
+      </p>
+    </section>
+  );
+}
+
 function AttemptRow({
   week,
   session,
   ex,
+  plan,
 }: {
   week: TrainingWeek;
   session: TrainingSession;
   ex: TrainingExercise;
+  plan?: string;
 }) {
   const entry = useEntryWriter(week, session, ex);
   const label = `${ex.lift ? LIFT_NAMES[ex.lift] : ex.name}, ${ex.attempt}. podejście`;
   return (
     <div className={`att${ex.entry.ok ? ` ok-${ex.entry.ok}` : ""}`}>
-      <span className="attn">{ex.attempt}.</span>
+      <span className="attn">
+        {ex.attempt}.{plan && <small>plan {plan}</small>}
+      </span>
       <input
         inputMode="decimal"
         autoComplete="off"
         aria-label={`${label}, kg`}
-        placeholder="kg"
+        placeholder={plan?.split("–")[0] || "kg"}
         value={entry.texts.kg}
         onChange={(e) => entry.change("kg", e.target.value)}
         onBlur={() => entry.flush()}
