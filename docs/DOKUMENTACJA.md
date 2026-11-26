@@ -505,7 +505,7 @@ Część 1: codzienne logowanie. Układ jak w starym pliku, w tokenach „Kredy�
 - **Sesja**: siłownia (podpowiedzi z dziennika), masa ciała rano, notatka.
 - **Sprzęt** (Profil → „Trening”, od 25.11.2026): największy talerz na siłowni, 25 kg (domyślnie) albo 20 kg (np. siłownia bez dwudziestek piątek), i zaciski 2 × 2,5 kg. Talerze na stronę liczy serwer z tych ustawień (`GET/PUT /api/training/equipment`, zapis przez kolejkę offline). Import planu ich nie zmienia.
 - **Pierwszy tydzień fazy**: karta z obecnymi TM i podpowiedzią z dziennika (zaliczone podejścia, a bez nich single z RPE ≥ 7 z poprzedniej fazy, w dół do 2,5 kg). „Zastosuj” wpisuje podpowiedź jako TM fazy.
-- Bez planu w bazie zakładka prosi o plik. „Wczytaj plan z pliku” na dole przyjmuje sam plan albo `{ plan, settings, logs }` (dziennik i ustawienia w formacie starego pliku). Sesje z pliku zastępują te same sesje w bazie, pozostałe zostają, więc import można powtórzyć. Plik z planem i dziennikiem jest osobisty i nie trafia do repo.
+- Bez planu w bazie zakładka prosi o plik. Z planem wgranie nowej wersji jest w Profilu → „Trening” → „Plan treningowy” (od 26.11.2026, z nazwą wgranego planu) i jako „Wczytaj plan z pliku” na dole Treningu. Import przyjmuje sam plan albo `{ plan, settings, logs }` (dziennik i ustawienia w formacie starego pliku). Sesje z pliku zastępują te same sesje w bazie, pozostałe zostają, więc import można powtórzyć. Plik z planem i dziennikiem jest osobisty i nie trafia do repo.
 
 API (`backend/app/api/training.py`, logika w `core/season.py` i `core/training.py`):
 

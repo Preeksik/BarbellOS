@@ -2805,3 +2805,10 @@ button.suggest.all {
 .rules .notesection + .notesection {
   padding-top: 4px;
 }
+
+/* Wgranie planu w Profilu: ten sam formularz co w Treningu, bez własnej karty. */
+.planimport {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}

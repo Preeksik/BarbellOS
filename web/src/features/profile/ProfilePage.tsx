@@ -26,6 +26,7 @@ import { GOAL_ROWS, KIND_HINT } from "../../lib/targets";
 import { THEME_CHOICES, setTheme, useTheme } from "../../lib/theme";
 import { formatKcal } from "../diet/macros";
 import { HomePage } from "../home/HomePage";
+import { PlanImport } from "../training/PlanImport";
 
 /**
  * Tryb życia BEZ chodzenia i treningów (te liczą się osobno). Procent przemiany
@@ -142,47 +143,63 @@ function EquipmentCard() {
     mutationKey: mutationKeys.trainingEquipment,
   });
   const data = equipment.data;
-  if (!data?.has_plan) return null;
+  if (!data) return null;
   const choose = (patch: Partial<TrainingEquipmentInput>) =>
     put.mutate({ plates_25: data.plates_25, collars: data.collars, ...patch });
   return (
     <section className="card">
       <h2>Trening</h2>
-      <fieldset className="segmented">
-        <legend>Największy talerz na siłowni</legend>
-        {[
-          { value: true, label: "25 kg" },
-          { value: false, label: "20 kg" },
-        ].map(({ value, label }) => (
-          <label key={label} className={data.plates_25 === value ? "active" : ""}>
-            <input
-              type="radio"
-              name="plates25"
-              checked={data.plates_25 === value}
-              onChange={() => choose({ plates_25: value })}
-            />
-            {label}
-          </label>
-        ))}
-      </fieldset>
-      <fieldset className="segmented">
-        <legend>Zaciski</legend>
-        {[
-          { value: false, label: "Bez zacisków" },
-          { value: true, label: "2 × 2,5 kg" },
-        ].map(({ value, label }) => (
-          <label key={label} className={data.collars === value ? "active" : ""}>
-            <input
-              type="radio"
-              name="collars"
-              checked={data.collars === value}
-              onChange={() => choose({ collars: value })}
-            />
-            {label}
-          </label>
-        ))}
-      </fieldset>
-      <p className="muted">Od tego zależą talerze na stronę przy każdym ćwiczeniu.</p>
+      <h3>Plan treningowy</h3>
+      <p>
+        {data.has_plan ? (
+          <>
+            Wgrany: <strong>{data.plan_name}</strong>
+          </>
+        ) : (
+          "Nie ma jeszcze planu."
+        )}
+      </p>
+      {/* Nowa wersja planu albo dziennik ze starego pliku (26.11.2026). */}
+      <PlanImport inline />
+      {data.has_plan && (
+        <>
+          <fieldset className="segmented">
+            <legend>Największy talerz na siłowni</legend>
+            {[
+              { value: true, label: "25 kg" },
+              { value: false, label: "20 kg" },
+            ].map(({ value, label }) => (
+              <label key={label} className={data.plates_25 === value ? "active" : ""}>
+                <input
+                  type="radio"
+                  name="plates25"
+                  checked={data.plates_25 === value}
+                  onChange={() => choose({ plates_25: value })}
+                />
+                {label}
+              </label>
+            ))}
+          </fieldset>
+          <fieldset className="segmented">
+            <legend>Zaciski</legend>
+            {[
+              { value: false, label: "Bez zacisków" },
+              { value: true, label: "2 × 2,5 kg" },
+            ].map(({ value, label }) => (
+              <label key={label} className={data.collars === value ? "active" : ""}>
+                <input
+                  type="radio"
+                  name="collars"
+                  checked={data.collars === value}
+                  onChange={() => choose({ collars: value })}
+                />
+                {label}
+              </label>
+            ))}
+          </fieldset>
+          <p className="muted">Od tego zależą talerze na stronę przy każdym ćwiczeniu.</p>
+        </>
+      )}
     </section>
   );
 }

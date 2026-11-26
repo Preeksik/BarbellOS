@@ -16,7 +16,7 @@ Specyfikacja: `docs/DOKUMENTACJA.md`, rozdział 5 (5.3–5.6).
 Plan i dziennik są osobiste, więc nie ma ich w repo. Plik do importu leży lokalnie w `exports/trening-import.json` (plan z artefaktu z 22.11.2026, ustawienia i 23 sesje dziennika, od t01-D1 do t06-D1).
 
 1. Do czasu przejścia trenujesz ze starego pliku jak dotąd. W dniu przejścia poproś agenta o świeży plik importu, żeby objął ostatnie treningi.
-2. Na komputerze otwórz aplikację w przeglądarce i zaloguj się → „Trening” → „Wybierz plik” → `exports/trening-import.json`.
+2. Na komputerze otwórz aplikację w przeglądarce i zaloguj się → Profil → „Trening” → „Wybierz plik” → `exports/trening-import.json` (bez planu na serwerze to samo jest od razu w zakładce Trening).
 3. Komunikat: „Wgrano »Plan AMP 2027«: 29 tygodni, 139 sesji, z dziennika 23.” bez pominiętych sesji.
 4. Import można powtórzyć: sesje z pliku zastępują te same sesje w aplikacji, pozostałe zostają. Nie importuj starego pliku po tym, jak zaczniesz wpisywać w aplikacji te same sesje, bo zastąpi wpisy.
 

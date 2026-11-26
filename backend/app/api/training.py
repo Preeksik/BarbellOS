@@ -63,6 +63,7 @@ class EquipmentIn(BaseModel):
 
 class EquipmentOut(EquipmentIn):
     has_plan: bool
+    plan_name: str | None = None  # wgrany plan (Profil pokazuje go przy imporcie)
 
 
 class LastOut(BaseModel):
@@ -630,6 +631,7 @@ def get_equipment(db: Session = Depends(get_db)) -> EquipmentOut:
     settings = db.get(PlanSettings, plan.id) if plan else None
     return EquipmentOut(
         has_plan=plan is not None,
+        plan_name=plan.name if plan else None,
         plates_25=settings.plates_25 if settings else True,
         collars=settings.collars if settings else False,
     )

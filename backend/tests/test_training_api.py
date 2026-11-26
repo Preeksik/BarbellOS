@@ -170,6 +170,7 @@ def test_equipment_changes_plates(logged_in):
         "plates_25": True,
         "collars": False,
         "has_plan": False,
+        "plan_name": None,
     }
     assert logged_in.put("/api/training/equipment", json={"plates_25": False}).status_code == 404
     put_plan(logged_in)
@@ -178,7 +179,11 @@ def test_equipment_changes_plates(logged_in):
 
     body = {"plates_25": False, "collars": True}
     assert logged_in.put("/api/training/equipment", json=body).status_code == 204
-    assert logged_in.get("/api/training/equipment").json() == {**body, "has_plan": True}
+    assert logged_in.get("/api/training/equipment").json() == {
+        **body,
+        "has_plan": True,
+        "plan_name": "Plan testowy",
+    }
     sets = logged_in.get("/api/training/week/0").json()["sessions"][0]["exercises"][1]
     assert sets["plates"] == [20, 20, 10]  # (125 − 20 − 5) / 2 = 50 kg na stronę
     # Ponowny import planu nie zmienia sprzętu.

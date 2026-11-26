@@ -601,6 +601,7 @@ export interface TrainingEquipment {
   plates_25: boolean;
   collars: boolean;
   has_plan: boolean;
+  plan_name?: string | null;
 }
 
 export interface TrainingImportResult {
