@@ -1,385 +1,154 @@
-# Ilustracje techniki: polecenia do czatu Gemini
+# Ilustracje techniki: prompt do czatu Gemini
 
-Ilustracje do przycisku „Technika” przy ćwiczeniach generujesz sam w czacie [gemini.google.com](https://gemini.google.com) (subskrypcja Google AI Pro, model obrazkowy Nano Banana Pro). Agent potem je przycina, zmniejsza i wpina w aplikację. Plan ćwiczeń: stan z 27.11.2026, 26 ćwiczeń.
+Ilustracje do przycisku „Technika” przy ćwiczeniach generujesz sam w zwykłym czacie [gemini.google.com](https://gemini.google.com) (subskrypcja Google AI Pro). Agent potem je przycina, zmniejsza i wpina w aplikację. Plan ćwiczeń: stan z 27.11.2026, 26 ćwiczeń, razem 44 obrazki.
 
-## Jak to działa w aplikacji
+## Model
 
-Każde ćwiczenie ma 2 klatki: pozycję startową i końcową. Aplikacja przełącza je płynnie jak w dawnych aplikacjach treningowych, z czasem zależnym od wariantu. Warianty, które różnią się tylko czasem, dostają te same klatki co bój podstawowy, a aplikacja pokazuje na dolnej klatce odliczanie i podpis:
+Wybierz **Neon**, czyli najnowszy model dostępny w planie Pro. Carbon wymaga planu Ultra.
 
-| Ćwiczenie | Klatki | Co dokłada aplikacja |
-|---|---|---|
-| Przysiad z pauzą 2 s | z przysiadu | odliczanie „2 s” w dolnej pozycji |
-| Przysiad tempo 3-1-0 | z przysiadu | 3 s w dół, „1 s” na dole, szybko w górę |
-| Wyciskanie leżąc T&G | z ławy | „dotyk i od razu w górę”, bez pauzy |
-| Wyciskanie z pauzą 3 s | z ławy | odliczanie „3 s” na klatce |
+Wybór modelu ma niewielkie znaczenie dla wyglądu, bo obrazki rysuje osobne narzędzie obrazkowe (Nano Banana), takie samo w Neonie i Argonie. Model czatu odpowiada za trzymanie się listy, kolejności i zasad, a w tym nowszy Neon jest lepszy. Jeśli Neon zamiast obrazka odpowie tekstem, włącz w polu wpisywania narzędzie **„Utwórz obraz”** i wyślij ponownie.
 
-Pozostałe warianty (piny, Larsen, wąski chwyt, spoto, RDL) wyglądają inaczej, więc mają własne klatki.
+## Jak to działa
 
-## Wymagania techniczne
+1. Nowa rozmowa, model Neon. Wklejasz **cały prompt** z sekcji niżej i wysyłasz. Gemini generuje obrazek nr 1 (postać wzorcową) i podaje jego nazwę.
+2. Pobierasz obrazek (najedź → pobierz), zmieniasz nazwę na podaną i przenosisz do `C:\Users\adria\Desktop\BarbellOS\exports\technika\`.
+3. Piszesz **`dalej`**. Gemini generuje kolejną klatkę z listy. I tak 44 razy.
+4. Klatka wyszła źle? Piszesz **`popraw: <co poprawić>`**. Gemini generuje ją jeszcze raz, a dopiero potem idziesz `dalej`.
+5. Limit albo rozmowa się sypie: nowa rozmowa, dołączasz `00-postac.png` (spinacz), wklejasz cały prompt jeszcze raz i dopisujesz na końcu `Zacznij od obrazka nr <numer>`.
 
-1. **Jedna rozmowa na wszystko.** Zacznij od postaci wzorcowej, potem klatki po kolei. Gdy rozmowa zacznie się sypać albo trafisz na limit, zacznij nową i dołącz `00-postac.png` jako załącznik (polecenie „ciąg dalszy” na końcu pliku).
-2. **Kwadrat 1:1**, co najmniej 1024 × 1024 px. Pobieraj w pełnej rozdzielczości (przycisk pobierania, nie zrzut ekranu).
-3. **Białe tło**, cała postać i cały sprzęt w kadrze, z marginesem. Nic nie może być ucięte przy krawędzi.
-4. **Obie klatki ćwiczenia z tej samej kamery:** ten sam kąt, odległość i miejsce sprzętu. Zmienia się tylko pozycja ciała. Dlatego druga klatka zawsze odnosi się do poprzedniego obrazka.
-5. **Bez napisów, liczb i logo**, także na talerzach. Znaczek Gemini w rogu nie przeszkadza, agent go przytnie.
-6. **Nazwy plików dokładnie jak w liście** (małe litery, myślniki), wszystkie do folderu `exports/technika/`. Ten folder nie trafia do repo.
-7. **Sprawdź każdą klatkę, zanim pójdziesz dalej**, i wygeneruj ją ponownie (polecenie „poprawka” na końcu pliku), gdy:
-   - postać albo styl wyraźnie różnią się od wzorca;
-   - anatomia się nie zgadza (dodatkowe palce, ręka przez sztangę, dziwne stawy);
-   - technika jest błędna (płytki przysiad, pośladki nad ławką, okrągłe plecy w martwym);
-   - pojawił się tekst albo liczba.
+Zmienianie nazw plików jest wygodne, ale nieobowiązkowe. Wystarczy, że pobierasz po kolei: agent dopasuje pliki po kolejności i po tym, co na nich widać.
 
-Razem 44 obrazki: postać wzorcowa i 43 klatki.
+**Kiedy poprawiać:**
 
-## Krok 0: postać wzorcowa
+- postać albo styl wyraźnie inne niż na obrazku nr 1;
+- błąd anatomii (dodatkowe palce, ręka przez sztangę, dziwne stawy);
+- błąd techniki (płytki przysiad, pośladki nad ławką, okrągłe plecy w martwym);
+- tekst, liczby albo logo na obrazku;
+- coś ucięte przy krawędzi.
 
-Plik: `00-postac.png`
+Znaczek Gemini w rogu nie przeszkadza, agent go przytnie.
 
-```
-Create a reference image for a series of exercise technique illustrations for a strength training app.
-
-Style: semi-realistic 3D anatomical illustration, like a medical anatomy model. A fit adult man with realistic, clearly defined muscles rendered in light neutral grey (visible muscle shapes and fibres, no skin texture, no tattoos), short dark hair, calm neutral face. He wears plain black athletic shorts and plain black flat training shoes. Pure white background, soft even studio lighting, a soft shadow under the feet. Working muscles will later be highlighted in one saturated blue (#2F6FD6); in this image no muscles are highlighted.
-
-Pose: standing upright, relaxed athletic stance, full body visible, three-quarter front view.
-
-Rules for this whole series: square 1:1 image, the whole figure and all equipment fully in frame with margin, no text, no letters, no numbers, no logos, no labels anywhere (also none on weight plates). Equipment style for later images: matte black weight plates without markings, steel barbell, light grey squat rack and bench.
-```
-
-Gdy postać Ci pasuje, w tej samej rozmowie wyślij:
-
-```
-This is the reference character and style. Keep exactly this man, this rendering style, the white background and the lighting in every next image. Confirm, and wait for the next instruction.
-```
-
-## Krok 1: boje zawodnicze i warianty
-
-Każde ćwiczenie to dwa polecenia: najpierw pozycja startowa, potem końcowa.
-
-### 1. Przysiad
-
-`przysiad-1-gora.png`
-
-```
-Using exactly the same man, style, lighting and white background as the reference: competition back squat, TOP position. He stands fully upright inside a light grey squat rack with a loaded barbell resting on his upper back (on the traps, below the neck), hands gripping the bar just outside the shoulders, elbows pointing down and back, feet shoulder-width, toes slightly out, chest up, neutral head. Black plates on both sides of the bar. Camera: three-quarter side view from the front-left at hip height, so the knee and hip angles are clearly visible. Highlight in blue: quadriceps, glutes, adductors, lower back erectors. Square 1:1, everything in frame, no text.
-```
-
-`przysiad-2-dol.png`
-
-```
-Same scene, same camera angle, same rack and barbell as the previous image. Change only the pose: BOTTOM of the competition squat. Hips clearly below parallel: the hip crease is lower than the top of the knee. Knees forward in line with the toes, heels flat on the floor, the bar stays directly over the middle of the foot, back flat and tight, chest up. Same blue highlights. Square 1:1, no text.
-```
-
-### 2. Wyciskanie leżąc z pauzą (zawodnicze)
-
-`lawa-1-gora.png`
-
-```
-Using exactly the same man, style, lighting and white background as the reference: competition bench press, TOP position. He lies on a flat light grey bench under a rack, arms straight with the loaded barbell locked out above the shoulders, hands slightly wider than shoulder width, shoulder blades pulled together, a moderate arch in the upper back, buttocks on the bench, both feet flat on the floor. Camera: three-quarter view from slightly above, from the side of his feet, so the bar path, the arch and the feet are visible. Highlight in blue: chest (pectorals), front shoulders, triceps. Square 1:1, everything in frame, no text.
-```
-
-`lawa-2-klatka.png`
-
-```
-Same scene, same camera angle as the previous image. Change only the pose: the bar is lowered and resting motionless on the lower part of his chest (paused, as in competition). Forearms vertical, elbows under the bar about 45 degrees from the torso, buttocks still on the bench, feet flat on the floor. Same blue highlights. Square 1:1, no text.
-```
-
-### 3. Martwy ciąg
-
-`martwy-1-start.png`
-
-```
-Using exactly the same man, style, lighting and white background as the reference: conventional deadlift, START position. The loaded barbell rests on the floor over the middle of his feet, shins touching the bar, hands gripping the bar just outside the legs with straight arms, hips higher than the knees, shoulders slightly in front of the bar, back flat and neutral, eyes looking slightly ahead on the floor. No rack. Camera: pure side view from his left at hip height. Highlight in blue: glutes, hamstrings, lower back erectors, quadriceps, upper back (traps). Square 1:1, everything in frame, no text.
-```
-
-`martwy-2-wyprost.png`
-
-```
-Same scene, same camera angle as the previous image. Change only the pose: LOCKOUT of the deadlift. He stands fully upright with hips and knees fully extended, shoulders back, the barbell hanging in straight arms at the top of the thighs, no leaning back. Same blue highlights. Square 1:1, no text.
-```
-
-### 4. Przysiad z pinów
-
-`piny-1-gora.png`
-
-```
-Using exactly the same man, style, lighting and white background as the reference, and the same camera angle as the squat images: back squat from safety pins, TOP position. He stands upright inside the light grey squat rack with the loaded barbell on his upper back. The rack's two horizontal safety pins are set clearly visible at low height, at the level of the bar in a below-parallel squat. Highlight in blue: quadriceps, glutes, adductors, lower back erectors. Square 1:1, no text.
-```
-
-`piny-2-dol.png`
-
-```
-Same scene, same camera angle as the previous image. Change only the pose: the bottom of the squat with the barbell resting completely still on the safety pins, hips below parallel, back flat, body tight, ready to stand up from a dead stop. Same blue highlights. Square 1:1, no text.
-```
-
-### 5. Larsen press
-
-`larsen-1-gora.png`
-
-```
-Using exactly the same man, style, lighting and white background as the reference, and the same camera angle as the bench press images: Larsen press, TOP position. Bench press on a flat bench with arms straight and the bar locked out over the shoulders, but his legs are straight and lifted off the floor, extended forward in the air at about the height of the bench, feet not touching anything. Buttocks on the bench. Highlight in blue: chest, front shoulders, triceps, abdominals. Square 1:1, no text.
-```
-
-`larsen-2-klatka.png`
-
-```
-Same scene, same camera angle as the previous image. Change only the arms: the bar is paused motionless on the lower chest, forearms vertical. Legs stay straight in the air off the floor. Same blue highlights. Square 1:1, no text.
-```
-
-### 6. Wyciskanie wąskim chwytem
-
-`waski-1-gora.png`
-
-```
-Using exactly the same man, style, lighting and white background as the reference: close-grip bench press, TOP position. Flat bench, bar locked out over the shoulders, hands at shoulder width (clearly narrower than a normal bench grip), elbows close to the body, feet flat on the floor. Camera: three-quarter view from slightly above and from the side of his head, so the narrow grip on the bar is clearly visible. Highlight in blue: triceps, chest, front shoulders. Square 1:1, no text.
-```
-
-`waski-2-klatka.png`
-
-```
-Same scene, same camera angle as the previous image. Change only the arms: the bar is paused motionless on the lower chest, elbows tucked close to the torso, forearms vertical. Same blue highlights. Square 1:1, no text.
-```
-
-### 7. Spoto press (tylko klatka dolna; górną aplikacja bierze z ławy)
-
-`spoto-2-nad-klatka.png`
-
-```
-Use the bench press top-position image as the base: same man, same bench, same camera angle. New pose: Spoto press. The bar is held motionless about 2 cm ABOVE his chest, clearly NOT touching it, with a small visible gap between the bar and the chest. Forearms vertical, body tight, buttocks on the bench, feet flat. Same blue highlights (chest, front shoulders, triceps). Square 1:1, no text.
-```
-
-### 8. Rumuński martwy ciąg (RDL)
-
-`rdl-1-gora.png`
-
-```
-Using exactly the same man, style, lighting and white background as the reference, and the same camera angle as the deadlift images (pure side view from his left): Romanian deadlift, TOP position. He stands upright holding the loaded barbell in straight arms at the top of the thighs, knees slightly unlocked. Highlight in blue: hamstrings, glutes, lower back erectors. Square 1:1, no text.
-```
-
-`rdl-2-dol.png`
-
-```
-Same scene, same camera angle as the previous image. Change only the pose: bottom of the Romanian deadlift. Hips pushed far back, knees slightly bent and in the same position as before, back flat and neutral, the bar slides down along the legs to just below the knees (mid-shin), plates NOT touching the floor, strong stretch in the hamstrings. Same blue highlights. Square 1:1, no text.
-```
-
-## Krok 2: ćwiczenia pomocnicze
-
-### 9. Suwnica (leg press 45°)
-
-`suwnica-1-gora.png`
-
-```
-Using exactly the same man, style, lighting and white background as the reference: 45-degree leg press machine (light grey machine, black plates), TOP position. He sits with his back flat on the pad, feet shoulder-width on the platform, legs almost straight (knees not locked). Camera: side view from his left. Highlight in blue: quadriceps, glutes. Square 1:1, no text.
-```
-
-`suwnica-2-dol.png`
-
-```
-Same scene, same camera angle as the previous image. Change only the pose: bottom of the leg press, knees deeply bent towards the chest, lower back still flat on the pad, heels on the platform. Same blue highlights. Square 1:1, no text.
-```
-
-### 10. Uginanie nóg leżąc
-
-`uginanie-nog-1-start.png`
-
-```
-Using exactly the same man, style, lighting and white background as the reference: lying leg curl machine (light grey). He lies face down, the roller pad behind his lower calves just above the heels, legs straight, hips pressed into the pad, hands on the handles. Camera: side view. Highlight in blue: hamstrings, calves. Square 1:1, no text.
-```
-
-`uginanie-nog-2-skurcz.png`
-
-```
-Same scene, same camera angle as the previous image. Change only the legs: knees bent to about 90 degrees or more, heels pulled towards the glutes, hips still pressed into the pad. Same blue highlights. Square 1:1, no text.
-```
-
-### 11. Hiperekstensje
-
-`hiperekstensje-1-dol.png`
-
-```
-Using exactly the same man, style, lighting and white background as the reference: 45-degree back extension bench (Roman chair). Hips on the pad, ankles hooked under the foot rollers, a black weight plate held against his chest, torso bent down at the hips with a neutral back. Camera: side view. Highlight in blue: glutes, hamstrings, lower back erectors. Square 1:1, no text.
-```
-
-`hiperekstensje-2-gora.png`
-
-```
-Same scene, same camera angle as the previous image. Change only the pose: torso raised until the body forms one straight line from heels to head, no overextension of the lower back, the plate still against the chest. Same blue highlights. Square 1:1, no text.
-```
-
-### 12. Wiosłowanie hantlem w podporze
-
-`wioslowanie-1-dol.png`
-
-```
-Using exactly the same man, style, lighting and white background as the reference: chest-supported dumbbell row. He lies chest down on an incline bench set to about 30 degrees, feet on the floor, holding one black dumbbell in each hand with arms hanging straight down. Camera: three-quarter side view. Highlight in blue: lats, middle and upper back (rhomboids, traps), rear shoulders, biceps. Square 1:1, no text.
-```
-
-`wioslowanie-2-gora.png`
-
-```
-Same scene, same camera angle as the previous image. Change only the arms: dumbbells pulled up towards the hips, elbows driven back past the torso, shoulder blades squeezed together, chest still on the bench. Same blue highlights. Square 1:1, no text.
-```
-
-### 13. Podciąganie nachwytem z obciążeniem
-
-`podciaganie-1-zwis.png`
-
-```
-Using exactly the same man, style, lighting and white background as the reference: weighted pull-up. He hangs from a pull-up bar with an overhand grip slightly wider than the shoulders, arms fully straight, a black dumbbell held between his feet for extra weight, legs slightly bent. Camera: three-quarter view from behind-left so the back is visible. Highlight in blue: lats, biceps, middle back. Square 1:1, no text.
-```
-
-`podciaganie-2-gora.png`
-
-```
-Same scene, same camera angle as the previous image. Change only the pose: chin above the bar, chest close to the bar, elbows pulled down to the sides, the dumbbell still held between the feet. Same blue highlights. Square 1:1, no text.
-```
-
-### 14. Face pull
-
-`facepull-1-start.png`
-
-```
-Using exactly the same man, style, lighting and white background as the reference: face pull on a cable machine. He stands facing a light grey cable tower, the pulley set at face height, holding a rope attachment with both hands, arms straight in front of him. Camera: side view from his left. Highlight in blue: rear shoulders, upper back (rhomboids, middle traps), rotator cuff. Square 1:1, no text.
-```
-
-`facepull-2-koniec.png`
-
-```
-Same scene, same camera angle as the previous image. Change only the arms: the rope pulled towards his face, hands next to the ears, elbows high and wide, upper arms rotated outward. Same blue highlights. Square 1:1, no text.
-```
-
-### 15. Odwrotne rozpiętki
-
-`odwrotne-rozpietki-1-dol.png`
-
-```
-Using exactly the same man, style, lighting and white background as the reference: bent-over reverse dumbbell fly. He stands bent forward at the hips with a flat back, torso almost parallel to the floor, knees slightly bent, light black dumbbells hanging below the chest, palms facing each other, elbows slightly bent. Camera: three-quarter front view. Highlight in blue: rear shoulders, rhomboids, middle traps. Square 1:1, no text.
-```
+**Jak to wygląda w aplikacji:** każde ćwiczenie ma 2 klatki (start i koniec ruchu), które płynnie się przełączają. Przysiad z pauzą, przysiad tempo, ława T&G i ława z pauzą 3 s wyglądają tak samo jak bój podstawowy, więc korzystają z jego klatek, a aplikacja pokazuje na dolnej klatce odliczanie („2 s”, „3 s”, „1 s”) i podpis. Spoto, piny, Larsen, wąski chwyt i RDL wyglądają inaczej, więc mają własne klatki.
 
-`odwrotne-rozpietki-2-gora.png`
+## Cały prompt (skopiuj od „You are…” do końca bloku)
 
 ```
-Same scene, same camera angle as the previous image. Change only the arms: dumbbells raised out to the sides up to shoulder height in a wide arc, shoulder blades squeezed, torso still bent forward. Same blue highlights. Square 1:1, no text.
-```
-
-### 16. Wyciskanie hantli na skosie
-
-`skos-hantle-1-dol.png`
-
-```
-Using exactly the same man, style, lighting and white background as the reference: incline dumbbell press on a bench set to about 30 degrees. Bottom position: black dumbbells beside the upper chest, elbows below the bench line at about 45 degrees from the torso, feet flat on the floor. Camera: three-quarter view from the side of his feet. Highlight in blue: upper chest, front shoulders, triceps. Square 1:1, no text.
-```
-
-`skos-hantle-2-gora.png`
-
-```
-Same scene, same camera angle as the previous image. Change only the arms: dumbbells pressed up over the upper chest with arms straight, dumbbells close together but not touching. Same blue highlights. Square 1:1, no text.
-```
-
-### 17. Prostowanie ramion na wyciągu jednorącz (triceps)
-
-`triceps-1-start.png`
-
-```
-Using exactly the same man, style, lighting and white background as the reference: single-arm cable triceps pushdown. He stands facing a light grey cable tower with a high pulley, holding a single handle in his LEFT hand, upper arm tight against his side, elbow bent about 90 degrees, forearm roughly parallel to the floor. Other hand relaxed. Camera: side view from his left. Highlight in blue: triceps of the working arm. Square 1:1, no text.
-```
-
-`triceps-2-wyprost.png`
-
-```
-Same scene, same camera angle as the previous image. Change only the working arm: elbow fully straight, handle pushed down next to the thigh, upper arm still tight against the side. Same blue highlights. Square 1:1, no text.
-```
-
-### 18. Uginanie ramion z hantlami (biceps)
-
-`biceps-1-dol.png`
-
-```
-Using exactly the same man, style, lighting and white background as the reference: standing dumbbell biceps curl. He stands upright with a black dumbbell in each hand, arms straight at the sides, palms facing forward. Camera: three-quarter front view. Highlight in blue: biceps, forearm flexors. Square 1:1, no text.
-```
-
-`biceps-2-gora.png`
-
-```
-Same scene, same camera angle as the previous image. Change only the arms: both dumbbells curled up to shoulder height, elbows still close to the sides, no swinging of the torso. Same blue highlights. Square 1:1, no text.
-```
+You are helping me create a consistent series of exercise technique illustrations for my strength training app. We will make exactly 44 images, ONE image per message, in the order of the list below.
 
-### 19. Rollout
+HOW WE WORK
+- Now generate image #1 only. After that, every time I write "dalej", generate the next image from the list. Never generate more than one image per message and never skip an image.
+- Before each image, write one short line: "#<number> <file name>". Nothing else.
+- If I write "popraw: <instructions>", regenerate the last image with that fix, keeping everything else identical. Then wait for "dalej".
+- If I write "Zacznij od obrazka nr <n>", the attached image is image #1 (the reference character); continue the list from image #n.
 
-`rollout-1-start.png`
+STYLE (identical in every image)
+- Semi-realistic 3D anatomical illustration, like a medical anatomy model. The SAME fit adult man in every image: realistic, clearly defined muscles rendered in light neutral grey (visible muscle shapes and fibres, no skin texture, no tattoos), short dark hair, calm neutral face, plain black athletic shorts, plain black flat training shoes.
+- Pure white background, soft even studio lighting, soft shadow on the floor.
+- Working muscles of each exercise highlighted in one saturated blue (#2F6FD6); all other muscles stay grey.
+- Equipment: matte black weight plates and dumbbells WITHOUT any markings, steel barbell, light grey rack, benches and machines.
+- Square 1:1 image, at least 1024 x 1024 px. The whole body and all equipment fully in frame with a margin; nothing cut off at the edges.
+- NO text, letters, numbers, logos or labels anywhere in the image (also none on plates, dumbbells or machines).
+- Correct, safe competition-standard technique and correct anatomy (five fingers, natural joints, hands really holding the bar).
+- Each exercise has two images (start and end of the movement). The second image MUST use exactly the same camera angle, distance, equipment and position in the frame as the first one; only the body position changes.
 
-```
-Using exactly the same man, style, lighting and white background as the reference: ab wheel rollout from the knees. He kneels on the floor holding an ab wheel under his shoulders, arms straight, back flat, abs tight. Camera: side view from his left. Highlight in blue: abdominals (rectus abdominis, obliques). Square 1:1, no text.
-```
+THE LIST
+#1 00-postac — Reference character. Standing upright, relaxed athletic stance, full body, three-quarter front view. No equipment, no blue highlights.
 
-`rollout-2-wyciagniety.png`
+SQUAT (camera for all squat images: three-quarter side view from the front-left at hip height, knee and hip angles clearly visible). Blue: quadriceps, glutes, adductors, lower back erectors.
+#2 przysiad-1-gora — Competition back squat, TOP: standing fully upright inside a squat rack, loaded barbell on the upper back (traps, below the neck), hands just outside the shoulders, elbows down and back, feet shoulder-width, toes slightly out, chest up.
+#3 przysiad-2-dol — Same scene, BOTTOM: hip crease clearly LOWER than the top of the knee (below parallel), knees forward in line with the toes, heels flat, bar directly over mid-foot, back flat and tight, chest up.
 
-```
-Same scene, same camera angle as the previous image. Change only the pose: rolled out forward until the body is almost straight and low over the floor, arms extended overhead in front, hips NOT sagging, body in one straight line from knees to shoulders. Same blue highlights. Square 1:1, no text.
-```
+BENCH PRESS (camera: three-quarter view from slightly above, from the side of his feet; bar path, arch and feet visible). Blue: pectorals, front shoulders, triceps.
+#4 lawa-1-gora — Competition bench press, TOP: lying on a flat bench under a rack, arms straight, loaded bar locked out above the shoulders, grip slightly wider than shoulders, shoulder blades pulled together, moderate upper-back arch, buttocks ON the bench, both feet flat on the floor.
+#5 lawa-2-klatka — Same scene: bar paused motionless ON the lower chest, forearms vertical, elbows about 45 degrees from the torso, buttocks on the bench, feet flat.
 
-### 20. Unoszenie nóg w zwisie
+DEADLIFT (camera: pure side view from his left at hip height, no rack). Blue: glutes, hamstrings, lower back erectors, quadriceps, upper traps.
+#6 martwy-1-start — Conventional deadlift, START: loaded bar on the floor over mid-foot, shins touching the bar, straight arms gripping just outside the legs, hips higher than knees, shoulders slightly in front of the bar, back flat and neutral.
+#7 martwy-2-wyprost — Same scene, LOCKOUT: fully upright, hips and knees fully extended, shoulders back, bar hanging in straight arms at the top of the thighs, no leaning back.
 
-`unoszenie-nog-1-zwis.png`
+SQUAT FROM PINS (same camera as the squat images). Blue: quadriceps, glutes, adductors, lower back erectors.
+#8 piny-1-gora — Standing upright in the rack with the bar on the upper back; the rack's two horizontal safety pins clearly visible, set low at the bar height of a below-parallel squat.
+#9 piny-2-dol — Same scene: bottom of the squat with the bar resting completely still ON the safety pins, hips below parallel, back flat, body tight.
 
-```
-Using exactly the same man, style, lighting and white background as the reference: hanging leg raise. He hangs from a pull-up bar with straight arms and an overhand grip, legs straight down, body still, not swinging. Camera: side view from his left. Highlight in blue: abdominals, hip flexors. Square 1:1, no text.
-```
+LARSEN PRESS (same camera as the bench press images). Blue: pectorals, front shoulders, triceps, abdominals.
+#10 larsen-1-gora — Bench press TOP with arms locked out, but both legs straight and lifted OFF the floor, extended forward in the air at about bench height, buttocks on the bench.
+#11 larsen-2-klatka — Same scene: bar paused motionless on the lower chest, forearms vertical, legs still straight in the air.
 
-`unoszenie-nog-2-gora.png`
+CLOSE-GRIP BENCH PRESS (camera: three-quarter view from slightly above and from the side of his head, so the narrow grip is clearly visible). Blue: triceps, pectorals, front shoulders.
+#12 waski-1-gora — Flat bench, bar locked out, hands at shoulder width (clearly narrower than a normal bench grip), elbows close to the body, feet flat.
+#13 waski-2-klatka — Same scene: bar paused motionless on the lower chest, elbows tucked close to the torso.
 
-```
-Same scene, same camera angle as the previous image. Change only the legs: knees raised up towards the chest with the pelvis tilted up, body not swinging. Same blue highlights. Square 1:1, no text.
-```
+SPOTO PRESS (same scene and camera as image #4). Blue: pectorals, front shoulders, triceps.
+#14 spoto-2-nad-klatka — The bar held motionless about 2 cm ABOVE the chest, clearly NOT touching it, a small visible gap between bar and chest, forearms vertical, buttocks on the bench, feet flat.
 
-### 21. Marsz pod górę na bieżni
+ROMANIAN DEADLIFT (same camera as the deadlift images). Blue: hamstrings, glutes, lower back erectors.
+#15 rdl-1-gora — Standing upright holding the loaded bar in straight arms at the top of the thighs, knees slightly unlocked.
+#16 rdl-2-dol — Same scene: hips pushed far back, knees slightly bent in the same position as before, back flat, bar slid along the legs to mid-shin, plates NOT touching the floor, strong hamstring stretch.
 
-`bieznia-1-krok.png`
+LEG PRESS 45 DEGREES (camera: side view from his left). Blue: quadriceps, glutes.
+#17 suwnica-1-gora — Seated in a 45-degree leg press machine, back flat on the pad, feet shoulder-width on the platform, legs almost straight (knees not locked).
+#18 suwnica-2-dol — Same scene: knees deeply bent towards the chest, lower back still flat on the pad, heels on the platform.
 
-```
-Using exactly the same man, style, lighting and white background as the reference: incline treadmill walk. He walks on a light grey treadmill set to a clearly visible incline (about 10 percent), upright posture, NOT holding the handrails, natural arm swing, left leg forward. He wears the same black shoes. Camera: side view from his left. Highlight in blue: glutes, hamstrings, calves, quadriceps. Square 1:1, no text.
-```
+LYING LEG CURL (camera: side view). Blue: hamstrings, calves.
+#19 uginanie-nog-1-start — Lying face down on a leg curl machine, roller pad just above the heels, legs straight, hips pressed into the pad, hands on the handles.
+#20 uginanie-nog-2-skurcz — Same scene: knees bent 90 degrees or more, heels pulled towards the glutes, hips still on the pad.
 
-`bieznia-2-krok.png`
+BACK EXTENSION (camera: side view). Blue: glutes, hamstrings, lower back erectors.
+#21 hiperekstensje-1-dol — 45-degree Roman chair, hips on the pad, ankles under the rollers, a plate held against the chest, torso bent down at the hips with a neutral back.
+#22 hiperekstensje-2-gora — Same scene: torso raised until the body is one straight line from heels to head, no overextension, plate still against the chest.
 
-```
-Same scene, same camera angle as the previous image. Change only the stride: the opposite step, right leg forward, arms swinging the other way. Same blue highlights. Square 1:1, no text.
-```
+CHEST-SUPPORTED DUMBBELL ROW (camera: three-quarter side view). Blue: lats, rhomboids, traps, rear shoulders, biceps.
+#23 wioslowanie-1-dol — Chest down on a 30-degree incline bench, feet on the floor, a dumbbell in each hand, arms hanging straight down.
+#24 wioslowanie-2-gora — Same scene: dumbbells pulled up to the hips, elbows driven back past the torso, shoulder blades squeezed, chest on the bench.
 
-### 22. Mobilność bioder i odcinka piersiowego
+WEIGHTED PULL-UP (camera: three-quarter view from behind-left, back visible). Blue: lats, biceps, middle back.
+#25 podciaganie-1-zwis — Hanging from a pull-up bar, overhand grip slightly wider than shoulders, arms fully straight, a dumbbell held between the feet, legs slightly bent.
+#26 podciaganie-2-gora — Same scene: chin above the bar, chest close to the bar, elbows pulled down to the sides, dumbbell still between the feet.
 
-Dwa osobne ćwiczenia zamiast ruchu; aplikacja pokaże je obok siebie.
+FACE PULL (camera: side view from his left). Blue: rear shoulders, rhomboids, middle traps, rotator cuff.
+#27 facepull-1-start — Standing facing a cable tower, pulley at face height, rope attachment in both hands, arms straight in front.
+#28 facepull-2-koniec — Same scene: rope pulled to the face, hands next to the ears, elbows high and wide, upper arms rotated outward.
 
-`mobilnosc-1-biodra.png`
+BENT-OVER REVERSE DUMBBELL FLY (camera: three-quarter front view). Blue: rear shoulders, rhomboids, middle traps.
+#29 odwrotne-rozpietki-1-dol — Bent forward at the hips, flat back, torso almost parallel to the floor, knees slightly bent, light dumbbells hanging below the chest, palms facing each other, elbows slightly bent.
+#30 odwrotne-rozpietki-2-gora — Same scene: dumbbells raised out to the sides to shoulder height in a wide arc, shoulder blades squeezed.
 
-```
-Using exactly the same man, style, lighting and white background as the reference: 90/90 hip mobility stretch. He sits on the floor with the front leg bent 90 degrees in front of him and the back leg bent 90 degrees to the side behind him, torso upright and leaning slightly forward over the front shin, hands lightly on the floor. Camera: three-quarter front view. Highlight in blue: glutes, hip rotators. Square 1:1, no text.
-```
+INCLINE DUMBBELL PRESS (camera: three-quarter view from the side of his feet). Blue: upper chest, front shoulders, triceps.
+#31 skos-hantle-1-dol — Bench at 30 degrees, dumbbells beside the upper chest, elbows about 45 degrees from the torso, feet flat.
+#32 skos-hantle-2-gora — Same scene: dumbbells pressed up over the upper chest, arms straight, dumbbells close but not touching.
 
-`mobilnosc-2-piersiowy.png`
+SINGLE-ARM CABLE TRICEPS PUSHDOWN (camera: side view from his left). Blue: triceps of the working arm.
+#33 triceps-1-start — Standing facing a cable tower with a high pulley, single handle in the LEFT hand, upper arm tight against the side, elbow bent about 90 degrees, forearm about parallel to the floor, other hand relaxed.
+#34 triceps-2-wyprost — Same scene: working elbow fully straight, handle pushed down next to the thigh, upper arm still against the side.
 
-```
-Using exactly the same man, style, lighting and white background as the reference: thoracic spine "open book" rotation. He lies on his left side on the floor, knees bent 90 degrees and stacked, arms straight in front; the top (right) arm rotates open to the other side, chest turning towards the ceiling, eyes following the hand, knees staying together on the floor. Camera: three-quarter view from above. Highlight in blue: upper back, chest. Square 1:1, no text.
-```
+DUMBBELL BICEPS CURL (camera: three-quarter front view). Blue: biceps, forearm flexors.
+#35 biceps-1-dol — Standing upright, a dumbbell in each hand, arms straight at the sides, palms facing forward.
+#36 biceps-2-gora — Same scene: both dumbbells curled to shoulder height, elbows close to the sides, no swinging.
 
-## Polecenia pomocnicze
+AB WHEEL ROLLOUT (camera: side view from his left). Blue: abdominals, obliques.
+#37 rollout-1-start — Kneeling on the floor holding an ab wheel under the shoulders, arms straight, back flat, abs tight.
+#38 rollout-2-wyciagniety — Same scene: rolled forward until the body is almost straight and low over the floor, arms extended in front, hips NOT sagging, one straight line from knees to shoulders.
 
-**Poprawka** (gdy klatka wyszła źle):
+HANGING LEG RAISE (camera: side view from his left). Blue: abdominals, hip flexors.
+#39 unoszenie-nog-1-zwis — Hanging from a pull-up bar, straight arms, overhand grip, legs straight down, not swinging.
+#40 unoszenie-nog-2-gora — Same scene: knees raised up towards the chest, pelvis tilted up, not swinging.
 
-```
-Regenerate the previous image. Keep the same man, style, camera angle and equipment. Fix: <opisz po angielsku, np. "the hips must be clearly below the knees", "the buttocks must stay on the bench", "remove all text and numbers", "the bar must not touch the chest">.
-```
+INCLINE TREADMILL WALK (camera: side view from his left). Blue: glutes, hamstrings, calves, quadriceps.
+#41 bieznia-1-krok — Walking on a treadmill set to a clearly visible incline (about 10 percent), upright, NOT holding the handrails, natural arm swing, left leg forward.
+#42 bieznia-2-krok — Same scene: the opposite step, right leg forward, arms swinging the other way.
 
-**Ciąg dalszy w nowej rozmowie** (dołącz `00-postac.png`):
+MOBILITY (two separate stretches, each its own camera).
+#43 mobilnosc-1-biodra — 90/90 hip stretch: sitting on the floor, front leg bent 90 degrees in front, back leg bent 90 degrees to the side behind, torso upright leaning slightly over the front shin, hands lightly on the floor. Three-quarter front view. Blue: glutes, hip rotators.
+#44 mobilnosc-2-piersiowy — Thoracic "open book": lying on the left side, knees bent 90 degrees and stacked, the top (right) arm rotated open to the other side, chest turning towards the ceiling, eyes following the hand, knees together on the floor. Three-quarter view from above. Blue: upper back, chest.
 
-```
-The attached image is the reference character and style for a series of exercise technique illustrations: same man, same semi-realistic 3D anatomical style with grey muscles, black shorts and black shoes, white background, soft studio light, working muscles highlighted in saturated blue (#2F6FD6), square 1:1, no text, no numbers, no logos. Keep all of this exactly in every image I ask for next. Confirm and wait.
+Start now with image #1 only.
 ```
 
 ## Gdy skończysz
 
 Napisz agentowi, że pliki są w `exports/technika/`. Agent:
 
-1. Sprawdzi, czy są wszystkie 44 pliki z dobrymi nazwami.
+1. Sprawdzi, czy jest 44 plików (z nazwami albo w kolejności pobierania).
 2. Przytnie znaczek Gemini i zmniejszy klatki do formatu WebP (ok. 50–80 kB na klatkę).
-3. Obejrzy klatki i wskaże te do poprawy.
+3. Obejrzy klatki i wskaże te do poprawy (numer i co poprawić).
 4. Wepnie je w aplikację w miejsce obecnego ludzika, z odliczaniem pauz w wariantach.
