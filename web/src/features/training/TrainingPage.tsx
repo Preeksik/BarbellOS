@@ -49,6 +49,7 @@ import { SeasonList } from "./SeasonList";
 import { StartView } from "./StartView";
 import { TechniqueFigure } from "./technique/TechniqueFigure";
 import { TechniqueFrames } from "./technique/TechniqueFrames";
+import { TechniqueVideo } from "./technique/TechniqueVideo";
 import { illustrationFor } from "./technique/illustrations";
 import { moveFor } from "./technique/moves";
 
@@ -654,7 +655,13 @@ function ExerciseCard({
         </button>
       )}
       {showTechnique &&
-        (illustration ? (
+        (illustration?.video ? (
+          <TechniqueVideo
+            illustration={{ ...illustration, video: illustration.video }}
+            name={ex.name}
+            points={move?.points ?? []}
+          />
+        ) : illustration ? (
           <TechniqueFrames illustration={illustration} name={ex.name} points={move?.points ?? []} />
         ) : (
           move && <TechniqueFigure move={move} name={ex.name} />

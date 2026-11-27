@@ -4,6 +4,8 @@ Ilustracje do przycisku „Technika” przy ćwiczeniach generujesz sam w zwykł
 
 Stan: 27.11.2026. Gotowe: przysiad (z niego też przysiad z pauzą 2 s i tempo 3-1-0). Zostało 21 obrazków.
 
+**Drugi krok, film ruchu:** z gotowych klatek agent robi w Google Colab (notatnik `scripts/colab/wan_flf2v_proba.ipynb`, model Wan) płynny film zejścia i powrotu. Przysiad już tak działa. Obrazki z Gemini muszą więc mieć poprawną technikę na obu panelach, bo film dokładnie trafia w obie pozycje.
+
 ## Ustawienia czatu
 
 - Model **Neon**, effort **średni**. Hydrogen gorzej trzyma się opisu, a Carbon jest tylko w planie Ultra.

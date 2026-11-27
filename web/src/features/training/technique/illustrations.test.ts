@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cycleLength, frameAt, illustrationFor } from "./illustrations";
+import { cycleLength, frameAt, illustrationFor, videoCountdown } from "./illustrations";
 
 describe("ilustracje z klatek", () => {
   it("przysiad przełącza górę i dół z krótkim przejściem", () => {
@@ -38,5 +38,29 @@ describe("ilustracje z klatek", () => {
 
   it("ćwiczenia bez klatek zostają przy ludziku", () => {
     expect(illustrationFor("Face pull")).toBeNull();
+  });
+});
+
+describe("film ruchu", () => {
+  it("warianty przysiadu korzystają z jednego filmu z innym przebiegiem", () => {
+    const plain = illustrationFor("Przysiad")?.video;
+    const pause = illustrationFor("Przysiad z pauzą 2 s")?.video;
+    const tempo = illustrationFor("Przysiad tempo 3-1-0")?.video;
+    expect(plain?.src).toBe("/technique/przysiad.mp4");
+    expect(pause?.src).toBe(plain?.src);
+    expect(pause?.steps[1]).toEqual({ kind: "hold", ms: 2000, label: "pauza", countdown: true });
+    // Tempo: zejście w normalnej prędkości trwa dokładnie 3 s, wstanie szybko.
+    expect(tempo?.steps[0]).toMatchObject({ kind: "play", to: 3, rate: 1 });
+    expect(tempo?.steps[2]).toMatchObject({ kind: "play", to: 6, rate: 3 });
+  });
+
+  it("odlicza pozostałe sekundy zejścia i pauzy", () => {
+    const down = { kind: "play" as const, to: 3, rate: 1, label: "3 s w dół", countdown: true };
+    expect(videoCountdown(down, 0.2, 0)).toBe(3);
+    expect(videoCountdown(down, 2.5, 0)).toBe(1);
+    const hold = { kind: "hold" as const, ms: 2000, label: "pauza", countdown: true };
+    expect(videoCountdown(hold, 3, 100)).toBe(2);
+    expect(videoCountdown(hold, 3, 1500)).toBe(1);
+    expect(videoCountdown({ kind: "hold", ms: 300, label: "dół" }, 3, 0)).toBeNull();
   });
 });

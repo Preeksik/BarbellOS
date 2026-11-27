@@ -2826,7 +2826,8 @@ button.suggest.all {
   background: #ffffff;
 }
 
-.technique.frames .framebox img {
+.technique.frames .framebox img,
+.technique.frames .framebox video {
   position: absolute;
   inset: 0;
   width: 100%;
