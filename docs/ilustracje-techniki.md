@@ -12,8 +12,8 @@ Wybór modelu ma niewielkie znaczenie dla wyglądu, bo obrazki rysuje osobne nar
 
 1. Nowa rozmowa, model Neon. Wklejasz **cały prompt** z sekcji niżej i wysyłasz. Gemini generuje obrazek nr 1 (postać wzorcową) i podaje jego nazwę.
 2. Pobierasz obrazek (najedź → pobierz), zmieniasz nazwę na podaną i przenosisz do `C:\Users\adria\Desktop\BarbellOS\exports\technika\`.
-3. Piszesz **`dalej`**. Gemini generuje kolejną klatkę z listy. I tak 44 razy.
-4. Klatka wyszła źle? Piszesz **`popraw: <co poprawić>`**. Gemini generuje ją jeszcze raz, a dopiero potem idziesz `dalej`.
+3. Piszesz **`Generate image #2 now.`** (potem `#3`, `#4`…). Samo „dalej” nie wystarcza: Gemini odpowiada wtedy „Jako model językowy nie jestem do tego przeznaczony”, bo nie uruchamia narzędzia obrazkowego. Gdy mimo to odmawia, włącz w polu wpisywania **Narzędzia → „Utwórz obraz”** i wyślij ponownie, a w ostateczności wklej opis tej jednej klatki z listy z dopiskiem `Generate this image:`.
+4. Klatka wyszła źle? Piszesz **`popraw: <co poprawić>`**. Gemini generuje ją jeszcze raz, a dopiero potem idziesz do następnego numeru.
 5. Limit albo rozmowa się sypie: nowa rozmowa, dołączasz `00-postac.png` (spinacz), wklejasz cały prompt jeszcze raz i dopisujesz na końcu `Zacznij od obrazka nr <numer>`.
 
 Zmienianie nazw plików jest wygodne, ale nieobowiązkowe. Wystarczy, że pobierasz po kolei: agent dopasuje pliki po kolejności i po tym, co na nich widać.
@@ -36,9 +36,9 @@ Znaczek Gemini w rogu nie przeszkadza, agent go przytnie.
 You are helping me create a consistent series of exercise technique illustrations for my strength training app. We will make exactly 44 images, ONE image per message, in the order of the list below.
 
 HOW WE WORK
-- Now generate image #1 only. After that, every time I write "dalej", generate the next image from the list. Never generate more than one image per message and never skip an image.
+- Now generate image #1 only. After that, every time I write "Generate image #<n> now", generate exactly that image from the list. Never generate more than one image per message and never skip an image.
 - Before each image, write one short line: "#<number> <file name>". Nothing else.
-- If I write "popraw: <instructions>", regenerate the last image with that fix, keeping everything else identical. Then wait for "dalej".
+- If I write "popraw: <instructions>", regenerate the last image with that fix, keeping everything else identical. Then wait for my next message.
 - If I write "Zacznij od obrazka nr <n>", the attached image is image #1 (the reference character); continue the list from image #n.
 
 STYLE (identical in every image)
