@@ -2812,3 +2812,46 @@ button.suggest.all {
   flex-direction: column;
   gap: 10px;
 }
+
+/* Ilustracje z klatek (27.11.2026): obrazy na białym tle, jak je narysowano. */
+.technique.frames button.framebox {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 320px;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: var(--radius);
+  background: #ffffff;
+}
+
+.technique.frames .framebox img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  user-select: none;
+}
+
+.technique.frames .countdown {
+  position: absolute;
+  z-index: 3;
+  top: 10px;
+  right: 10px;
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: #16181a;
+  color: #f0efe9;
+  font-family: var(--font-display);
+  font-size: 1.75rem;
+  font-weight: 700;
+}
+
+.technique.frames .countdown.moving {
+  background: #5b93e0;
+}

@@ -48,6 +48,8 @@ import { NoteSections } from "./Notes";
 import { SeasonList } from "./SeasonList";
 import { StartView } from "./StartView";
 import { TechniqueFigure } from "./technique/TechniqueFigure";
+import { TechniqueFrames } from "./technique/TechniqueFrames";
+import { illustrationFor } from "./technique/illustrations";
 import { moveFor } from "./technique/moves";
 
 const LIFT_NAMES = { S: "przysiad", B: "ława", D: "martwy" } as const;
@@ -602,6 +604,7 @@ function ExerciseCard({
   const entry = useEntryWriter(week, session, ex);
   const tag = tierLabel(ex.tier);
   const move = moveFor(ex.name);
+  const illustration = illustrationFor(ex.name);
   const [showTechnique, setShowTechnique] = useState(false);
   const id = `${session.key}-${ex.index}`;
   return (
@@ -628,7 +631,7 @@ function ExerciseCard({
       </div>
       {ex.load != null && <Plates plates={ex.plates} />}
       {ex.cue && <p className="cue">{ex.cue}</p>}
-      {move && (
+      {(illustration || move) && (
         <button
           type="button"
           className="techbtn"
@@ -650,7 +653,12 @@ function ExerciseCard({
           {showTechnique ? "Zwiń technikę" : "Technika"}
         </button>
       )}
-      {move && showTechnique && <TechniqueFigure move={move} name={ex.name} />}
+      {showTechnique &&
+        (illustration ? (
+          <TechniqueFrames illustration={illustration} name={ex.name} points={move?.points ?? []} />
+        ) : (
+          move && <TechniqueFigure move={move} name={ex.name} />
+        ))}
       {ex.last && (
         <p className="last">
           Ostatnio:{" "}
