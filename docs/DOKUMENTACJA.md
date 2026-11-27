@@ -541,6 +541,7 @@ Przy ćwiczeniu przycisk „Technika” (z ikoną ludzika) otwiera animowanego l
 
 - Animacje są własne, rysowane w kodzie (SVG), bez obcych grafik i licencji, i działają bez sieci.
 - Pozy liczy prosta mechanika (`web/src/features/training/technique/skeleton.ts`): kości mają stałą długość, sztanga zostaje nad środkiem stopy, a kolano, biodro i łokieć wyznacza kinematyka odwrotna dwóch kości. Warianty różnią się przebiegiem czasu (pauzy, tempo) i sceną (ławka, piny), a nie rysunkiem (`moves.ts`). To prezentacja, nie obliczenia treningowe.
+- **Następna wersja (od 27.11.2026, w przygotowaniu):** ilustracje anatomiczne, 2 klatki na ćwiczenie dla wszystkich 26 ćwiczeń planu, generowane przez właściciela w czacie Gemini według `docs/ilustracje-techniki.md`. Warianty różniące się tylko czasem (pauza, tempo, T&G) korzystają z klatek boju i dostają odliczanie.
 - Ćwiczenie trafia do animacji po nazwie z planu. Stuknięcie w obrazek zatrzymuje pętlę; przy ograniczeniu ruchu w telefonie animacja startuje zatrzymana w dolnej pozycji.
 
 ## 6. Moduł 3 — Regeneracja
