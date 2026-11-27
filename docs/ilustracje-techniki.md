@@ -20,7 +20,8 @@ Stan: 27.11.2026. Gotowe: przysiad (z niego też przysiad z pauzą 2 s i tempo 3
 
 **Sprawdź przed zapisem:**
 
-- **Kamera** jak w opisie (najczęstszy błąd: Gemini obraca postać przodem).
+- **Kamera** jak w opisie (najczęstszy błąd: Gemini obraca postać przodem). Ławy idą w czystym profilu, bo z ukosa Gemini rysuje sztangę nad klatką zamiast na niej.
+- **Ręce:** osobne ramię, łokieć i przedramię. Gdy przy barku jest niebieska „kula”, wygeneruj ponownie (to samo polecenie w tej samej rozmowie).
 - **Oba panele mają ten sam sprzęt, skalę i miejsce na podłodze.** Zmienia się tylko ciało. To najważniejszy punkt: inaczej ustawiona ławka czy stojak skacze w animacji. Gdy Gemini obraca sprzęt między panelami, zamień w prompcie zdanie o kamerze na `Camera: pure side view from his left` (sam profil).
 - **Technika:**
   - przysiad i warianty: biodro poniżej kolana;
@@ -45,10 +46,10 @@ IMPORTANT: the RIGHT panel must be an exact copy of the LEFT panel: same equipme
 
 Create a NEW image with TWO PANELS SIDE BY SIDE (left half and right half), using the attached man as the reference character: same face, hair, anatomical écorché muscle style with grey muscles, black shorts, black shoes, pure white background, soft studio light. Both panels: exactly the same scene, camera angle, distance and scale; only his pose differs. No text, no numbers, no logos anywhere (also none on plates).
 
-Scene: competition bench press on a flat light grey bench under a light grey rack, barbell with two identical matte black plates (no clips, no markings). Camera: from the side, at bench height, slightly from above and from the side of his feet, so we see the bar path, his arched upper back, buttocks on the bench and both feet flat on the floor. Both hands clearly visible gripping the bar slightly wider than shoulder width.
+Scene: competition bench press on a flat light grey bench under a light grey rack, barbell with two identical matte black plates (no clips, no markings). Camera: PURE SIDE PROFILE from his left at bench height. Shoulder blades squeezed together and pressed DOWN into the bench, shoulders pulled back and away from the ears (NOT shrugged up towards the bar), moderate upper-back arch, buttocks on the bench. Anatomically correct arms: clearly separate upper arm, elbow and forearm, normal-size shoulder muscle, hands visibly gripping the bar. Both feet flat on the floor.
 
-LEFT panel: TOP position, arms straight and VERTICAL, bar locked out directly above the SHOULDERS (not above the face).
-RIGHT panel: bar paused motionless ON the lower chest (touching the sternum), forearms vertical, elbows about 45 degrees from the torso, buttocks still on the bench, feet flat.
+LEFT panel: TOP position, arms straight and VERTICAL, bar locked out directly above the SHOULDER JOINT (not above the face), shoulders still pressed into the bench.
+RIGHT panel: the bar RESTS ON his chest: it physically TOUCHES the lower part of the sternum, NO gap between bar and chest; forearms vertical, elbows below the bar, buttocks still on the bench, feet flat.
 
 Blue (#2F6FD6) ONLY on pectorals, front shoulders and triceps; everything else grey.
 ```
@@ -90,10 +91,10 @@ IMPORTANT: the RIGHT panel must be an exact copy of the LEFT panel: same equipme
 
 Create a NEW image with TWO PANELS SIDE BY SIDE (left half and right half), using the attached man as the reference character: same face, hair, anatomical écorché muscle style with grey muscles, black shorts, black shoes, pure white background, soft studio light. Both panels: exactly the same scene, camera angle, distance and scale; only his arms differ. No text, no numbers, no logos anywhere (also none on plates).
 
-Scene: Larsen press on a flat light grey bench under a light grey rack, barbell with two identical matte black plates (no clips, no markings). His legs are STRAIGHT and LIFTED OFF THE FLOOR, extended forward in the air at about bench height, feet touching nothing, buttocks on the bench. Camera: from the side at bench height, slightly from above, so the straight raised legs are clearly visible. Both hands clearly visible on the bar.
+Scene: Larsen press on a flat light grey bench under a light grey rack, barbell with two identical matte black plates (no clips, no markings). His legs are STRAIGHT and LIFTED OFF THE FLOOR, extended forward in the air at about bench height, feet touching nothing, buttocks on the bench. Camera: PURE SIDE PROFILE from his left at bench height. Shoulder blades squeezed together and pressed DOWN into the bench, shoulders pulled back and away from the ears (NOT shrugged up towards the bar), moderate upper-back arch, buttocks on the bench. Anatomically correct arms: clearly separate upper arm, elbow and forearm, normal-size shoulder muscle, hands visibly gripping the bar. The straight raised legs are clearly visible.
 
 LEFT panel: arms straight, bar locked out above the shoulders.
-RIGHT panel: bar paused motionless on the lower chest, forearms vertical; legs still straight in the air.
+RIGHT panel: the bar RESTS ON the lower chest, touching it, NO gap; forearms vertical; legs still straight in the air.
 
 Blue (#2F6FD6) ONLY on pectorals, front shoulders, triceps and abdominals; everything else grey.
 ```
@@ -108,7 +109,7 @@ Create a NEW image with TWO PANELS SIDE BY SIDE (left half and right half), usin
 Scene: close-grip bench press on a flat light grey bench under a light grey rack, barbell with two identical matte black plates (no clips, no markings), feet flat on the floor. Camera: three-quarter view from slightly above and from the side of his head, so the NARROW grip is clearly visible: hands at shoulder width, clearly narrower than a normal bench press grip.
 
 LEFT panel: arms straight, bar locked out above the shoulders.
-RIGHT panel: bar paused motionless on the lower chest, elbows tucked close to the torso, forearms vertical.
+RIGHT panel: the bar RESTS ON the lower chest, touching it, NO gap; elbows tucked close to the torso, forearms vertical.
 
 Blue (#2F6FD6) ONLY on triceps, pectorals and front shoulders; everything else grey.
 ```
@@ -120,7 +121,7 @@ IMPORTANT: the RIGHT panel must be an exact copy of the LEFT panel: same equipme
 
 Create a NEW image with TWO PANELS SIDE BY SIDE (left half and right half), using the attached man as the reference character: same face, hair, anatomical écorché muscle style with grey muscles, black shorts, black shoes, pure white background, soft studio light. Both panels: exactly the same scene, camera angle, distance and scale; only his arms differ. No text, no numbers, no logos anywhere (also none on plates).
 
-Scene: Spoto press on a flat light grey bench under a light grey rack, barbell with two identical matte black plates (no clips, no markings), buttocks on the bench, feet flat. Camera: from the side at bench height, slightly from above, so the space between the bar and the chest is clearly visible. Both hands clearly visible on the bar.
+Scene: Spoto press on a flat light grey bench under a light grey rack, barbell with two identical matte black plates (no clips, no markings), buttocks on the bench, feet flat. Camera: PURE SIDE PROFILE from his left at bench height. Shoulder blades squeezed together and pressed DOWN into the bench, shoulders pulled back and away from the ears (NOT shrugged up towards the bar), moderate upper-back arch, buttocks on the bench. Anatomically correct arms: clearly separate upper arm, elbow and forearm, normal-size shoulder muscle, hands visibly gripping the bar. The space between the bar and the chest is clearly visible.
 
 LEFT panel: arms straight, bar locked out above the shoulders.
 RIGHT panel: the bar held motionless about 2 cm ABOVE the chest, clearly NOT touching it: a small visible gap of white background between the bar and the chest. Forearms vertical, body tight.
