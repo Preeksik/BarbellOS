@@ -13,6 +13,16 @@ Przycisk „Technika” przy ćwiczeniu pokazuje krótki film ruchu w anatomiczn
 
 Film trafia dokładnie w obie pozycje z obrazka, dlatego **poprawna technika na obrazku to poprawna technika w filmie**.
 
+### Droga B: poza z kodu, obrazek z Qwen (od 28.11.2026, próba na martwym)
+
+Gemini trzy razy postawił sztangę martwego przed stopami albo w powietrzu. Zamiast walczyć z opisem, pozę dyktuje kod:
+
+1. **Agent:** `scripts/technique_pose.py` rysuje szare manekiny (start i koniec ruchu) tą samą mechaniką co ludzik w aplikacji: sztanga nad środkiem stopy, talerz na podłodze, stopy w tym samym miejscu na obu szkicach. Szkice i postać leżą w `scripts/colab/szkice/`.
+2. **Ty, Google Colab:** notatnik `scripts/colab/qwen_pozy.ipynb` (otwarty model Qwen-Image-Edit-2511, Apache 2.0) maluje naszą postać w pozie manekina, kilka wersji z różnym ziarnem. Karta L4 albo A100, „Uruchom wszystko”, na końcu pobiera się `wyniki.zip`.
+3. **Agent:** ocenia wersje, wybiera klatki i dalej jak w krokach 2–4.
+
+Link do notatnika: <https://colab.research.google.com/github/Preeksik/BarbellOS/blob/main/scripts/colab/qwen_pozy.ipynb>. Jeśli próba wyjdzie dobrze, ta droga zastąpi Gemini przy ćwiczeniach ze sztangą.
+
 ## Status
 
 | Plik | Ćwiczenie | Obrazek | Partia | Te same klatki dostają | Stan |
