@@ -179,15 +179,18 @@ def render(pose: Pose) -> Image.Image:
     capsule(d, pose.hip, pose.hip + (pose.shoulder - pose.hip) * 0.18, 23.5, SHORTS)
     capsule(d, pose.shoulder, pose.head, 10, SKIN)
     disc(d, pose.head, 11, SKIN)
-    # Nos po stronie twarzy, żeby było widać, w którą stronę patrzy.
+    # Wyraźny profil twarzy (nos i oko), żeby model nie wziął wyprostu za widok z przodu
+    # (próba 28.11.2026: talerz na środku sylwetki wyglądał jak postać przodem).
     along = (pose.head - pose.shoulder) * (1 / (pose.head - pose.shoulder).length())
     ahead = Vec(along.y, -along.x)
-    nose = pose.head + ahead * 11.5
+    nose = pose.head + ahead * 10.5
+    tip = nose + ahead * 4.5 - along * 1.5
     d.polygon(
-        [to_px(nose + ahead * 2.5), to_px(nose + along * 2.5), to_px(nose - along * 2.5)],
+        [to_px(tip), to_px(nose + along * 3.5), to_px(nose - along * 3)],
         fill=SKIN,
         outline=OUTLINE,
     )
+    disc(d, pose.head + ahead * 6 + along * 2.5, 1.3, OUTLINE)
     capsule(d, pose.shoulder, pose.elbow, 9.5, SKIN)
     capsule(d, pose.elbow, pose.hand, 8, SKIN)
 
