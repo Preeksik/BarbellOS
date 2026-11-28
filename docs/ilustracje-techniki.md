@@ -18,7 +18,7 @@ Film trafia dokładnie w obie pozycje z obrazka, dlatego **poprawna technika na 
 | Plik | Ćwiczenie | Obrazek | Partia | Te same klatki dostają | Stan |
 |---|---|---|---|---|---|
 | `przysiad.png` | Przysiad | dwa panele | — | z pauzą 2 s, tempo 3-1-0 | **gotowe, z filmem**; do przegenerowania głębiej (na końcu) |
-| `lawa.png` | Wyciskanie leżąc z pauzą | dwa panele | 1 | T&G, z pauzą 3 s | do zrobienia |
+| `lawa.png` | Wyciskanie leżąc z pauzą | dwa panele | 1 | T&G, z pauzą 3 s | **obrazek gotowy** (28.11) |
 | `martwy.png` | Martwy ciąg | dwa panele | 1 | | do zrobienia |
 | `rdl.png` | Rumuński martwy ciąg | dwa panele | 1 | | do zrobienia |
 | `facepull.png` | Face pull | jeden obrazek | 1 | | do zrobienia |
@@ -65,7 +65,7 @@ Dla każdego ćwiczenia:
 - **Technika:**
   - przysiad i warianty: biodro poniżej kolana;
   - ława: sztanga dotyka klatki, łopatki na ławce, pośladki na ławce, stopy na podłodze;
-  - martwy i RDL: plecy proste.
+  - martwy i RDL: plecy proste, gryf nad środkiem stopy (na starcie martwego przy piszczelach, talerze na podłodze), stopy w tym samym miejscu na obu panelach.
 - **Ręce:** osobne ramię, łokieć i przedramię, dłonie widoczne na gryfie albo hantlu. Niebieska „kula” przy barku oznacza, że trzeba wygenerować ponownie.
 - **Niebieskie tylko mięśnie z opisu.** Gemini lubi dokładać brzuch i łydki.
 - **Bez napisów i liczb**, także na talerzach.
@@ -106,14 +106,14 @@ Blue (#2F6FD6) ONLY on pectorals, front shoulders and triceps; everything else g
 ### `martwy.png`: martwy ciąg (dwa panele)
 
 ```
-IMPORTANT: the RIGHT panel must be an exact copy of the LEFT panel: same equipment, same position and rotation of every object, same camera; ONLY the moving body parts change. If you overlay the two panels, the equipment and the floor must match perfectly. No divider line between the panels.
+IMPORTANT: the RIGHT panel must be an exact copy of the LEFT panel: same camera, same distance and scale, and his FEET stay in EXACTLY the same spot on the floor in both panels; ONLY his body and the barbell move. The barbell moves STRAIGHT UP over the middle of his foot. No divider line between the panels.
 
 Create a NEW image with TWO PANELS SIDE BY SIDE (left half and right half), using the attached man as the reference character: same face, hair, anatomical écorché muscle style with grey muscles, black shorts, black shoes, pure white background, soft studio light. Both panels: exactly the same scene, camera angle, distance and scale; only his pose differs. No text, no numbers, no logos anywhere (also none on plates).
 
 Scene: conventional deadlift, no rack, barbell with two identical matte black plates (no clips, no markings). Camera: true SIDE PROFILE from his left at hip height (we see his face from the side and the full line of his back). Both hands clearly visible gripping the bar just outside the legs.
 
-LEFT panel: START: bar on the floor over the middle of the foot, shins touching the bar, straight arms, hips higher than the knees, shoulders slightly in front of the bar, back FLAT and neutral.
-RIGHT panel: LOCKOUT: standing fully upright, hips and knees fully extended, shoulders back, bar hanging in straight arms at the top of the thighs, no leaning back.
+LEFT panel: START: the plates REST ON THE FLOOR, the bar is directly over the MIDDLE of his foot and TOUCHES his shins, straight arms hanging vertically, hips higher than the knees, shoulders slightly in front of the bar, back FLAT and neutral.
+RIGHT panel: LOCKOUT: standing fully upright on the same spot, hips and knees fully extended, shoulders back, bar hanging in straight arms at the top of the thighs, directly above the middle of the foot, no leaning back.
 
 Blue (#2F6FD6) ONLY on glutes, hamstrings, lower back erectors and upper trapezius; everything else grey.
 ```
@@ -121,14 +121,14 @@ Blue (#2F6FD6) ONLY on glutes, hamstrings, lower back erectors and upper trapezi
 ### `rdl.png`: rumuński martwy ciąg (dwa panele)
 
 ```
-IMPORTANT: the RIGHT panel must be an exact copy of the LEFT panel: same equipment, same position and rotation of every object, same camera; ONLY the moving body parts change. If you overlay the two panels, the equipment and the floor must match perfectly. No divider line between the panels.
+IMPORTANT: the RIGHT panel must be an exact copy of the LEFT panel: same camera, same distance and scale, and his FEET stay in EXACTLY the same spot on the floor in both panels; ONLY his body and the barbell move. The barbell moves STRAIGHT UP over the middle of his foot. No divider line between the panels.
 
 Create a NEW image with TWO PANELS SIDE BY SIDE (left half and right half), using the attached man as the reference character: same face, hair, anatomical écorché muscle style with grey muscles, black shorts, black shoes, pure white background, soft studio light. Both panels: exactly the same scene, camera angle, distance and scale; only his pose differs. No text, no numbers, no logos anywhere (also none on plates).
 
 Scene: Romanian deadlift, no rack, barbell with two identical matte black plates (no clips, no markings). Camera: true SIDE PROFILE from his left at hip height. Both hands clearly visible on the bar.
 
 LEFT panel: standing upright, bar in straight arms at the top of the thighs, knees slightly unlocked.
-RIGHT panel: hips pushed far BACK, knees slightly bent (same as in the left panel), back FLAT, bar slid along the legs to mid-shin, plates NOT touching the floor.
+RIGHT panel: hips pushed far BACK, knees slightly bent (same as in the left panel), back FLAT, bar slid along the legs to mid-shin, still directly above the middle of the foot, plates NOT touching the floor.
 
 Blue (#2F6FD6) ONLY on hamstrings, glutes and lower back erectors; everything else grey.
 ```
