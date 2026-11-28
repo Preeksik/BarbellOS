@@ -112,7 +112,7 @@ Create a NEW image with TWO PANELS SIDE BY SIDE (left half and right half), usin
 
 Scene: conventional deadlift, no rack, barbell with two identical matte black plates (no clips, no markings). Camera: true SIDE PROFILE from his left at hip height (we see his face from the side and the full line of his back). Both hands clearly visible gripping the bar just outside the legs.
 
-LEFT panel: START: the plates REST ON THE FLOOR, the bar is directly over the MIDDLE of his foot and TOUCHES his shins, straight arms hanging vertically, hips higher than the knees, shoulders slightly in front of the bar, back FLAT and neutral.
+LEFT panel: START: the plates REST ON THE FLOOR, the bar is directly over the MIDDLE of his foot and TOUCHES his shins, straight arms hanging vertically, hips higher than the knees, shoulders slightly in front of the bar, back FLAT and neutral. The bottom edge of the plates is at the same level as the soles of his shoes. Because the camera is at his side, the near plate is IN FRONT OF his lower legs and HIDES his shins and the middle of his feet; that is correct, do not move the bar forward to avoid covering the legs.
 RIGHT panel: LOCKOUT: standing fully upright on the same spot, hips and knees fully extended, shoulders back, bar hanging in straight arms at the top of the thighs, directly above the middle of the foot, no leaning back.
 
 Blue (#2F6FD6) ONLY on glutes, hamstrings, lower back erectors and upper trapezius; everything else grey.
