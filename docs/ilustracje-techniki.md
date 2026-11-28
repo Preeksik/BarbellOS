@@ -37,6 +37,8 @@ Drobiazgi (zacisk na talerzu, odcień niebieskiego) można przepuścić, bo każ
 
 ## Prompty
 
+**Dwa panele czy jeden obrazek?** Boje, ich warianty i pomocnicze z ryzykiem błędu techniki mają **dwa panele** (lewy: start ruchu, prawy: koniec), bo film musi dokładnie trafić w obie pozycje. Proste pomocnicze oznaczone „JEDEN obrazek” (na próbę: face pull, triceps, biceps) mają **tylko początek ruchu**, a resztę dorysuje model wideo. Jeśli ta próba się uda, przestawimy tak też inne proste ćwiczenia.
+
 Każdy blok jest samodzielny: kopiujesz cały blok do nowej rozmowy z załączoną postacią.
 
 ### `lawa.png`: wyciskanie leżąc z pauzą (zawodnicze)
@@ -221,17 +223,16 @@ RIGHT panel: chin above the bar, elbows pulled down to the sides, dumbbell still
 Blue (#2F6FD6) ONLY on lats, biceps and middle back; everything else grey.
 ```
 
-### `facepull.png`: face pull
+### `facepull.png`: face pull (JEDEN obrazek: początek ruchu)
+
+Ruch dorysuje model wideo według opisu ćwiczenia; tu tylko pozycja startowa.
 
 ```
-IMPORTANT: the RIGHT panel must be an exact copy of the LEFT panel: same equipment, same position and rotation of every object, same camera; ONLY the moving body parts change. If you overlay the two panels, the equipment and the floor must match perfectly. No divider line between the panels.
-
-Create a NEW image with TWO PANELS SIDE BY SIDE (left half and right half), using the attached man as the reference character: same face, hair, anatomical écorché muscle style with grey muscles, black shorts, black shoes, pure white background, soft studio light. Both panels: exactly the same scene, camera angle, distance and scale; only his arms differ. No text, no numbers, no logos anywhere.
+Create a NEW single image (ONE scene, not panels), using the attached man as the reference character: same face, hair, anatomical écorché muscle style with grey muscles, black shorts, black shoes, pure white background, soft studio light. No text, no numbers, no logos anywhere. Whole body and all equipment in frame with margin, square image.
 
 Scene: face pull on a light grey cable tower, pulley at face height, a rope attachment held with both hands, standing facing the tower. Camera: true SIDE view from his left.
 
-LEFT panel: arms straight in front, rope at arm's length.
-RIGHT panel: rope pulled to the face, hands beside the ears, elbows high and wide, upper arms rotated outward.
+Pose: START of the movement: arms straight in front, rope at arm's length, body upright.
 
 Blue (#2F6FD6) ONLY on rear shoulders, rhomboids and middle trapezius; everything else grey.
 ```
@@ -266,32 +267,30 @@ RIGHT panel: dumbbells pressed up over the upper chest, arms straight, dumbbells
 Blue (#2F6FD6) ONLY on upper chest, front shoulders and triceps; everything else grey.
 ```
 
-### `triceps.png`: prostowanie ramion na wyciągu jednorącz
+### `triceps.png`: prostowanie ramion na wyciągu jednorącz (JEDEN obrazek: początek ruchu)
+
+Ruch dorysuje model wideo według opisu ćwiczenia; tu tylko pozycja startowa.
 
 ```
-IMPORTANT: the RIGHT panel must be an exact copy of the LEFT panel: same equipment, same position and rotation of every object, same camera; ONLY the moving body parts change. If you overlay the two panels, the equipment and the floor must match perfectly. No divider line between the panels.
-
-Create a NEW image with TWO PANELS SIDE BY SIDE (left half and right half), using the attached man as the reference character: same face, hair, anatomical écorché muscle style with grey muscles, black shorts, black shoes, pure white background, soft studio light. Both panels: exactly the same scene, camera angle, distance and scale; only his working arm differs. No text, no numbers, no logos anywhere.
+Create a NEW single image (ONE scene, not panels), using the attached man as the reference character: same face, hair, anatomical écorché muscle style with grey muscles, black shorts, black shoes, pure white background, soft studio light. No text, no numbers, no logos anywhere. Whole body and all equipment in frame with margin, square image.
 
 Scene: single-arm cable triceps pushdown on a light grey cable tower with a high pulley, a single handle in his LEFT hand, upper arm tight against his side, other hand relaxed. He stands facing the tower. Camera: true SIDE view from his left, so the working arm is closest to the camera.
 
-LEFT panel: elbow bent about 90 degrees, forearm about parallel to the floor.
-RIGHT panel: elbow fully straight, handle pushed down next to the thigh, upper arm still against the side.
+Pose: START of the movement: elbow bent about 90 degrees, forearm about parallel to the floor.
 
 Blue (#2F6FD6) ONLY on the triceps of the working (left) arm; everything else grey.
 ```
 
-### `biceps.png`: uginanie ramion z hantlami
+### `biceps.png`: uginanie ramion z hantlami (JEDEN obrazek: początek ruchu)
+
+Ruch dorysuje model wideo według opisu ćwiczenia; tu tylko pozycja startowa.
 
 ```
-IMPORTANT: the RIGHT panel must be an exact copy of the LEFT panel: same equipment, same position and rotation of every object, same camera; ONLY the moving body parts change. If you overlay the two panels, the equipment and the floor must match perfectly. No divider line between the panels.
-
-Create a NEW image with TWO PANELS SIDE BY SIDE (left half and right half), using the attached man as the reference character: same face, hair, anatomical écorché muscle style with grey muscles, black shorts, black shoes, pure white background, soft studio light. Both panels: exactly the same scene, camera angle, distance and scale; only his arms differ. No text, no numbers, no logos anywhere.
+Create a NEW single image (ONE scene, not panels), using the attached man as the reference character: same face, hair, anatomical écorché muscle style with grey muscles, black shorts, black shoes, pure white background, soft studio light. No text, no numbers, no logos anywhere. Whole body and all equipment in frame with margin, square image.
 
 Scene: standing dumbbell biceps curl, a matte black dumbbell in each hand, palms facing forward, elbows close to the sides. Camera: three-quarter view from the front-left.
 
-LEFT panel: arms straight at the sides.
-RIGHT panel: both dumbbells curled up to shoulder height, elbows still at the sides, no swinging.
+Pose: START of the movement: arms straight at the sides.
 
 Blue (#2F6FD6) ONLY on biceps and forearm flexors; everything else grey.
 ```
